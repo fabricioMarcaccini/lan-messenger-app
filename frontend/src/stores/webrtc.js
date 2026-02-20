@@ -65,20 +65,32 @@ export const useWebRTCStore = defineStore('webrtc', () => {
         }
     }
 
-    async function setupLocalStream(video = false) {
+    async function setupLocalStream(type = 'audio') {
         if (localStream.value) {
             localStream.value.getTracks().forEach(track => track.stop())
         }
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: video,
-                audio: true
-            })
+            let stream;
+            if (type === 'screen') {
+                stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+                try {
+                    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                    const audioTrack = audioStream.getAudioTracks()[0]
+                    if (audioTrack) stream.addTrack(audioTrack)
+                } catch (e) { } // best effort auto-include mic
+                isScreenSharing.value = true
+            } else {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: type === 'video',
+                    audio: true
+                })
+                isScreenSharing.value = false
+            }
             localStream.value = stream
             return stream
         } catch (err) {
             console.error('Error accessing media devices:', err)
-            throw new Error('Não foi possível acessar a câmera ou microfone. Verifique as permissões.')
+            throw new Error('Não foi possível acessar a mídia solicitada. Verifique as permissões.')
         }
     }
 
@@ -125,14 +137,14 @@ export const useWebRTCStore = defineStore('webrtc', () => {
 
     // --- Actions ---
 
-    async function startCall(targetId, targetName, targetAvatar, video = false) {
+    async function startCall(targetId, targetName, targetAvatar, type = 'audio') {
         try {
-            isVideoCall.value = video
+            isVideoCall.value = (type === 'video' || type === 'screen')
             remoteUser.value = { id: targetId, name: targetName, avatar: targetAvatar }
             callState.value = 'calling'
             playRingtone()
 
-            await setupLocalStream(video)
+            await setupLocalStream(type)
             const pc = createPeerConnection(targetId)
 
             const offer = await pc.createOffer()
@@ -141,7 +153,7 @@ export const useWebRTCStore = defineStore('webrtc', () => {
             socketStore.socket.emit('call:offer', {
                 targetId,
                 offer,
-                isVideo: video
+                isVideo: isVideoCall.value
             })
         } catch (err) {
             alert(err.message)
@@ -167,7 +179,7 @@ export const useWebRTCStore = defineStore('webrtc', () => {
             stopRingtone()
             callState.value = 'connected'
 
-            await setupLocalStream(isVideoCall.value)
+            await setupLocalStream(isVideoCall.value ? 'video' : 'audio')
             const pc = createPeerConnection(remoteUser.value.id)
 
             await pc.setRemoteDescription(new RTCSessionDescription(offer))
