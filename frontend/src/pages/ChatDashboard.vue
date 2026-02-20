@@ -237,10 +237,53 @@
         
         <!-- Messages -->
         <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent">
-          <div v-for="msg in chatStore.activeMessages" :key="msg.id" :id="`msg-${msg.id}`" :class="[
-            'flex items-end gap-3 max-w-[80%] transition-colors duration-500 rounded-2xl',
-            msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : ''
-          ]">
+          <template v-for="msg in chatStore.activeMessages" :key="msg.id">
+
+            <!-- ==== CALL LOG MESSAGE ==== -->
+            <div v-if="msg.contentType === 'call'" :id="`msg-${msg.id}`" class="flex justify-center">
+              <div class="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 shadow-sm max-w-xs text-gray-700 dark:text-slate-300">
+                <!-- Icon by call type and status -->
+                <div class="flex-shrink-0">
+                  <template v-if="parseCallLog(msg.content).status === 'missed' || parseCallLog(msg.content).status === 'declined'">
+                    <span class="material-symbols-outlined text-red-400 text-xl">call_missed</span>
+                  </template>
+                  <template v-else-if="parseCallLog(msg.content).callType === 'video'">
+                    <span class="material-symbols-outlined text-primary text-xl">videocam</span>
+                  </template>
+                  <template v-else-if="parseCallLog(msg.content).callType === 'screen'">
+                    <span class="material-symbols-outlined text-blue-400 text-xl">present_to_all</span>
+                  </template>
+                  <template v-else>
+                    <span class="material-symbols-outlined text-green-400 text-xl">call</span>
+                  </template>
+                </div>
+                <div class="flex flex-col min-w-0">
+                  <span class="text-xs font-semibold">
+                    <span v-if="msg.senderId === authStore.user?.id">Você iniciou</span>
+                    <span v-else>{{ msg.senderName || msg.senderUsername }} ligou</span>
+                    —
+                    <span v-if="parseCallLog(msg.content).callType === 'video'">Chamada de vídeo</span>
+                    <span v-else-if="parseCallLog(msg.content).callType === 'screen'">Compartilhamento de tela</span>
+                    <span v-else>Chamada de voz</span>
+                  </span>
+                  <span class="text-[11px] opacity-60 flex items-center gap-1">
+                    <span v-if="parseCallLog(msg.content).status === 'missed'" class="text-red-400">Não atendida</span>
+                    <span v-else-if="parseCallLog(msg.content).status === 'declined'" class="text-red-400">Recusada</span>
+                    <span v-else>
+                      {{ formatCallDuration(parseCallLog(msg.content).duration) }}
+                    </span>
+                    <span class="opacity-40">·</span>
+                    <span>{{ formatTime(msg.createdAt) }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==== NORMAL MESSAGE ==== -->
+            <div v-else :id="`msg-${msg.id}`" :class="[
+              'flex items-end gap-3 max-w-[80%] transition-colors duration-500 rounded-2xl',
+              msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : ''
+            ]">
             <div 
               class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80"
               :style="{ backgroundImage: `url(${msg.senderAvatar || defaultAvatar})` }"
@@ -328,7 +371,9 @@
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+
+          </template>
         </div>
         
         <!-- Input Area -->
@@ -1048,6 +1093,18 @@ function scrollToMessage(id) {
     }
 }
 
+function parseCallLog(content) {
+  try { return JSON.parse(content) } catch { return { callType: 'audio', duration: 0, status: 'completed' } }
+}
+
+function formatCallDuration(secs) {
+  if (!secs) return '0s'
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  if (m === 0) return `${s}s`
+  return `${m}m ${s}s`
+}
+
 function formatTime(dateStr) {
   if (!dateStr) return ''
   const date = new Date(dateStr)
@@ -1117,11 +1174,34 @@ function toggleScreenShare() {
   webrtcStore.toggleScreenShare()
 }
 
-// Call timer
-watch(() => webrtcStore.callState, (state) => {
+// Call timer + auto-log when call ends
+let _callType = 'audio'
+let _callWasConnected = false
+
+watch(() => webrtcStore.callState, (state, oldState) => {
   if (state === 'connected') {
+    _callWasConnected = true
+    _callType = webrtcStore.isScreenSharing ? 'screen' : webrtcStore.isVideoCall ? 'video' : 'audio'
     callSeconds.value = 0
     callTimerInterval = setInterval(() => { callSeconds.value++ }, 1000)
+  } else if (state === 'idle' && oldState !== 'idle') {
+    const duration = callSeconds.value
+    const convId = chatStore.activeConversationId
+
+    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null }
+    callSeconds.value = 0
+    isMuted.value = false
+    isCamOff.value = false
+
+    // Save call log if there's an active conversation
+    if (convId) {
+      let status = 'missed'
+      if (_callWasConnected) status = 'completed'
+      else if (oldState === 'receiving') status = 'declined'
+
+      chatStore.saveCallLog(convId, _callType, duration, status)
+    }
+    _callWasConnected = false
   } else {
     if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null }
     callSeconds.value = 0

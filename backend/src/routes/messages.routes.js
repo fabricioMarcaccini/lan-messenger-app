@@ -274,6 +274,73 @@ router.post('/conversations/:id', async (ctx) => {
     ctx.body = { success: true, data: messageData };
 });
 
+// POST /api/messages/conversations/:id/call-log - Record call log as a special message
+router.post('/conversations/:id/call-log', async (ctx) => {
+    const { id } = ctx.params;
+    const { callType = 'audio', duration = 0, status = 'completed' } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    const convCheck = await db.write(
+        'SELECT participant_ids FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [id, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado' };
+        return;
+    }
+
+    // Encode call info as JSON string stored as content
+    const callContent = JSON.stringify({ callType, duration, status });
+
+    const result = await db.write(
+        `INSERT INTO messages (conversation_id, sender_id, content, content_type)
+         VALUES ($1, $2, $3, 'call')
+         RETURNING id, created_at`,
+        [id, userId, callContent]
+    );
+
+    const message = result.rows[0];
+    await db.write(
+        'UPDATE conversations SET last_message_id = $2, last_message_at = $3 WHERE id = $1',
+        [id, message.id, message.created_at]
+    );
+
+    const senderResult = await db.write('SELECT username, full_name, avatar_url FROM users WHERE id = $1', [userId]);
+    const sender = senderResult.rows[0];
+
+    const messageData = {
+        id: message.id,
+        conversationId: id,
+        senderId: userId,
+        senderUsername: sender.username,
+        senderName: sender.full_name,
+        senderAvatar: sender.avatar_url,
+        content: callContent,
+        contentType: 'call',
+        isRead: false,
+        isDeleted: false,
+        editedAt: null,
+        createdAt: message.created_at,
+        replyTo: null,
+        reactions: {},
+        expiresAt: null
+    };
+
+    const io = ctx.app.context.io;
+    if (io) {
+        convCheck.rows[0].participant_ids.forEach(participantId => {
+            if (participantId !== userId) {
+                io.to(`user:${participantId}`).emit('message:new', messageData);
+            }
+        });
+    }
+
+    ctx.status = 201;
+    ctx.body = { success: true, data: messageData };
+});
+
 // PUT /api/messages/:id - Edit message content
 router.put('/:id', async (ctx) => {
     const { id } = ctx.params;

@@ -234,6 +234,21 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    async function saveCallLog(conversationId, callType, duration, status) {
+        try {
+            const { data } = await axios.post(
+                `/api/messages/conversations/${conversationId}/call-log`,
+                { callType, duration, status },
+                { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } }
+            )
+            if (data.success) {
+                addMessage(data.data)
+            }
+        } catch (e) {
+            console.error('Failed to save call log:', e)
+        }
+    }
+
     // Clean up expired messages
     setInterval(() => {
         Object.keys(messages.value).forEach(convId => {
@@ -264,6 +279,7 @@ export const useChatStore = defineStore('chat', () => {
         updateMessageEdited,
         updateMessageRead,
         toggleReaction,
-        updateMessageReaction
+        updateMessageReaction,
+        saveCallLog
     }
 })
