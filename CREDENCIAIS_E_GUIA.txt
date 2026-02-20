@@ -1,0 +1,216 @@
+================================================================================
+                     LAN MESSENGER - GUIA DE USO E CREDENCIAIS
+                          Versão 3.0 - Ambiente de Teste
+================================================================================
+
+📅 Gerado em: 03/02/2026
+🔒 CONFIDENCIAL - Uso interno apenas
+
+================================================================================
+                              CREDENCIAIS DE ACESSO
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ADMINISTRADOR                                                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Usuário:     nathalia.brandao                                               │
+│  Senha:       senha123                                                       │
+│  Nome:        Nathalia Brandão                                               │
+│  Email:       nathalia.brandao@empresa.com.br                                │
+│  Cargo:       Diretora de TI                                                 │
+│  Depto:       Diretoria                                                      │
+│  Permissões:  ✓ Criar usuários   ✓ Editar usuários   ✓ Desativar usuários   │
+│               ✓ Escanear rede    ✓ Ver dispositivos  ✓ Todas as conversas   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  USUÁRIOS PADRÃO                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. Fabricio Marcaccini                                                      │
+│     └─ Usuário: fabricio                                                     │
+│     └─ Senha:   senha123                                                     │
+│     └─ Email:   fabricio@empresa.com.br                                      │
+│     └─ Cargo:   Desenvolvedor Sênior                                         │
+│     └─ Depto:   Desenvolvimento                                              │
+│                                                                              │
+│  2. Julia Silva                                                              │
+│     └─ Usuário: julia                                                        │
+│     └─ Senha:   senha123                                                     │
+│     └─ Email:   julia@empresa.com.br                                         │
+│     └─ Cargo:   Analista de Marketing                                        │
+│     └─ Depto:   Marketing                                                    │
+│                                                                              │
+│  3. Guilherme Santos                                                         │
+│     └─ Usuário: guilherme                                                    │
+│     └─ Senha:   senha123                                                     │
+│     └─ Email:   guilherme@empresa.com.br                                     │
+│     └─ Cargo:   Executivo de Vendas                                          │
+│     └─ Depto:   Comercial                                                    │
+│                                                                              │
+│  4. Marco Oliveira                                                           │
+│     └─ Usuário: marco                                                        │
+│     └─ Senha:   senha123                                                     │
+│     └─ Email:   marco@empresa.com.br                                         │
+│     └─ Cargo:   Analista Financeiro                                          │
+│     └─ Depto:   Financeiro                                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                              COMO ACESSAR O SISTEMA
+================================================================================
+
+1. INICIAR OS SERVIÇOS
+   ─────────────────────
+   # Terminal 1 - Banco de dados
+   cd c:\Users\Fabricio.Marcaccini\Desktop\lan
+   docker-compose up -d
+
+   # Terminal 2 - Backend
+   cd backend
+   npm run dev
+
+   # Terminal 3 - Frontend
+   cd frontend  
+   npm run dev
+
+2. ACESSAR A APLICAÇÃO
+   ─────────────────────
+   URL: http://localhost:5173
+   
+   Entre com qualquer um dos usuários acima.
+
+================================================================================
+                            FUNCIONALIDADES POR PERFIL
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ADMIN (nathalia.brandao)                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  • Gerenciamento de Usuários (/admin/users)                                  │
+│    - Criar novos usuários                                                    │
+│    - Editar informações de qualquer usuário                                  │
+│    - Desativar/reativar usuários                                             │
+│    - Ver estatísticas da empresa                                             │
+│                                                                              │
+│  • Chat                                                                      │
+│    - Todas as funcionalidades de usuário                                     │
+│                                                                              │
+│  • Descoberta de Rede (/network)                                             │
+│    - Escanear rede local                                                     │
+│    - Ver dispositivos conectados                                             │
+│    - Vincular dispositivos a usuários                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  USUÁRIO PADRÃO (fabricio, julia, guilherme, marco)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  • Chat (/)                                                                  │
+│    - Enviar e receber mensagens em tempo real                                │
+│    - Criar conversas individuais                                             │
+│    - Participar de grupos                                                    │
+│    - Ver indicador de digitação                                              │
+│    - Ver status de presença (online/offline)                                 │
+│                                                                              │
+│  • Configurações (/settings)                                                 │
+│    - Editar perfil próprio                                                   │
+│    - Alterar tema (claro/escuro)                                             │
+│    - Trocar idioma (PT/EN/ES)                                                │
+│                                                                              │
+│  • Descoberta de Rede (/network)                                             │
+│    - Ver dispositivos na rede                                                │
+│    - Escanear rede                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                               ROTAS DA APLICAÇÃO
+================================================================================
+
+  /login          - Tela de login
+  /               - Dashboard de chat (principal)
+  /network        - Descoberta de dispositivos na rede
+  /settings       - Configurações do perfil
+  /admin/users    - Gerenciamento de usuários (somente admin)
+
+================================================================================
+                              TESTES RECOMENDADOS
+================================================================================
+
+✅ TESTE 1: Login e Logout
+   - Fazer login com nathalia.brandao / senha123
+   - Verificar se o menu Admin aparece
+   - Fazer logout
+   - Fazer login com fabricio / senha123
+   - Verificar que menu Admin NÃO aparece
+
+✅ TESTE 2: Chat em Tempo Real
+   - Abrir 2 navegadores (ou aba anônima)
+   - Logar com nathalia.brandao em um
+   - Logar com fabricio no outro
+   - Iniciar conversa entre eles
+   - Verificar mensagens em tempo real
+
+✅ TESTE 3: Criação de Usuário (Admin)
+   - Logar como nathalia.brandao
+   - Ir em /admin/users
+   - Clicar em "Adicionar Novo Usuário"
+   - Criar um usuário de teste
+   - Fazer logout e tentar logar com o novo usuário
+
+✅ TESTE 4: Edição de Usuário (Admin)
+   - Logar como nathalia.brandao
+   - Ir em /admin/users
+   - Clicar no ícone de editar em qualquer usuário
+   - Alterar nome ou departamento
+   - Salvar e verificar se atualizou
+
+✅ TESTE 5: Descoberta de Rede
+   - Ir em /network
+   - Clicar em "Escanear Rede"
+   - Verificar dispositivos encontrados
+
+✅ TESTE 6: Tema e Idioma
+   - Ir em /settings
+   - Alternar entre tema claro e escuro
+   - Trocar idioma para inglês
+   - Verificar se toda a interface traduz
+
+================================================================================
+                          INFORMAÇÕES TÉCNICAS
+================================================================================
+
+  Backend:     http://localhost:3000
+  Frontend:    http://localhost:5173
+  PostgreSQL:  localhost:5433
+  MySQL:       localhost:3306
+  Redis:       localhost:6379
+
+  Stack:
+  - Frontend: Vue.js 3 + Vite + Tailwind CSS + Pinia
+  - Backend:  Node.js 22 + Koa.js + Socket.IO
+  - Database: PostgreSQL (write) + MySQL (read) + Redis (cache)
+
+================================================================================
+                              SOLUÇÃO DE PROBLEMAS
+================================================================================
+
+❌ Erro "Credenciais inválidas"
+   → Verificar se digitou usuário e senha corretamente
+   → Senha é "senha123" para todos os usuários
+
+❌ Erro de conexão ao banco
+   → Executar: docker-compose up -d
+   → Verificar se containers estão rodando: docker ps
+
+❌ Frontend não carrega
+   → Verificar se backend está rodando (porta 3000)
+   → Verificar console do navegador (F12)
+
+❌ Mensagens não chegam em tempo real
+   → Verificar conexão Socket.IO no console
+   → Fazer logout e login novamente
+
+================================================================================
+                                    FIM
+================================================================================

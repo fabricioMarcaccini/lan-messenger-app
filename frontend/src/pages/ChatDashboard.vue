@@ -1,0 +1,570 @@
+<template>
+  <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300">
+    <!-- Left Sidebar -->
+    <aside class="w-[280px] flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full z-20 bg-white dark:bg-transparent">
+      <!-- User Profile -->
+      <div class="p-6 border-b border-gray-100 dark:border-glass-border">
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <div 
+              class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 ring-2 ring-primary/20"
+              :style="{ backgroundImage: `url(${authStore.user?.avatarUrl || defaultAvatar})` }"
+            ></div>
+            <div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-white dark:border-background-dark"></div>
+          </div>
+          <div class="flex flex-col">
+            <h1 class="text-gray-900 dark:text-white text-base font-bold leading-tight tracking-tight">{{ authStore.user?.fullName || authStore.user?.username }}</h1>
+            <span class="text-primary text-xs font-medium tracking-wide">{{ locale.t.profile.connected }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Navigation -->
+      <nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
+        <div class="flex flex-col gap-1">
+          <router-link to="/network" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
+            <span class="material-symbols-outlined group-hover:text-primary transition-colors">hub</span>
+            <span class="text-sm font-medium">{{ locale.t.nav.network }}</span>
+          </router-link>
+          
+          <a class="flex items-center gap-3 px-3 py-3 rounded-xl bg-primary/10 text-gray-900 dark:text-white border border-primary/20 shadow-sm dark:shadow-neon" href="#">
+            <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">chat</span>
+            <span class="text-sm font-medium">{{ locale.t.nav.chat }}</span>
+            <span v-if="unreadCount > 0" class="ml-auto bg-primary text-white dark:text-background-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ unreadCount }}</span>
+          </a>
+          
+          <router-link to="/settings" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
+            <span class="material-symbols-outlined group-hover:text-accent transition-colors">settings</span>
+            <span class="text-sm font-medium">{{ locale.t.nav.settings }}</span>
+          </router-link>
+          
+          <router-link v-if="authStore.isAdmin" to="/admin/users" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
+            <span class="material-symbols-outlined group-hover:text-purple-400 transition-colors">admin_panel_settings</span>
+            <span class="text-sm font-medium">{{ locale.t.nav.admin }}</span>
+          </router-link>
+        </div>
+        
+        <!-- Network Scanner Section -->
+        <div class="h-6"></div>
+        <div class="flex flex-col gap-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{{ locale.t.nav.scannerTools }}</p>
+          <details class="group bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5" open>
+            <summary class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2.5 select-none hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-lg">radar</span>
+                <span class="text-gray-700 dark:text-slate-200 text-sm font-medium">{{ locale.t.nav.scanner }}</span>
+              </div>
+              <span class="material-symbols-outlined text-gray-400 dark:text-slate-500 group-open:rotate-180 transition-transform text-lg">expand_more</span>
+            </summary>
+            <div class="px-3 pb-3 pt-1 flex flex-col gap-2">
+              <div 
+                v-for="device in recentDevices" 
+                :key="device.ip"
+                class="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-100 dark:bg-black/20 hover:bg-gray-200 dark:hover:bg-black/40 cursor-pointer border border-transparent hover:border-primary/20"
+              >
+                <span class="font-mono text-gray-600 dark:text-slate-300">{{ device.ipAddress }}</span>
+                <span 
+                  :class="[
+                    'font-medium text-[10px] px-1.5 py-0.5 rounded',
+                    device.isOnline ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10' : 'text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-slate-500/10'
+                  ]"
+                >
+                  {{ device.isOnline ? 'Active' : 'Idle' }}
+                </span>
+              </div>
+              <router-link to="/network" class="text-xs text-primary hover:underline text-center mt-1">{{ locale.t.nav.viewAll }} →</router-link>
+            </div>
+          </details>
+        </div>
+      </nav>
+      
+      <!-- Bottom Info -->
+      <div class="p-4 border-t border-gray-100 dark:border-glass-border flex flex-col gap-3">
+        <button 
+          @click="handleLogout"
+          class="flex items-center justify-center gap-2 w-full px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-sm font-medium"
+        >
+          <span class="material-symbols-outlined text-[18px]">logout</span>
+          <span>{{ locale.t.auth?.logout || 'Sign Out' }}</span>
+        </button>
+        <div class="flex items-center justify-between text-xs text-gray-400 dark:text-slate-500">
+          <span>v3.0.0 (Stable)</span>
+          <div class="flex items-center gap-1">
+            <div class="size-2 rounded-full bg-primary/50"></div>
+            <span>LAN Secure</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Center Panel: Chat List -->
+    <section class="w-[360px] flex-shrink-0 flex flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-colors duration-300">
+      <div class="p-5 pb-2 pt-6">
+        <div class="flex justify-between items-end mb-4">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{{ locale.t.chat.title }}</h2>
+          <button 
+            @click="showNewChatModal = true"
+            class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
+          >
+            <span class="material-symbols-outlined text-lg">edit_square</span>
+          </button>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="relative group">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span class="material-symbols-outlined text-gray-400 dark:text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+          </div>
+          <input 
+            v-model="searchQuery"
+            type="text" 
+            :placeholder="locale.t.chat.search"
+            class="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl leading-5 bg-white dark:bg-black/20 text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white dark:focus:bg-black/30 sm:text-sm transition-all shadow-sm dark:shadow-inner"
+          />
+        </div>
+      </div>
+      
+      <!-- Conversations List -->
+      <div class="flex-1 overflow-y-auto px-3 pb-4">
+        <div class="flex flex-col gap-2 mt-2">
+          <div 
+            v-for="conv in filteredConversations" 
+            :key="conv.id"
+            @click="selectConversation(conv.id)"
+            :class="[
+              'glass-card p-3 rounded-xl cursor-pointer relative group border border-transparent hover:bg-white dark:hover:bg-white/5',
+              chatStore.activeConversationId === conv.id ? 'bg-primary/10 border-primary/30 shadow-sm dark:shadow-neon' : 'bg-transparent'
+            ]"
+          >
+            <div class="flex gap-3 relative z-10">
+              <div class="relative flex-shrink-0">
+                <div 
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
+                  :style="{ backgroundImage: `url(${conv.participants[0]?.avatar_url || defaultAvatar})` }"
+                ></div>
+              </div>
+              <div class="flex flex-col flex-1 min-w-0 justify-center">
+                <div class="flex justify-between items-baseline mb-0.5">
+                  <h3 class="text-gray-900 dark:text-white text-sm font-semibold truncate">
+                    {{ conv.name || conv.participants.map(p => p.full_name || p.username).join(', ') }}
+                  </h3>
+                  <span class="text-gray-400 dark:text-slate-400 text-xs">{{ formatTime(conv.lastMessageAt) }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <p class="text-gray-500 dark:text-slate-400 text-xs truncate pr-2">{{ conv.lastMessage }}</p>
+                  <span 
+                    v-if="conv.unreadCount > 0"
+                    class="flex items-center justify-center min-w-[18px] h-[18px] bg-primary text-white dark:text-background-dark text-[10px] font-bold rounded-full px-1 shadow-sm dark:shadow-neon"
+                  >
+                    {{ conv.unreadCount }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="filteredConversations.length === 0" class="text-center text-gray-400 dark:text-slate-500 py-8">
+            <span class="material-symbols-outlined text-4xl mb-2 block opacity-50">chat_bubble</span>
+            <p>{{ locale.t.chat.noConversations }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Right Panel: Active Chat -->
+    <main class="flex-1 flex flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300">
+      <template v-if="chatStore.activeConversation">
+        <!-- Chat Header -->
+        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0">
+          <div class="flex items-center gap-4">
+            <div 
+              class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20"
+              :style="{ backgroundImage: `url(${chatStore.activeConversation.participants[0]?.avatar_url || defaultAvatar})` }"
+            ></div>
+            <div>
+              <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-none mb-1">
+                {{ chatStore.activeConversation.name || chatStore.activeConversation.participants[0]?.full_name }}
+              </h2>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="flex size-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                <span class="text-green-600 dark:text-green-400 font-medium">{{ locale.t.chat.online }}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <!-- Messages -->
+        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent">
+          <div v-for="msg in chatStore.activeMessages" :key="msg.id" :class="[
+            'flex items-end gap-3 max-w-[80%]',
+            msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : ''
+          ]">
+            <div 
+              class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80"
+              :style="{ backgroundImage: `url(${msg.senderAvatar || defaultAvatar})` }"
+            ></div>
+            <div :class="['flex flex-col gap-1', msg.senderId === authStore.user?.id ? 'items-end' : '']">
+              <div :class="[
+                'rounded-2xl border shadow-sm overflow-hidden',
+                msg.senderId === authStore.user?.id 
+                  ? 'bg-primary text-white dark:bg-gradient-to-br dark:from-primary/20 dark:to-blue-600/20 dark:backdrop-blur-md dark:border-primary/30 dark:shadow-neon rounded-br-none border-primary'
+                  : 'bg-white dark:bg-white/10 dark:backdrop-blur-md text-gray-700 dark:text-slate-200 border-gray-200 dark:border-white/5 rounded-bl-none'
+              ]">
+                <!-- Text Message -->
+                <p v-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed">{{ msg.content }}</p>
+                
+                <!-- Image Message -->
+                <div v-else-if="msg.contentType === 'image'" class="p-1">
+                  <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
+                </div>
+
+                <!-- File/PDF/Video Message -->
+                <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
+                  <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
+                    <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
+                    <span class="material-symbols-outlined text-2xl" v-else>description</span>
+                  </div>
+                  <div class="flex flex-col flex-1 min-w-0">
+                    <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
+                    <a 
+                      :href="getApiUrl(msg.content)" 
+                      target="_blank" 
+                      download 
+                      class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
+                    >
+                      Download <span class="material-symbols-outlined text-[10px]">download</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <span class="text-[10px] text-gray-400 dark:text-slate-500 px-1">{{ formatTime(msg.createdAt) }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="p-6 pt-2 shrink-0 z-20 bg-gray-50 dark:bg-transparent relative">
+          <!-- Emoji Picker (Absolute positioned) -->
+          <div v-if="showEmojiPicker" class="absolute bottom-20 left-6 z-30 shadow-2xl rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
+            <emoji-picker class="light dark:dark"></emoji-picker>
+          </div>
+
+          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex items-end gap-2 shadow-lg relative">
+            <div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none hidden dark:block"></div>
+            
+            <!-- File Upload Input (Hidden) -->
+            <input 
+              type="file" 
+              ref="fileInput" 
+              class="hidden" 
+              @change="handleFileUpload"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
+            />
+            
+            <button 
+              @click="$refs.fileInput.click()"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
+            >
+              <span class="material-symbols-outlined transform rotate-45">attach_file</span>
+            </button>
+            
+            <div class="flex-1 min-h-[44px] py-2.5">
+              <textarea 
+                v-model="newMessage"
+                @keyup.enter.exact="sendMessage"
+                rows="1"
+                @input="autoResize"
+                :placeholder="locale.t.chat.typeMessage"
+                class="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-0 resize-none max-h-32"
+              ></textarea>
+            </div>
+            
+            <div class="flex items-center gap-1 mb-0.5 shrink-0">
+              <button 
+                @click="showEmojiPicker = !showEmojiPicker"
+                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
+                title="Emojis"
+              >
+                <span class="material-symbols-outlined">sentiment_satisfied</span>
+              </button>
+              <button 
+                @click="sendMessage"
+                class="h-10 px-4 ml-1 bg-primary hover:bg-cyan-400 text-white dark:text-background-dark rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-sm dark:shadow-neon"
+              >
+                <span>{{ locale.t.chat.send }}</span>
+                <span class="material-symbols-outlined text-[18px]">send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+      
+      <!-- No conversation selected -->
+      <template v-else>
+        <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-transparent">
+          <div class="text-center text-gray-400 dark:text-slate-500">
+            <span class="material-symbols-outlined text-6xl mb-4 block opacity-30">forum</span>
+            <p class="text-lg">{{ locale.t.chat.selectConversation }}</p>
+          </div>
+        </div>
+      </template>
+    </main>
+
+    <!-- New Chat Modal -->
+    <div v-if="showNewChatModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative flex flex-col max-h-[80vh] bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-xl">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ locale.t.chat.newChat }}</h2>
+          <button @click="showNewChatModal = false" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <input 
+          v-model="userFilter"
+          type="text" 
+          :placeholder="locale.t.chat.userSearch"
+          class="input-glass mb-4 text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-gray-200 dark:border-transparent"
+        />
+        
+        <div class="flex-1 overflow-y-auto min-h-[200px] flex flex-col gap-2">
+          <button
+            v-for="user in filteredUsers"
+            :key="user.id"
+            @click="startConversation(user.id)"
+            class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left group"
+          >
+            <div 
+              class="bg-center bg-no-repeat bg-cover rounded-full size-10"
+              :style="{ backgroundImage: `url(${user.avatarUrl || defaultAvatar})` }"
+            ></div>
+            <div class="flex flex-col">
+              <span class="text-gray-900 dark:text-white font-medium group-hover:text-primary transition-colors">{{ user.fullName }}</span>
+              <span class="text-xs text-gray-500 dark:text-slate-500">@{{ user.username }}</span>
+            </div>
+          </button>
+          
+          <p v-if="filteredUsers.length === 0" class="text-gray-500 dark:text-slate-500 text-center py-4">
+            {{ locale.t.chat.noUsers }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useChatStore } from '@/stores/chat'
+import { useNetworkStore } from '@/stores/network'
+import { useSocketStore } from '@/stores/socket'
+import { useUsersStore } from '@/stores/users'
+import { useLocaleStore } from '@/stores/locale'
+import 'emoji-picker-element'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const chatStore = useChatStore()
+const networkStore = useNetworkStore()
+const socketStore = useSocketStore()
+const usersStore = useUsersStore()
+const locale = useLocaleStore()
+
+const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
+
+const searchQuery = ref('')
+const newMessage = ref('')
+const messagesContainer = ref(null)
+const showNewChatModal = ref(false)
+const userFilter = ref('')
+const showEmojiPicker = ref(false)
+const fileInput = ref(null)
+
+const unreadCount = computed(() => 
+  chatStore.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+)
+// ... computed properties ...
+
+const filteredConversations = computed(() => {
+  if (!searchQuery.value) return chatStore.conversations
+  const query = searchQuery.value.toLowerCase()
+  return chatStore.conversations.filter(c => 
+    c.name?.toLowerCase().includes(query) ||
+    c.participants.some(p => p.full_name?.toLowerCase().includes(query))
+  )
+})
+
+const recentDevices = computed(() => 
+  networkStore.devices.slice(0, 3)
+)
+
+const filteredUsers = computed(() => {
+  if (!usersStore.users) return []
+  const query = userFilter.value.toLowerCase()
+  return usersStore.users.filter(u => 
+    u.id !== authStore.user?.id && // Exclude self
+    (u.fullName?.toLowerCase().includes(query) || u.username?.toLowerCase().includes(query))
+  )
+})
+
+function selectConversation(id) {
+  chatStore.setActiveConversation(id)
+  socketStore.joinConversation(id)
+}
+
+async function startConversation(userId) {
+  const conversationId = await chatStore.createConversation([userId])
+  if (conversationId) {
+    showNewChatModal.value = false
+    selectConversation(conversationId)
+  }
+}
+
+async function sendMessage() {
+  if (!newMessage.value.trim() || !chatStore.activeConversationId) return
+  
+  await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value)
+  newMessage.value = ''
+  showEmojiPicker.value = false
+  
+  await nextTick()
+  scrollToBottom()
+  
+  // Reset textarea height
+  const textarea = document.querySelector('textarea')
+  if (textarea) textarea.style.height = 'auto'
+}
+
+function autoResize(event) {
+  event.target.style.height = 'auto'
+  event.target.style.height = event.target.scrollHeight + 'px'
+}
+
+async function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // Security: Block potentially malicious file types
+  const blockedExtensions = ['.exe', '.bat', '.cmd', '.msi', '.ps1', '.vbs', '.js', '.jar', '.scr', '.pif']
+  const fileExt = '.' + file.name.split('.').pop().toLowerCase()
+  
+  if (blockedExtensions.includes(fileExt)) {
+    alert('Tipo de arquivo não permitido por segurança')
+    event.target.value = ''
+    return
+  }
+
+  // Max 50MB
+  const maxSize = 50 * 1024 * 1024
+  if (file.size > maxSize) {
+    alert('Arquivo muito grande. Máximo permitido: 50MB')
+    event.target.value = ''
+    return
+  }
+
+  try {
+    console.log('📤 Uploading file:', file.name, file.type, file.size)
+    const uploadedFile = await chatStore.uploadFile(file)
+    console.log('✅ Upload success:', uploadedFile)
+    
+    // Send message with file URL
+    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType)
+    await nextTick()
+    scrollToBottom()
+  } catch (error) {
+    console.error('❌ Upload failed:', error)
+    alert('Erro ao enviar arquivo: ' + (error.response?.data?.message || error.message || 'Erro desconhecido'))
+  } finally {
+    event.target.value = '' // Reset input
+  }
+}
+
+function onEmojiClick(event) {
+  newMessage.value += event.detail.unicode
+}
+
+function getApiUrl(path) {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `http://localhost:3000${path}`
+}
+
+function getFileName(path) {
+  if (!path) return 'File'
+  return path.split('/').pop().split('-').slice(1).join('-') || path.split('/').pop()
+}
+
+function openImage(url) {
+  window.open(url, '_blank')
+}
+
+function scrollToBottom() {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now - date
+  
+  if (diff < 60000) return locale.t.chat.now
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m `
+  if (diff < 86400000) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleDateString()
+}
+
+watch(() => chatStore.activeMessages.length, () => {
+  nextTick(scrollToBottom)
+})
+
+async function handleLogout() {
+  socketStore.disconnect()
+  await authStore.logout()
+  router.push('/login')
+}
+
+onMounted(async () => {
+  await chatStore.fetchConversations()
+  await networkStore.fetchDevices()
+  await usersStore.fetchUsers(1, '')
+  
+  // Add emoji picker listener
+  document.addEventListener('emoji-click', onEmojiClick)
+  
+  // Listen for new messages from socket
+  window.addEventListener('socket:message', handleNewMessage)
+})
+
+// Handle new message from socket
+function handleNewMessage(event) {
+  const message = event.detail
+  if (message && message.conversationId) {
+    // Add message to chat store
+    chatStore.addMessage(message.conversationId, message)
+    
+    // Scroll to bottom if this is the active conversation
+    if (chatStore.activeConversationId === message.conversationId) {
+      nextTick(scrollToBottom)
+    }
+    
+    // Show notification if not in active conversation
+    if (chatStore.activeConversationId !== message.conversationId && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('Nova mensagem', {
+        body: `${message.senderName || message.senderUsername}: ${message.content}`,
+        icon: '/vite.svg'
+      })
+    }
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('emoji-click', onEmojiClick)
+  window.removeEventListener('socket:message', handleNewMessage)
+})
+</script>

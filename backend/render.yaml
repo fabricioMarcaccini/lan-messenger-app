@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: lan-messenger-backend
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: "https://frontend-iota-one-83.vercel.app"
+      - key: PG_HOST
+        value: "dpg-d6c68fa4d50c73d53vbg-a.ohio-postgres.render.com"
+      - key: PG_PORT
+        value: "5432"
+      - key: PG_DATABASE
+        value: "landb_psr2"
+      - key: PG_USER
+        value: "landb_psr2_user"
+      - key: PG_PASSWORD
+        value: "3aqBVNegUSPLUxEKCjtAcVARGNNS4doT"
+      - key: MYSQL_HOST
+        value: "localhost" # Not strictly required if Supabase fallback is triggered
+      - key: REDIS_HOST
+        value: "localhost"
+      - key: REDIS_PORT
+        value: "6379"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES
+        value: "24h"
+      - key: JWT_REFRESH_EXPIRES
+        value: "7d"

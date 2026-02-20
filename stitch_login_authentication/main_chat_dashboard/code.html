@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enterprise LAN Messenger</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#00d4ff",
+                        "accent": "#d946ef", // Vibrant Purple-ish
+                        "background-light": "#f5f8f8",
+                        "background-dark": "#0f2023",
+                        "glass-border": "rgba(255, 255, 255, 0.08)",
+                        "glass-surface": "rgba(15, 32, 35, 0.7)",
+                        "glass-surface-lighter": "rgba(20, 40, 45, 0.6)",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    boxShadow: {
+                        "neon": "0 0 10px rgba(0, 212, 255, 0.3), 0 0 20px rgba(0, 212, 255, 0.1)",
+                        "neon-purple": "0 0 10px rgba(217, 70, 239, 0.3)",
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2); 
+        }
+        
+        /* Glassmorphism utility specific for this dark theme */
+        .glass-panel {
+            background: rgba(15, 32, 35, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(0, 212, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-[#050a0c] text-slate-200 font-display h-screen w-screen overflow-hidden selection:bg-primary/30">
+<!-- Background Gradient Mesh for depth -->
+<div class="fixed inset-0 z-0 pointer-events-none opacity-40">
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/20 blur-[120px]"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-accent/20 blur-[120px]"></div>
+<div class="absolute top-[30%] left-[40%] w-[30%] h-[30%] rounded-full bg-blue-900/20 blur-[100px]"></div>
+</div>
+<!-- Main Layout -->
+<div class="relative z-10 flex h-full w-full">
+<!-- Left Sidebar -->
+<aside class="w-[280px] flex-shrink-0 flex flex-col glass-panel border-r border-glass-border h-full z-20">
+<!-- User Profile -->
+<div class="p-6 border-b border-glass-border">
+<div class="flex items-center gap-4">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 ring-2 ring-primary/20" data-alt="Profile picture of system administrator with cybernetic overlay" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBelQVMSOvmYtU013SS8yF8wokdjJpwD3gWqNEGSkNXh55yo8smCX1DoPRbkGM3lXKQeXgoxl3ulHIEOY-BgWryir37Uloj0S_uhRF3TOhB1yjf65NLcFbIKWviDXJTEeoNNXEMlxWQTiBrU1fq4mKqxmJduFnx_3bSvHAR3yTu13iCZ5IqR1nozaEW5j_dOBGzObhj6SIu1gNWp70-2Rpwa3HPayKvvblnwMyI972SzDhtrUwSiJZ2IjF_JgnpFt7LgckveS_PrJ3D");'>
+</div>
+<div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-[#0f2023]"></div>
+<div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full animate-ping opacity-75"></div>
+</div>
+<div class="flex flex-col">
+<h1 class="text-white text-base font-bold leading-tight tracking-tight">SysAdmin_01</h1>
+<span class="text-primary text-xs font-medium tracking-wide">CONNECTED</span>
+</div>
+</div>
+</div>
+<!-- Navigation -->
+<nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">group</span>
+<span class="text-sm font-medium">Contacts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-xl bg-primary/10 text-white border border-primary/20 shadow-neon" href="#">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">chat</span>
+<span class="text-sm font-medium">Messages</span>
+<span class="ml-auto bg-primary text-[#0f2023] text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors group" href="#">
+<span class="material-symbols-outlined group-hover:text-accent transition-colors">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</div>
+<!-- Spacer -->
+<div class="h-6"></div>
+<!-- Network Scanner Accordion -->
+<div class="flex flex-col gap-2">
+<p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Network Tools</p>
+<details class="group bg-white/5 rounded-xl border border-white/5 open">
+<summary class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2.5 select-none hover:bg-white/5 rounded-xl transition-colors">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">radar</span>
+<span class="text-slate-200 text-sm font-medium">Scanner</span>
+</div>
+<span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform text-lg">expand_more</span>
+</summary>
+<div class="px-3 pb-3 pt-1 flex flex-col gap-2">
+<div class="flex items-center justify-between text-xs p-2 rounded-lg bg-black/20 hover:bg-black/40 cursor-pointer border border-transparent hover:border-primary/20 group/ip">
+<span class="font-mono text-slate-300">192.168.1.45</span>
+<span class="text-green-400 font-medium text-[10px] px-1.5 py-0.5 bg-green-400/10 rounded">Active</span>
+</div>
+<div class="flex items-center justify-between text-xs p-2 rounded-lg bg-black/20 hover:bg-black/40 cursor-pointer border border-transparent hover:border-primary/20 group/ip">
+<span class="font-mono text-slate-400">192.168.1.12</span>
+<span class="text-slate-500 font-medium text-[10px] px-1.5 py-0.5 bg-slate-500/10 rounded">Idle</span>
+</div>
+<div class="flex items-center justify-between text-xs p-2 rounded-lg bg-black/20 hover:bg-black/40 cursor-pointer border border-transparent hover:border-primary/20 group/ip">
+<span class="font-mono text-slate-300">192.168.1.99</span>
+<span class="text-yellow-400 font-medium text-[10px] px-1.5 py-0.5 bg-yellow-400/10 rounded">Scan..</span>
+</div>
+</div>
+</details>
+</div>
+</nav>
+<!-- Bottom Info -->
+<div class="p-4 border-t border-glass-border">
+<div class="flex items-center justify-between text-xs text-slate-500">
+<span>v2.4.0 (Stable)</span>
+<div class="flex items-center gap-1">
+<div class="size-2 rounded-full bg-primary/50"></div>
+<span>LAN Secure</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Center Panel: Chat List -->
+<section class="w-[360px] flex-shrink-0 flex flex-col bg-glass-surface-lighter backdrop-blur-md border-r border-glass-border z-10">
+<!-- Header -->
+<div class="p-5 pb-2 pt-6">
+<div class="flex justify-between items-end mb-4">
+<h2 class="text-2xl font-bold text-white tracking-tight">Messages</h2>
+<button class="size-8 rounded-full bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-lg">edit_square</span>
+</button>
+</div>
+<!-- Search Bar -->
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl leading-5 bg-black/20 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-black/30 sm:text-sm transition-all shadow-inner" placeholder="Search conversations..." type="text"/>
+</div>
+</div>
+<!-- List -->
+<div class="flex-1 overflow-y-auto px-3 pb-4">
+<div class="flex flex-col gap-2 mt-2">
+<!-- Chat Item 1 (Active/Unread) -->
+<div class="glass-card p-3 rounded-xl cursor-pointer relative group bg-white/5 border-primary/20">
+<div class="absolute inset-0 bg-primary/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<div class="flex gap-3 relative z-10">
+<div class="relative flex-shrink-0">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar of DevOps Team group chat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuATshJhZK_L3f7eYx_mniGeGWFLIznXFI-5yf1_RE20n5ohKYKADF_cthNUhIjwPRtq7Cz1Ep8qoIXX2_Zh9ZrWZDIxDCFqjQsQ9X-VVB0QST3LN-kYzz50-0rIj3ES1vTEKfYiDKWzLy3cvD_pXwglhrdU7M_mFRd2VjGQDaP3ulD9pXE2pMG0JzDKoq9DES-LIjOhb7QqP6ttuxe9u7D6nubEdfA4l-drWy8NUaG2sjpDM5wZUKblJhSKEtWtsvJ1rdgEtePEpagQ");'></div>
+<div class="absolute -bottom-0.5 -right-0.5 bg-[#0f2023] rounded-full p-0.5">
+<div class="size-2.5 bg-primary rounded-full border border-[#0f2023]"></div>
+</div>
+</div>
+<div class="flex flex-col flex-1 min-w-0 justify-center">
+<div class="flex justify-between items-baseline mb-0.5">
+<h3 class="text-white text-sm font-semibold truncate">DevOps Team</h3>
+<span class="text-primary text-xs font-medium">10:42 AM</span>
+</div>
+<div class="flex justify-between items-center">
+<p class="text-slate-300 text-xs truncate pr-2 font-medium">Server restart scheduled for 2AM</p>
+<span class="flex items-center justify-center min-w-[18px] h-[18px] bg-primary text-[#0f2023] text-[10px] font-bold rounded-full px-1 shadow-neon">3</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Item 2 (Active Context) -->
+<div class="glass-card p-3 rounded-xl cursor-pointer relative bg-primary/10 border-primary/30 shadow-neon">
+<div class="flex gap-3 relative z-10">
+<div class="relative flex-shrink-0">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar of Davide Front-end developer" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDO8t8Umm0ZdsX21AM0DBKFX_1VT01sGGBoL6zCirTCBb9-LeLUN2l34l-zIG7TKEvW53OMW8f6IX_jThqJVMMEqwiu7hVbVXtnd5UH1sfW4jF5yyb2YUEc0s1h8FtY988XctpoxDcvK1DdEec8rEpiKQ8mtsHSSs-c73zuduJoroD-dj3igN1LfoaVOC7MHNfsPchDMa63n652BaSgDQrqItQ1jo9skkvvFUqcmuXfFTOObB2lgQnwL6wj_JXrdoIevH6FZsSWgE1H");'></div>
+<div class="absolute -bottom-0.5 -right-0.5 bg-[#0f2023] rounded-full p-0.5">
+<div class="size-2.5 bg-green-500 rounded-full border border-[#0f2023]"></div>
+</div>
+</div>
+<div class="flex flex-col flex-1 min-w-0 justify-center">
+<div class="flex justify-between items-baseline mb-0.5">
+<h3 class="text-white text-sm font-semibold truncate">Davide (Front-end)</h3>
+<span class="text-slate-400 text-xs">Now</span>
+</div>
+<div class="flex justify-between items-center">
+<p class="text-white text-xs truncate pr-2">Can you check the new API endpoint?</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Item 3 -->
+<div class="glass-card p-3 rounded-xl cursor-pointer relative group">
+<div class="flex gap-3 relative z-10">
+<div class="relative flex-shrink-0">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 grayscale opacity-70" data-alt="Avatar of Sarah Connor" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD2zCdSd0C5LuShm7fN-LlW54yHe79pnrWIj-xClhMbvXTo-mKr1v-c5WgK46Ttuf4JZDRzfrTG4dQDcdGL_c5sWwKdFcTrjlWQ50C370TKV6xpATIT8kEvEV11bkVFn27TB48Xpca0nD-qFVg-RyGJiavXfIEhDwnEeRaLmkZ_MAYddeqBm6ixdaQFKAGhRJUnvX3c5r27h9WOyxHBh6IC9bEAmBnlNOPKx6eokBYTvY_ScuYhGRbkYOK7bZ4TzUl0yvjqHuRQqiVw");'></div>
+<div class="absolute -bottom-0.5 -right-0.5 bg-[#0f2023] rounded-full p-0.5">
+<div class="size-2.5 bg-slate-500 rounded-full border border-[#0f2023]"></div>
+</div>
+</div>
+<div class="flex flex-col flex-1 min-w-0 justify-center">
+<div class="flex justify-between items-baseline mb-0.5">
+<h3 class="text-slate-300 text-sm font-medium truncate">Sarah Connor</h3>
+<span class="text-slate-500 text-xs">Yesterday</span>
+</div>
+<div class="flex justify-between items-center">
+<p class="text-slate-500 text-xs truncate pr-2">Did you see the logs?</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Chat Item 4 -->
+<div class="glass-card p-3 rounded-xl cursor-pointer relative group">
+<div class="flex gap-3 relative z-10">
+<div class="relative flex-shrink-0">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Avatar of HR Department" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDtBuOhPMV6Y_rbrQjaY59T_ZeZK2K487IQ8p0ggDepEzh3_eZh9FZN8HNfZwoxnpHi_bUB81UBD74j5j2lullUNWLsE9TFxCFEAcONdFWBOhUY5LO9MQ4C8WPiwM_X70-aYS9gnqrHD5VrF_Uwt6blZyKDPC-RC6lJEhuWp-KSEfvLdou3Z0-A2wOn5fPpXsygNmiizMEFNhcNt6fNUn94DIfwxFsg0Wb8HkuSI97RcoBb-qnikprbIz3a8t3BqoAHVhKdwXFPfubW");'></div>
+</div>
+<div class="flex flex-col flex-1 min-w-0 justify-center">
+<div class="flex justify-between items-baseline mb-0.5">
+<h3 class="text-slate-300 text-sm font-medium truncate">HR Department</h3>
+<span class="text-slate-500 text-xs">Mon</span>
+</div>
+<div class="flex justify-between items-center">
+<p class="text-slate-500 text-xs truncate pr-2">Office policy update regarding...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Panel: Active Chat -->
+<main class="flex-1 flex flex-col bg-background-dark/30 backdrop-blur-sm relative min-w-0">
+<!-- Chat Header -->
+<header class="h-20 border-b border-glass-border bg-glass-surface backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20" data-alt="Small avatar of Davide active chat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBrU2pBgG35M-2sV801_bx6Mj5NAS_ConlRw2pairgvOqOHrlfvlwION05uAmPJR1qBfdgzDkcULK3i3FOPy57q2vLEYz_mOvipvNxrVESR1aUkSAW8L_kePuQkOT15VOFsaAuVwiggRw_EppVrrMIZy9q5a4lzsS3lCUySJNBv4ZzLGOYA025f6tMRJsk05UvA7NQNanL-tmAdOyZ2rFhzwGpK4uWHvzUxPw1fvBCiMo8C6O9XwovETeNpfrSWE-zaU9R2CtEnvS7M");'></div>
+<div>
+<h2 class="text-white text-lg font-bold leading-none mb-1">Davide (Front-end)</h2>
+<div class="flex items-center gap-2 text-xs">
+<span class="flex size-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+<span class="text-green-400 font-medium">Online</span>
+<span class="text-slate-600 mx-1">|</span>
+<span class="text-slate-400 font-mono">IP: 10.0.0.5</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="size-9 rounded-lg hover:bg-white/5 text-slate-400 hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">phone</span>
+</button>
+<button class="size-9 rounded-lg hover:bg-white/5 text-slate-400 hover:text-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">videocam</span>
+</button>
+<button class="size-9 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white flex items-center justify-center transition-colors ml-2">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Message Stream -->
+<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+<!-- Date Separator -->
+<div class="flex justify-center">
+<span class="text-xs font-medium text-slate-500 bg-black/20 px-3 py-1 rounded-full">Today, 10:23 AM</span>
+</div>
+<!-- Message Received -->
+<div class="flex items-end gap-3 max-w-[80%]">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80" data-alt="Avatar of sender" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB8X8RB1IxPaAqD8pwtUTI2FNfodxnUNTlLDs_VZEvTwCuU3o6Vx-tG2gVxJ4r4JNXDYrYKvlgrswMatMXpvrksyx1TRe607amfYZWO-A5keKcHv6KjdqOVYRyOwm7ftNwetCfoTLltKr9S1zNHkxUzywS2VsJBS7Q-tXNBMJyOPutcSfQg1XlMyyJx-MUqvCA3TAO1DFuWofkS5c1gSSmfc10Iknb_Ud5aRzh88fzejWfFPJ3mwNRHFo-QREAEcNM1R2PDnj4dgcOc");'></div>
+<div class="flex flex-col gap-1">
+<div class="bg-white/10 backdrop-blur-md text-slate-200 p-3.5 rounded-2xl rounded-bl-none border border-white/5">
+<p class="text-sm leading-relaxed">Hey, I've just pushed the updates for the dashboard widgets. Can you verify the network scanner responsiveness on your local machine?</p>
+</div>
+<span class="text-[10px] text-slate-500 pl-1">10:24 AM</span>
+</div>
+</div>
+<!-- Message Sent -->
+<div class="flex items-end gap-3 max-w-[80%] self-end flex-row-reverse">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80" data-alt="Avatar of self" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAjA579786MR5fj60TOpAHv8PR7hkC2Fqog8gTkxNmfwH9SrX_m-JjZr9QGuijxRQhe-exTxUuZMXwRpwfy9Xnf_xv-y4fHt2oIz8p6LagqWmGO8Cc7IMOlM3C9tgc23_7kasK7OlyLW6p8KNQtFCvbpbnwLDfNGmCensRZpW4RS73sbT7QLYIhHcMN8wYRwDlQx-Os5w_USyCY94hkfc63j0RKRTMJ65Ed-Po7aWI5og3-evVQ7NCrRyU67KwFaVrKb8Zl9FAXF2Uq");'></div>
+<div class="flex flex-col gap-1 items-end">
+<div class="bg-gradient-to-br from-primary/20 to-blue-600/20 backdrop-blur-md text-white p-3.5 rounded-2xl rounded-br-none border border-primary/30 shadow-neon">
+<p class="text-sm leading-relaxed">Sure thing. Pulling the branch now. Give me 5 minutes.</p>
+</div>
+<span class="text-[10px] text-slate-500 pr-1">10:26 AM</span>
+</div>
+</div>
+<!-- Message Received -->
+<div class="flex items-end gap-3 max-w-[80%]">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80" data-alt="Avatar of sender" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAHE9ptMGkVsVw1t1azSojtueootv6MxJkrC36tkddDaz0puhcYeUH26SOXxLPZLrXWToa3Ixr6UwgmsRBgI5Atz-skcAkQP9wNqWn5uIAWtrMB2F3asegI64UgET2uMJOoFdWsOo9z2dJNrRl96x-I7ceHv1IEeeeUwOT4VezN5XWYwHn4aLArWEB-1zc8prZtL1rbgJvDOWfUm20tMh2blOIV1xLKmN7NeDqiD_isHxGdtoa4PAlrm_EWej7qk9ZQTHXh5Nw5FncK");'></div>
+<div class="flex flex-col gap-1">
+<div class="bg-white/10 backdrop-blur-md text-slate-200 p-3.5 rounded-2xl rounded-bl-none border border-white/5">
+<p class="text-sm leading-relaxed">Cool. Also, the contrast on the dark mode toggle might need tweaking. It looks a bit washed out on the 4K monitors.</p>
+</div>
+<!-- Attachment placeholder -->
+<div class="bg-black/20 backdrop-blur-sm border border-white/10 rounded-xl p-3 flex items-center gap-3 w-fit mt-1 group cursor-pointer hover:bg-black/30 transition-colors">
+<div class="size-10 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
+<span class="material-symbols-outlined">image</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-white group-hover:text-primary transition-colors">screenshot_4k_issue.png</span>
+<span class="text-[10px] text-slate-500">2.4 MB</span>
+</div>
+<span class="material-symbols-outlined text-slate-500 text-lg ml-2">download</span>
+</div>
+<span class="text-[10px] text-slate-500 pl-1">10:28 AM</span>
+</div>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-6 pt-2 shrink-0 z-20">
+<div class="bg-glass-surface border border-glass-border rounded-2xl p-2 flex items-end gap-2 shadow-lg relative">
+<!-- Glow effect behind input -->
+<div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none"></div>
+<button class="size-10 rounded-xl hover:bg-white/10 text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<div class="flex-1 min-h-[44px] py-2.5">
+<input class="w-full bg-transparent border-none p-0 text-sm text-white placeholder-slate-500 focus:ring-0" placeholder="Type a message to Davide..." type="text"/>
+</div>
+<div class="flex items-center gap-1 mb-0.5 shrink-0">
+<button class="size-10 rounded-xl hover:bg-white/10 text-slate-400 hover:text-accent flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">sentiment_satisfied</span>
+</button>
+<button class="h-10 px-4 ml-1 bg-primary hover:bg-cyan-400 text-background-dark rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-neon">
+<span>Send</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</div>
+<div class="text-center mt-2">
+<p class="text-[10px] text-slate-600">Press <kbd class="font-sans font-semibold text-slate-500">Enter</kbd> to send</p>
+</div>
+</div>
+</main>
+</div>
+</body></html>

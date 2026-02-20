@@ -1,0 +1,56 @@
+services:
+  # PostgreSQL - Primary Write Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: lan_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lanmessenger
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - lan_network
+    restart: unless-stopped
+
+  # MySQL - Read Replica Database
+  mysql:
+    image: mysql:8.0
+    container_name: lan_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: lanmessenger123
+      MYSQL_DATABASE: lanmessenger
+      MYSQL_USER: lanmessenger
+      MYSQL_PASSWORD: lanmessenger123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - lan_network
+    restart: unless-stopped
+
+  # Redis - Cache & Sessions
+  redis:
+    image: redis:7-alpine
+    container_name: lan_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - lan_network
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mysql_data:
+  redis_data:
+
+networks:
+  lan_network:
+    driver: bridge
