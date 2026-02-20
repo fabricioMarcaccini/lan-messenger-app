@@ -235,7 +235,14 @@ router.get('/me', async (ctx) => {
 
     try {
         const token = authHeader.split(' ')[1];
-        const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+
+        // Import JWT at the top to use proper verification, replacing unsafe decode
+        const jwt = await import('jsonwebtoken');
+        // Usar a chave secreta correta como nos middlewares
+        const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
+
+        // VERIFY SIGNATURE AND EXPIRATION!
+        const decoded = jwt.default.verify(token, JWT_SECRET);
 
         const result = await db.write(
             'SELECT id, username, email, full_name, avatar_url, role, department, company_id FROM users WHERE id = $1',
@@ -265,7 +272,7 @@ router.get('/me', async (ctx) => {
         };
     } catch (e) {
         ctx.status = 401;
-        ctx.body = { success: false, message: 'Token inválido' };
+        ctx.body = { success: false, message: 'Token expirado ou inválido' };
     }
 });
 
