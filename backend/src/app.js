@@ -73,6 +73,10 @@ const io = new SocketIO(httpServer, {
 app.use(cors({
     origin: verifyOrigin,
     credentials: true,
+    allowHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    exposeHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 86400,
 }));
 
 // Serve uploaded files as static
@@ -87,8 +91,13 @@ app.use(koaBody({
     },
 }));
 
-// Security Headers
-app.use(helmet());
+// Security Headers — disable cross-origin policies that conflict with CORS for our cross-origin setup
+app.use(helmet({
+    crossOriginResourcePolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    contentSecurityPolicy: false,
+}));
 
 // Compression (gzip/deflate/brotli)
 app.use(compress({
