@@ -51,6 +51,18 @@ export const useSocketStore = defineStore('socket', () => {
             window.dispatchEvent(new CustomEvent('socket:message', { detail: message }))
         })
 
+        socket.value.on('message:edited', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:message:edited', { detail: data }))
+        })
+
+        socket.value.on('message:deleted', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:message:deleted', { detail: data }))
+        })
+
+        socket.value.on('message:read', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:message:read', { detail: data }))
+        })
+
         socket.value.on('typing:update', ({ conversationId, userId, isTyping }) => {
             if (!typingUsers.value[conversationId]) {
                 typingUsers.value[conversationId] = []

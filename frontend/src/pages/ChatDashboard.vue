@@ -206,54 +206,85 @@
               class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80"
               :style="{ backgroundImage: `url(${msg.senderAvatar || defaultAvatar})` }"
             ></div>
-            <div :class="['flex flex-col gap-1', msg.senderId === authStore.user?.id ? 'items-end' : '']">
-              <div :class="[
-                'rounded-2xl border shadow-sm overflow-hidden',
-                msg.senderId === authStore.user?.id 
-                  ? 'bg-primary text-white dark:bg-gradient-to-br dark:from-primary/20 dark:to-blue-600/20 dark:backdrop-blur-md dark:border-primary/30 dark:shadow-neon rounded-br-none border-primary'
-                  : 'bg-white dark:bg-white/10 dark:backdrop-blur-md text-gray-700 dark:text-slate-200 border-gray-200 dark:border-white/5 rounded-bl-none'
-              ]">
-                <!-- Text Message -->
-                <p v-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed">{{ msg.content }}</p>
-                
-                <!-- Image Message -->
-                <div v-else-if="msg.contentType === 'image'" class="p-1">
-                  <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
+            <div :class="['flex flex-col gap-1 relative group max-w-full', msg.senderId === authStore.user?.id ? 'items-end' : '']">
+              <div :class="['flex items-center gap-2', msg.senderId === authStore.user?.id ? 'flex-row-reverse' : '']">
+                <div :class="[
+                  'rounded-2xl border shadow-sm overflow-hidden min-w-[60px]',
+                  msg.senderId === authStore.user?.id 
+                    ? 'bg-primary text-white dark:bg-gradient-to-br dark:from-primary/20 dark:to-blue-600/20 dark:backdrop-blur-md dark:border-primary/30 dark:shadow-neon rounded-br-none border-primary'
+                    : 'bg-white dark:bg-white/10 dark:backdrop-blur-md text-gray-700 dark:text-slate-200 border-gray-200 dark:border-white/5 rounded-bl-none'
+                ]">
+                  <!-- Deleted Message -->
+                  <p v-if="msg.isDeleted || msg.contentType === 'deleted'" class="p-3.5 text-sm italic opacity-70 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[16px]">block</span> {{ msg.content }}
+                  </p>
+                  
+                  <!-- Text Message -->
+                  <p v-else-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg">{{ msg.content }}</p>
+                  
+                  <!-- Image Message -->
+                  <div v-else-if="msg.contentType === 'image'" class="p-1">
+                    <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
+                  </div>
+
+                  <!-- Audio Message -->
+                  <div v-else-if="msg.contentType === 'audio'" class="p-2">
+                    <audio :src="getApiUrl(msg.content)" controls class="h-10 w-48 custom-audio"></audio>
+                  </div>
+
+                  <!-- File/PDF/Video Message -->
+                  <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
+                    <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
+                      <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
+                      <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
+                      <span class="material-symbols-outlined text-2xl" v-else>description</span>
+                    </div>
+                    <div class="flex flex-col flex-1 min-w-0">
+                      <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
+                      <a 
+                        :href="getApiUrl(msg.content)" 
+                        target="_blank" 
+                        download 
+                        class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
+                      >
+                        Download <span class="material-symbols-outlined text-[10px]">download</span>
+                      </a>
+                    </div>
+                  </div>
                 </div>
 
-                <!-- File/PDF/Video Message -->
-                <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
-                  <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
-                    <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
-                    <span class="material-symbols-outlined text-2xl" v-else>description</span>
-                  </div>
-                  <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
-                    <a 
-                      :href="getApiUrl(msg.content)" 
-                      target="_blank" 
-                      download 
-                      class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
-                    >
-                      Download <span class="material-symbols-outlined text-[10px]">download</span>
-                    </a>
-                  </div>
+                <!-- Delete/Edit buttons (Hover) -->
+                <div v-if="msg.senderId === authStore.user?.id && (!msg.isDeleted && msg.contentType !== 'deleted')" class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                  <button v-if="msg.contentType === 'text'" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
+                  <button @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
                 </div>
               </div>
-              <span class="text-[10px] text-gray-400 dark:text-slate-500 px-1">{{ formatTime(msg.createdAt) }}</span>
+
+              <div class="flex items-center gap-1 mt-0.5 px-1 truncate max-w-full justify-end">
+                <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
+                <span v-if="msg.editedAt" class="text-[9px] text-gray-400 dark:text-slate-500 italic ml-1">(editado)</span>
+                <span v-if="msg.senderId === authStore.user?.id" class="material-symbols-outlined text-[14px] ml-1" :class="msg.isRead ? 'text-blue-500 shadow-blue-500/20' : 'text-gray-400'">{{ msg.isRead ? 'done_all' : 'check' }}</span>
+              </div>
             </div>
           </div>
         </div>
         
         <!-- Input Area -->
         <div class="p-6 pt-2 shrink-0 z-20 bg-gray-50 dark:bg-transparent relative">
+          <!-- Edit Banner -->
+          <div v-if="editingMessageId" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-[16px]">edit</span> Editando mensagem
+            </div>
+            <button @click="cancelEdit" class="text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-100"><span class="material-symbols-outlined text-sm">close</span></button>
+          </div>
+
           <!-- Emoji Picker (Absolute positioned) -->
           <div v-if="showEmojiPicker" class="absolute bottom-20 left-6 z-30 shadow-2xl rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
             <emoji-picker class="light dark:dark"></emoji-picker>
           </div>
 
-          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex items-end gap-2 shadow-lg relative">
+          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex items-end gap-2 shadow-lg relative" :class="editingMessageId ? 'rounded-tl-none rounded-tr-none' : ''">
             <div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none hidden dark:block"></div>
             
             <!-- File Upload Input (Hidden) -->
@@ -268,12 +299,18 @@
             <button 
               @click="$refs.fileInput.click()"
               class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
+              :disabled="editingMessageId"
+              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
             >
               <span class="material-symbols-outlined transform rotate-45">attach_file</span>
             </button>
             
-            <div class="flex-1 min-h-[44px] py-2.5">
+            <div class="flex-1 min-h-[44px] py-2.5 flex items-center gap-2">
+              <span v-if="isRecording" class="flex items-center gap-2 text-red-500 animate-pulse text-sm font-medium px-2">
+                <span class="material-symbols-outlined text-lg">mic</span> Gravando áudio...
+              </span>
               <textarea 
+                v-else
                 v-model="newMessage"
                 @keyup.enter.exact="sendMessage"
                 rows="1"
@@ -288,15 +325,31 @@
                 @click="showEmojiPicker = !showEmojiPicker"
                 class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
                 title="Emojis"
+                v-if="!isRecording"
               >
                 <span class="material-symbols-outlined">sentiment_satisfied</span>
               </button>
+              
               <button 
+                v-if="!newMessage.trim() && !editingMessageId"
+                @mousedown="startRecording"
+                @mouseup="stopRecording"
+                @touchstart.prevent="startRecording"
+                @touchend.prevent="stopRecording"
+                class="h-10 w-10 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-xl flex items-center justify-center transition-all select-none"
+                :class="isRecording ? 'bg-red-500 text-white dark:bg-red-600 shadow-lg shadow-red-500/50 scale-110' : ''"
+                title="Segure para gravar áudio"
+              >
+                <span class="material-symbols-outlined text-[20px]">mic</span>
+              </button>
+              
+              <button 
+                v-else
                 @click="sendMessage"
                 class="h-10 px-4 ml-1 bg-primary hover:bg-cyan-400 text-white dark:text-background-dark rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-sm dark:shadow-neon"
               >
-                <span>{{ locale.t.chat.send }}</span>
-                <span class="material-symbols-outlined text-[18px]">send</span>
+                <span>{{ editingMessageId ? 'Salvar' : locale.t.chat.send }}</span>
+                <span class="material-symbols-outlined text-[18px]" v-if="!editingMessageId">send</span>
               </button>
             </div>
           </div>
@@ -448,6 +501,12 @@ const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const fileInput = ref(null)
 
+const editingMessageId = ref(null)
+
+const isRecording = ref(false)
+let mediaRecorder = null
+let audioChunks = []
+
 const isCreatingGroup = ref(false)
 const groupName = ref('')
 const groupDescription = ref('')
@@ -523,7 +582,13 @@ async function leaveGroup() {
 async function sendMessage() {
   if (!newMessage.value.trim() || !chatStore.activeConversationId) return
   
-  await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value)
+  if (editingMessageId.value) {
+    await chatStore.editMessage(editingMessageId.value, newMessage.value)
+    editingMessageId.value = null
+  } else {
+    await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value)
+  }
+  
   newMessage.value = ''
   showEmojiPicker.value = false
   
@@ -533,6 +598,78 @@ async function sendMessage() {
   // Reset textarea height
   const textarea = document.querySelector('textarea')
   if (textarea) textarea.style.height = 'auto'
+}
+
+function startEdit(msg) {
+  editingMessageId.value = msg.id
+  newMessage.value = msg.content
+  showEmojiPicker.value = false
+  requestAnimationFrame(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) {
+      textarea.focus()
+      textarea.style.height = textarea.scrollHeight + 'px'
+    }
+  })
+}
+
+function cancelEdit() {
+  editingMessageId.value = null
+  newMessage.value = ''
+  requestAnimationFrame(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) textarea.style.height = 'auto'
+  })
+}
+
+async function deleteMsg(messageId) {
+  if (confirm('Deseja realmente apagar esta mensagem?\n\nEla será mantida no banco de dados para segurança, mas ficará invisível aqui.')) {
+    await chatStore.deleteMessage(messageId)
+  }
+}
+
+// === Audio Recording ===
+async function startRecording() {
+  if (isRecording.value) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    mediaRecorder = new MediaRecorder(stream)
+    audioChunks = []
+    
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) audioChunks.push(e.data)
+    }
+    
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
+      stream.getTracks().forEach(track => track.stop()) // kill microphone usage
+      
+      // Upload
+      if (audioBlob.size > 0 && chatStore.activeConversationId) {
+        const file = new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' })
+        try {
+          const uploadedFile = await chatStore.uploadFile(file)
+          await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, 'audio')
+          await nextTick()
+          scrollToBottom()
+        } catch (err) {
+          alert('Erro ao enviar áudio')
+        }
+      }
+    }
+    
+    mediaRecorder.start()
+    isRecording.value = true
+  } catch (err) {
+    alert('Erro ao acessar o microfone. Verifique as permissões do navegador.')
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording.value) {
+    mediaRecorder.stop()
+    isRecording.value = false
+  }
 }
 
 function autoResize(event) {
@@ -620,37 +757,50 @@ watch(() => chatStore.activeMessages.length, () => {
   nextTick(scrollToBottom)
 })
 
+// Process read receipts when active conversation changes or new messages arrive
+watch(() => chatStore.activeMessages, (messages) => {
+  if (!messages || messages.length === 0) return;
+  
+  const unreadOwnMessages = messages.filter(m => !m.isRead && m.senderId !== authStore.user?.id)
+  if (unreadOwnMessages.length > 0) {
+    // Need to timeout to avoid hammering the API if multiple arrive at once
+    setTimeout(() => {
+      unreadOwnMessages.forEach(m => {
+        if (!m.isRead) {
+          chatStore.markAsRead(m.id)
+          m.isRead = true; // Optimistic UI local update
+        }
+      })
+    }, 500)
+    
+    // Clear unread badge in list immediately
+    const conv = chatStore.conversations.find(c => c.id === chatStore.activeConversationId)
+    if (conv) conv.unreadCount = 0
+  }
+}, { deep: true })
+
 async function handleLogout() {
   socketStore.disconnect()
   await authStore.logout()
   router.push('/login')
 }
 
-onMounted(async () => {
-  await chatStore.fetchConversations()
-  await networkStore.fetchDevices()
-  await usersStore.fetchUsers(1, '')
-  
-  // Add emoji picker listener
-  document.addEventListener('emoji-click', onEmojiClick)
-  
-  // Listen for new messages from socket
-  window.addEventListener('socket:message', handleNewMessage)
-})
+
 
 // Handle new message from socket
 function handleNewMessage(event) {
   const message = event.detail
   if (message && message.conversationId) {
-    // Add message to chat store
     chatStore.addMessage(message.conversationId, message)
     
-    // Scroll to bottom if this is the active conversation
     if (chatStore.activeConversationId === message.conversationId) {
       nextTick(scrollToBottom)
+      // Send read receipt if we are looking at this chat
+      if (message.senderId !== authStore.user?.id) {
+        chatStore.markAsRead(message.id)
+      }
     }
     
-    // Show notification if not in active conversation
     if (chatStore.activeConversationId !== message.conversationId && 'Notification' in window && Notification.permission === 'granted') {
       new Notification('Nova mensagem', {
         body: `${message.senderName || message.senderUsername}: ${message.content}`,
@@ -660,8 +810,45 @@ function handleNewMessage(event) {
   }
 }
 
+function handleMessageEdited(event) {
+  const data = event.detail;
+  if (data?.conversationId && data?.messageId) {
+    chatStore.updateMessageEdited(data.conversationId, data.messageId, data.content, data.editedAt)
+  }
+}
+
+function handleMessageDeleted(event) {
+  const data = event.detail;
+  if (data?.conversationId && data?.messageId) {
+    chatStore.updateMessageDeleted(data.conversationId, data.messageId)
+  }
+}
+
+function handleMessageRead(event) {
+  const data = event.detail;
+  if (data?.conversationId && data?.messageId) {
+    chatStore.updateMessageRead(data.conversationId, data.messageId, data.readBy)
+  }
+}
+
+onMounted(async () => {
+  await chatStore.fetchConversations()
+  await networkStore.fetchDevices()
+  await usersStore.fetchUsers(1, '')
+  
+  document.addEventListener('emoji-click', onEmojiClick)
+  
+  window.addEventListener('socket:message', handleNewMessage)
+  window.addEventListener('socket:message:edited', handleMessageEdited)
+  window.addEventListener('socket:message:deleted', handleMessageDeleted)
+  window.addEventListener('socket:message:read', handleMessageRead)
+})
+
 onUnmounted(() => {
   document.removeEventListener('emoji-click', onEmojiClick)
   window.removeEventListener('socket:message', handleNewMessage)
+  window.removeEventListener('socket:message:edited', handleMessageEdited)
+  window.removeEventListener('socket:message:deleted', handleMessageDeleted)
+  window.removeEventListener('socket:message:read', handleMessageRead)
 })
 </script>

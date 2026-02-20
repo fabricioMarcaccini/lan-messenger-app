@@ -81,13 +81,41 @@ export const useChatStore = defineStore('chat', () => {
             messages.value[conversationId].push(newMessage)
 
             // Update last message in conversation list
-            const conv = conversations.value.find(c => c.id === conversationId)
             if (conv) {
-                conv.lastMessage = type === 'text' ? content : (type === 'image' ? '📷 Imagem' : '📎 Arquivo')
+                if (type === 'deleted') conv.lastMessage = '🚫 Mensagem apagada';
+                else if (type === 'text') conv.lastMessage = content;
+                else if (type === 'audio') conv.lastMessage = '🎙️ Áudio';
+                else if (type === 'image') conv.lastMessage = '📷 Imagem';
+                else conv.lastMessage = '📎 Arquivo';
+
                 conv.lastMessageAt = new Date().toISOString()
             }
         } catch (err) {
             console.error('Failed to send message:', err)
+        }
+    }
+
+    async function editMessage(messageId, content) {
+        try {
+            await api.put(`/messages/${messageId}`, { content })
+        } catch (err) {
+            console.error('Failed to edit message', err)
+        }
+    }
+
+    async function deleteMessage(messageId) {
+        try {
+            await api.delete(`/messages/${messageId}`)
+        } catch (err) {
+            console.error('Failed to delete message', err)
+        }
+    }
+
+    async function markAsRead(messageId) {
+        try {
+            await api.put(`/messages/${messageId}/read`)
+        } catch (err) {
+            console.error('Failed to mark message as read', err)
         }
     }
 
@@ -118,7 +146,6 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    // Helper to add incoming message from socket
     function addMessage(conversationId, message) {
         if (!messages.value[conversationId]) {
             messages.value[conversationId] = []
@@ -132,10 +159,56 @@ export const useChatStore = defineStore('chat', () => {
         // Update conversation list preview
         const conv = conversations.value.find(c => c.id === conversationId)
         if (conv) {
-            conv.lastMessage = message.content
+            if (message.contentType === 'deleted') conv.lastMessage = '🚫 Mensagem apagada';
+            else if (message.contentType === 'text') conv.lastMessage = message.content;
+            else if (message.contentType === 'audio') conv.lastMessage = '🎙️ Áudio';
+            else if (message.contentType === 'image') conv.lastMessage = '📷 Imagem';
+            else conv.lastMessage = '📎 Arquivo';
+
             conv.lastMessageAt = message.createdAt
             if (activeConversationId.value !== conversationId) {
                 conv.unreadCount = (conv.unreadCount || 0) + 1
+            }
+        }
+    }
+
+    function updateMessageDeleted(conversationId, messageId) {
+        if (messages.value[conversationId]) {
+            const msg = messages.value[conversationId].find(m => m.id === messageId)
+            if (msg) {
+                msg.isDeleted = true
+                msg.content = '🚫 Mensagem apagada'
+                msg.contentType = 'deleted'
+            }
+        }
+
+        // Update conv preview if it was the last message
+        const conv = conversations.value.find(c => c.id === conversationId)
+        if (conv) {
+            // Need a reliable way to check if this was the last message, this is a quick approximation
+            conv.lastMessage = '🚫 Mensagem apagada'
+        }
+    }
+
+    function updateMessageEdited(conversationId, messageId, content, editedAt) {
+        if (messages.value[conversationId]) {
+            const msg = messages.value[conversationId].find(m => m.id === messageId)
+            if (msg) {
+                msg.content = content
+                msg.editedAt = editedAt
+            }
+        }
+        const conv = conversations.value.find(c => c.id === conversationId)
+        if (conv) {
+            conv.lastMessage = content;
+        }
+    }
+
+    function updateMessageRead(conversationId, messageId, readBy) {
+        if (messages.value[conversationId]) {
+            const msg = messages.value[conversationId].find(m => m.id === messageId)
+            if (msg) {
+                msg.isRead = true
             }
         }
     }
@@ -152,6 +225,12 @@ export const useChatStore = defineStore('chat', () => {
         sendMessage,
         fetchMessages,
         addMessage,
-        uploadFile
+        uploadFile,
+        editMessage,
+        deleteMessage,
+        markAsRead,
+        updateMessageDeleted,
+        updateMessageEdited,
+        updateMessageRead
     }
 })
