@@ -230,8 +230,8 @@
         
         <!-- Messages -->
         <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent">
-          <div v-for="msg in chatStore.activeMessages" :key="msg.id" :class="[
-            'flex items-end gap-3 max-w-[80%]',
+          <div v-for="msg in chatStore.activeMessages" :key="msg.id" :id="`msg-${msg.id}`" :class="[
+            'flex items-end gap-3 max-w-[80%] transition-colors duration-500 rounded-2xl',
             msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : ''
           ]">
             <div 
@@ -252,9 +252,9 @@
                   </p>
                   
                   <!-- Reply Context -->
-                  <div v-if="msg.replyTo && !(msg.isDeleted || msg.contentType === 'deleted')" class="px-3 pt-3 pb-1 mb-1 border-b border-gray-300 dark:border-white/10 opacity-70">
-                     <span class="text-[10px] font-bold block mb-1">Reposta a uma mensagem</span>
-                     <p class="text-xs truncate italic">...</p>
+                  <div v-if="msg.replyTo && !(msg.isDeleted || msg.contentType === 'deleted')" class="px-3 pt-3 pb-1 mb-1 border-b border-gray-300 dark:border-white/10 opacity-70 cursor-pointer" @click="scrollToMessage(msg.replyTo)">
+                     <span class="text-[10px] font-bold block mb-1 hover:underline">Respondendo a:</span>
+                     <p class="text-[11px] truncate italic">{{ getMessageSnippet(msg.replyTo) }}</p>
                   </div>
                   
                   <!-- Text Message -->
@@ -931,6 +931,25 @@ function scrollToBottom() {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
+}
+
+function getMessageSnippet(id) {
+    const msg = chatStore.activeMessages.find(m => m.id === id);
+    if (!msg) return 'Mensagem anterior...';
+    if (msg.contentType === 'image') return '📷 Imagem';
+    if (msg.contentType === 'audio') return '🎤 Áudio';
+    if (msg.contentType === 'video') return '🎥 Vídeo';
+    if (msg.contentType === 'pdf') return '📄 Arquivo PDF';
+    return msg.content || '...';
+}
+
+function scrollToMessage(id) {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-primary/20');
+        setTimeout(() => el.classList.remove('bg-primary/20'), 1500);
+    }
 }
 
 function formatTime(dateStr) {
