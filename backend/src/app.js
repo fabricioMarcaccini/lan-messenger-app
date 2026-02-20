@@ -205,6 +205,24 @@ httpServer.listen(PORT, async () => {
     logger.info(`  PostgreSQL: ${dbStatus.postgres ? '✅ Connected' : '❌ Failed'}`);
     logger.info(`  MySQL:      ${dbStatus.mysql ? '✅ Connected' : '❌ Failed'}`);
     logger.info(`  Redis:      ${dbStatus.redis ? '✅ Connected' : '❌ Failed'}`);
+
+    // 🔥 Auto-Migration to ensure new WebRTC / Chat feature columns exist in production database
+    try {
+        if (dbStatus.postgres) {
+            console.log('🔄 Executando sincronização de esquema segura no PostgreSQL...');
+            const { db } = await import('./config/database.js');
+            await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_admins UUID[] DEFAULT '{}'");
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false');
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP');
+
+            try { await db.write("ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check"); } catch (e) { }
+            await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted'))");
+
+            console.log('✅ Novas Funcionalidades (Edição/WebRTC) Sincronizadas no Banco!');
+        }
+    } catch (err) {
+        console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);
+    }
 });
 
 export { app, io };
