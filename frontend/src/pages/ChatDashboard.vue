@@ -140,13 +140,13 @@
               <div class="relative flex-shrink-0">
                 <div 
                   class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
-                  :style="{ backgroundImage: `url(${conv.participants[0]?.avatar_url || defaultAvatar})` }"
+                  :style="{ backgroundImage: `url(${conv.isGroup ? defaultAvatar : (conv.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
                 ></div>
               </div>
               <div class="flex flex-col flex-1 min-w-0 justify-center">
                 <div class="flex justify-between items-baseline mb-0.5">
                   <h3 class="text-gray-900 dark:text-white text-sm font-semibold truncate">
-                    {{ conv.name || conv.participants.map(p => p.full_name || p.username).join(', ') }}
+                    {{ conv.name || conv.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
                   </h3>
                   <span class="text-gray-400 dark:text-slate-400 text-xs">{{ formatTime(conv.lastMessageAt) }}</span>
                 </div>
@@ -175,19 +175,22 @@
     <main class="flex-1 flex flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300">
       <template v-if="chatStore.activeConversation">
         <!-- Chat Header -->
-        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0">
+        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null">
           <div class="flex items-center gap-4">
             <div 
               class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20"
-              :style="{ backgroundImage: `url(${chatStore.activeConversation.participants[0]?.avatar_url || defaultAvatar})` }"
+              :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
             ></div>
             <div>
               <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-none mb-1">
-                {{ chatStore.activeConversation.name || chatStore.activeConversation.participants[0]?.full_name }}
+                {{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
               </h2>
-              <div class="flex items-center gap-2 text-xs">
+              <div class="flex items-center gap-2 text-xs" v-if="!chatStore.activeConversation.isGroup">
                 <span class="flex size-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
                 <span class="text-green-600 dark:text-green-400 font-medium">{{ locale.t.chat.online }}</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs" v-else>
+                <span class="text-gray-500 dark:text-slate-400 font-medium">{{ chatStore.activeConversation.participants.length }} participantes, clique para ver info</span>
               </div>
             </div>
           </div>
@@ -314,41 +317,103 @@
     <!-- New Chat Modal -->
     <div v-if="showNewChatModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative flex flex-col max-h-[80vh] bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-xl">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ locale.t.chat.newChat }}</h2>
           <button @click="showNewChatModal = false" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
         
-        <input 
-          v-model="userFilter"
-          type="text" 
-          :placeholder="locale.t.chat.userSearch"
-          class="input-glass mb-4 text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-gray-200 dark:border-transparent"
-        />
-        
-        <div class="flex-1 overflow-y-auto min-h-[200px] flex flex-col gap-2">
-          <button
-            v-for="user in filteredUsers"
-            :key="user.id"
-            @click="startConversation(user.id)"
-            class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left group"
-          >
-            <div 
-              class="bg-center bg-no-repeat bg-cover rounded-full size-10"
-              :style="{ backgroundImage: `url(${user.avatarUrl || defaultAvatar})` }"
-            ></div>
-            <div class="flex flex-col">
-              <span class="text-gray-900 dark:text-white font-medium group-hover:text-primary transition-colors">{{ user.fullName }}</span>
-              <span class="text-xs text-gray-500 dark:text-slate-500">@{{ user.username }}</span>
-            </div>
-          </button>
-          
-          <p v-if="filteredUsers.length === 0" class="text-gray-500 dark:text-slate-500 text-center py-4">
-            {{ locale.t.chat.noUsers }}
-          </p>
+        <div class="flex gap-4 mb-4 border-b border-gray-200 dark:border-white/10">
+          <button @click="isCreatingGroup = false" :class="['pb-2 text-sm font-medium transition-colors', !isCreatingGroup ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Conversa Direta</button>
+          <button @click="isCreatingGroup = true" :class="['pb-2 text-sm font-medium transition-colors', isCreatingGroup ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Novo Grupo</button>
         </div>
+
+        <template v-if="!isCreatingGroup">
+          <input 
+            v-model="userFilter"
+            type="text" 
+            :placeholder="locale.t.chat.userSearch"
+            class="w-full px-4 py-2 rounded-xl mb-4 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner"
+          />
+          
+          <div class="flex-1 overflow-y-auto min-h-[200px] flex flex-col gap-2">
+            <button
+              v-for="user in filteredUsers"
+              :key="user.id"
+              @click="startConversation(user.id)"
+              class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left group"
+            >
+              <div 
+                class="bg-center bg-no-repeat bg-cover rounded-full size-10"
+                :style="{ backgroundImage: `url(${user.avatarUrl || defaultAvatar})` }"
+              ></div>
+              <div class="flex flex-col">
+                <span class="text-gray-900 dark:text-white font-medium group-hover:text-primary transition-colors">{{ user.fullName }}</span>
+                <span class="text-xs text-gray-500 dark:text-slate-500">@{{ user.username }}</span>
+              </div>
+            </button>
+            <p v-if="filteredUsers.length === 0" class="text-gray-500 dark:text-slate-500 text-center py-4">
+              {{ locale.t.chat.noUsers }}
+            </p>
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="flex flex-col gap-3 mb-4">
+             <input v-model="groupName" placeholder="Nome do Grupo" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+             <input v-model="groupDescription" placeholder="Descrição (Opcional)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+          </div>
+          <p class="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium uppercase tracking-wider">Selecione os participantes:</p>
+          <input v-model="userFilter" placeholder="Buscar usuário..." class="w-full px-4 py-2 rounded-xl mb-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+          
+          <div class="flex-1 overflow-y-auto max-h-[200px] flex flex-col gap-1 pr-1">
+            <label v-for="user in filteredUsers" :key="user.id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer select-none">
+              <input type="checkbox" :value="user.id" v-model="selectedUsers" class="form-checkbox rounded text-primary focus:ring-primary bg-white dark:bg-black/20 border-gray-300 dark:border-white/20 size-4" />
+              <div class="bg-cover bg-center rounded-full size-8" :style="{ backgroundImage: `url(${user.avatarUrl || defaultAvatar})` }"></div>
+              <div class="flex flex-col">
+                <span class="text-sm text-gray-900 dark:text-white font-medium">{{ user.fullName }}</span>
+              </div>
+            </label>
+            <p v-if="filteredUsers.length === 0" class="text-gray-500 dark:text-slate-500 text-center py-4 text-sm">
+              {{ locale.t.chat.noUsers }}
+            </p>
+          </div>
+          <button @click="createGroup" :disabled="!groupName || selectedUsers.length === 0" class="mt-4 w-full bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold py-2.5 rounded-xl transition-colors shadow-sm dark:shadow-neon disabled:opacity-50 disabled:cursor-not-allowed">
+            Criar Grupo
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Group Info Modal -->
+    <div v-if="showGroupInfo && chatStore.activeConversation?.isGroup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="glass-panel w-full max-w-sm rounded-2xl p-6 relative flex flex-col bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Detalhes do Grupo</h2>
+          <button @click="showGroupInfo = false" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <div class="flex flex-col items-center mb-6">
+           <div class="bg-center bg-cover rounded-full size-20 mb-3 border-4 border-primary/20" :style="{ backgroundImage: `url(${defaultAvatar})` }"></div>
+           <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ chatStore.activeConversation.name }}</h3>
+           <p class="text-sm text-gray-500 dark:text-slate-400 text-center mt-1 font-medium">{{ chatStore.activeConversation.participants.length }} Participantes</p>
+        </div>
+
+        <div class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1">
+          <div v-for="p in chatStore.activeConversation.participants" :key="p.id" class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-black/20">
+             <div class="bg-cover bg-center rounded-full size-8" :style="{ backgroundImage: `url(${p.avatar_url || defaultAvatar})` }"></div>
+             <span class="text-sm text-gray-900 dark:text-white font-medium truncate flex-1">{{ p.full_name || p.username }}</span>
+             <span v-if="p.id === authStore.user?.id" class="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">Você</span>
+          </div>
+        </div>
+
+        <button @click="leaveGroup" class="w-full mt-2 py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-900/30">
+          <span class="material-symbols-outlined text-[18px]">logout</span>
+          Sair do Grupo
+        </button>
       </div>
     </div>
   </div>
@@ -382,6 +447,12 @@ const showNewChatModal = ref(false)
 const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const fileInput = ref(null)
+
+const isCreatingGroup = ref(false)
+const groupName = ref('')
+const groupDescription = ref('')
+const selectedUsers = ref([])
+const showGroupInfo = ref(false)
 
 const unreadCount = computed(() => 
   chatStore.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
@@ -420,6 +491,32 @@ async function startConversation(userId) {
   if (conversationId) {
     showNewChatModal.value = false
     selectConversation(conversationId)
+  }
+}
+
+async function createGroup() {
+  if (!groupName.value.trim() || selectedUsers.value.length === 0) return;
+  const conversationId = await chatStore.createConversation(selectedUsers.value, true, groupName.value, groupDescription.value);
+  if (conversationId) {
+    showNewChatModal.value = false;
+    isCreatingGroup.value = false;
+    groupName.value = '';
+    groupDescription.value = '';
+    selectedUsers.value = [];
+    selectConversation(conversationId);
+  }
+}
+
+async function leaveGroup() {
+  if (confirm('Tem certeza que deseja sair do grupo?')) {
+    try {
+      await chatStore.manageGroupParticipants(chatStore.activeConversationId, [], 'leave');
+      showGroupInfo.value = false;
+      chatStore.setActiveConversation(null);
+      await chatStore.fetchConversations();
+    } catch(err) {
+      alert('Erro ao sair do grupo');
+    }
   }
 }
 

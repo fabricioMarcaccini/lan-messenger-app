@@ -41,9 +41,9 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    async function createConversation(participantIds) {
+    async function createConversation(participantIds, isGroup = false, name = '', description = '') {
         try {
-            const response = await api.post('/messages/conversations', { participantIds })
+            const response = await api.post('/messages/conversations', { participantIds, isGroup, name, description })
             const newConv = response.data.data
 
             // Refresh conversations list to get complete data with participants
@@ -53,6 +53,17 @@ export const useChatStore = defineStore('chat', () => {
         } catch (err) {
             console.error('Failed to create conversation:', err)
             return null
+        }
+    }
+
+    async function manageGroupParticipants(conversationId, participantIds, action = 'add') {
+        try {
+            const response = await api.put(`/messages/conversations/${conversationId}/participants`, { participantIds, action })
+            await fetchConversations()
+            return response.data
+        } catch (err) {
+            console.error('Failed to manage participants:', err)
+            throw err;
         }
     }
 
@@ -137,6 +148,7 @@ export const useChatStore = defineStore('chat', () => {
         setActiveConversation,
         fetchConversations,
         createConversation,
+        manageGroupParticipants,
         sendMessage,
         fetchMessages,
         addMessage,

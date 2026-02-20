@@ -47,7 +47,7 @@ router.get('/conversations', async (ctx) => {
 
 // POST /api/messages/conversations - Create new conversation
 router.post('/conversations', async (ctx) => {
-    const { participantIds, name, isGroup = false } = ctx.request.body;
+    const { participantIds, name, description = '', isGroup = false } = ctx.request.body;
     const userId = ctx.state.user.id;
 
     if (!participantIds || !Array.isArray(participantIds)) {
@@ -78,15 +78,63 @@ router.post('/conversations', async (ctx) => {
     }
 
     const result = await db.write(
-        `INSERT INTO conversations (participant_ids, name, is_group) 
-         VALUES ($1, $2, $3) RETURNING id`,
-        [allParticipants, name, isGroup]
+        `INSERT INTO conversations (participant_ids, name, description, is_group, creator_id) 
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+        [allParticipants, name, description, isGroup, isGroup ? userId : null]
     );
 
     ctx.status = 201;
     ctx.body = {
         success: true,
         data: { id: result.rows[0].id },
+    };
+});
+
+// PUT /api/messages/conversations/:id/participants - Add, remove or leave group
+router.put('/conversations/:id/participants', async (ctx) => {
+    const { id } = ctx.params;
+    const { participantIds = [], action = 'add' } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    // Verify user is participant
+    const convCheck = await db.write(
+        'SELECT is_group, participant_ids FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [id, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado' };
+        return;
+    }
+
+    const conv = convCheck.rows[0];
+    if (!conv.is_group) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Ação permitida apenas em grupos' };
+        return;
+    }
+
+    const nextParticipants = new Set(conv.participant_ids);
+
+    if (action === 'leave') {
+        nextParticipants.delete(userId);
+    } else if (action === 'add' && Array.isArray(participantIds)) {
+        participantIds.forEach(pid => nextParticipants.add(pid));
+    } else if (action === 'remove' && Array.isArray(participantIds)) {
+        participantIds.forEach(pid => nextParticipants.delete(pid));
+    }
+
+    const updatedParticipants = Array.from(nextParticipants);
+
+    await db.write(
+        'UPDATE conversations SET participant_ids = $1 WHERE id = $2',
+        [updatedParticipants, id]
+    );
+
+    ctx.body = {
+        success: true,
+        data: { participantIds: updatedParticipants }
     };
 });
 
