@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install
-    startCommand: node src/app.js
+    startCommand: node migrate_content_types.js && node migrate_file_data.js && node src/app.js
     envVars:
       - key: NODE_ENV
         value: production
