@@ -16,19 +16,23 @@ export const authMiddleware = async (ctx, next) => {
 
     const token = authHeader.split(' ')[1];
 
+    let decoded;
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        ctx.state.user = decoded;
-        await next();
+        decoded = jwt.verify(token, JWT_SECRET);
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             ctx.status = 401;
             ctx.body = { success: false, message: 'Token expirado', code: 'TOKEN_EXPIRED' };
+            return;
         } else {
             ctx.status = 401;
             ctx.body = { success: false, message: 'Token inválido' };
+            return;
         }
     }
+
+    ctx.state.user = decoded;
+    await next();
 };
 
 export const adminMiddleware = async (ctx, next) => {
