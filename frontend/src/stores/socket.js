@@ -59,6 +59,10 @@ export const useSocketStore = defineStore('socket', () => {
             window.dispatchEvent(new CustomEvent('socket:message:deleted', { detail: data }))
         })
 
+        socket.value.on('message:reaction', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:message:reaction', { detail: data }))
+        })
+
         socket.value.on('message:read', (data) => {
             window.dispatchEvent(new CustomEvent('socket:message:read', { detail: data }))
         })

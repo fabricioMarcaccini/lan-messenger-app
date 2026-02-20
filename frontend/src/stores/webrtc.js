@@ -13,6 +13,7 @@ export const useWebRTCStore = defineStore('webrtc', () => {
 
     const callState = ref('idle') // 'idle', 'calling', 'receiving', 'connected'
     const isVideoCall = ref(false)
+    const isScreenSharing = ref(false)
 
     // Remote user info
     const remoteUser = ref({
@@ -245,12 +246,62 @@ export const useWebRTCStore = defineStore('webrtc', () => {
         return false
     }
 
+    async function toggleScreenShare() {
+        if (!peerConnection.value) return false;
+
+        if (isScreenSharing.value) {
+            // Revert back to camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                const videoTrack = stream.getVideoTracks()[0]
+
+                const sender = peerConnection.value.getSenders().find(s => s.track.kind === 'video')
+                if (sender) sender.replaceTrack(videoTrack)
+
+                localStream.value = stream
+                isScreenSharing.value = false
+                return false // returning state
+            } catch (err) {
+                console.error('Error reverting to camera:', err)
+                return true
+            }
+        } else {
+            // Switch to screen
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+                const screenTrack = screenStream.getVideoTracks()[0]
+
+                screenTrack.onended = () => {
+                    toggleScreenShare() // revert if user stops via browser UI
+                }
+
+                const sender = peerConnection.value.getSenders().find(s => s.track.kind === 'video')
+                if (sender) sender.replaceTrack(screenTrack)
+
+                // preserve audio track from previous stream
+                if (localStream.value) {
+                    const audioTrack = localStream.value.getAudioTracks()[0]
+                    if (audioTrack) screenStream.addTrack(audioTrack)
+                }
+
+                localStream.value = screenStream
+                isScreenSharing.value = true
+                isVideoCall.value = true // ensure it's marked as video
+                return true
+            } catch (err) {
+                console.error('Error sharing screen:', err)
+                return false
+            }
+        }
+    }
+
     return {
         localStream,
         remoteStream,
         callState,
         remoteUser,
         isVideoCall,
+        isScreenSharing,
         startCall,
         handleIncomingCall,
         answerCall,
@@ -259,6 +310,7 @@ export const useWebRTCStore = defineStore('webrtc', () => {
         endCall,
         endCallLocally,
         toggleMute,
-        toggleVideo
+        toggleVideo,
+        toggleScreenShare
     }
 })

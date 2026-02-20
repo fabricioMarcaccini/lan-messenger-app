@@ -191,11 +191,11 @@
               <span class="material-symbols-outlined text-lg">arrow_back</span>
             </button>
             <div 
-              @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null"
+              @click="showGroupInfo = true"
               class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20 flex-shrink-0"
               :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
             ></div>
-            <div @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null" class="flex-1 min-w-0 mr-2">
+            <div @click="showGroupInfo = true" class="flex-1 min-w-0 mr-2">
               <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-none mb-1">
                 {{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
               </h2>
@@ -251,6 +251,12 @@
                     <span class="material-symbols-outlined text-[16px]">block</span> {{ msg.content }}
                   </p>
                   
+                  <!-- Reply Context -->
+                  <div v-if="msg.replyTo && !(msg.isDeleted || msg.contentType === 'deleted')" class="px-3 pt-3 pb-1 mb-1 border-b border-gray-300 dark:border-white/10 opacity-70">
+                     <span class="text-[10px] font-bold block mb-1">Reposta a uma mensagem</span>
+                     <p class="text-xs truncate italic">...</p>
+                  </div>
+                  
                   <!-- Text Message -->
                   <p v-else-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg">{{ msg.content }}</p>
                   
@@ -286,16 +292,33 @@
                 </div>
 
                 <!-- Delete/Edit buttons (Hover) -->
-                <div v-if="msg.senderId === authStore.user?.id && (!msg.isDeleted && msg.contentType !== 'deleted')" class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
-                  <button v-if="msg.contentType === 'text'" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
-                  <button @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
+                <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                  <button @click="startReply(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-cyan-500" title="Responder"><span class="material-symbols-outlined text-[14px]">reply</span></button>
+                  <button v-if="msg.senderId === authStore.user?.id && msg.contentType === 'text'" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
+                  <button v-if="msg.senderId === authStore.user?.id" @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
                 </div>
               </div>
 
-              <div class="flex items-center gap-1 mt-0.5 px-1 truncate max-w-full justify-end">
-                <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
-                <span v-if="msg.editedAt" class="text-[9px] text-gray-400 dark:text-slate-500 italic ml-1">(editado)</span>
-                <span v-if="msg.senderId === authStore.user?.id" class="material-symbols-outlined text-[14px] ml-1" :class="msg.isRead ? 'text-blue-500 shadow-blue-500/20' : 'text-gray-400'">{{ msg.isRead ? 'done_all' : 'check' }}</span>
+              <div class="flex items-center gap-1 mt-0.5 px-1 truncate max-w-full justify-end flex-wrap">
+                <!-- Reactions -->
+                <div v-if="msg.reactions && Object.keys(msg.reactions).length > 0" class="flex gap-1 mr-2 bg-gray-100 dark:bg-black/30 rounded-full px-1.5 py-0.5 border border-gray-200 dark:border-white/10">
+                   <div v-for="(users, emoji) in msg.reactions" :key="emoji" @click="toggleReaction(msg.id, emoji)" class="flex items-center gap-1 cursor-pointer text-[10px] hover:scale-110 transition-transform" :class="users.includes(authStore.user?.id) ? 'text-primary' : ''">
+                      <span>{{ emoji }}</span> <span class="font-bold">{{ users.length }}</span>
+                   </div>
+                </div>
+
+                <div class="flex items-center gap-1">
+                  <!-- Quick Reactions -->
+                  <div class="opacity-0 group-hover:opacity-100 flex gap-1 mr-2 transition-opacity">
+                     <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '👍')">👍</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '❤️')">❤️</span>
+                  </div>
+
+                  <span v-if="msg.expiresAt" class="material-symbols-outlined text-[12px] text-red-400 mr-1" title="Mensagem temporária">timer</span>
+                  <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
+                  <span v-if="msg.editedAt" class="text-[9px] text-gray-400 dark:text-slate-500 italic ml-1">(editado)</span>
+                  <span v-if="msg.senderId === authStore.user?.id" class="material-symbols-outlined text-[14px] ml-1" :class="msg.isRead ? 'text-blue-500 shadow-blue-500/20' : 'text-gray-400'">{{ msg.isRead ? 'done_all' : 'check' }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -303,12 +326,13 @@
         
         <!-- Input Area -->
         <div class="p-6 pt-2 shrink-0 z-20 bg-gray-50 dark:bg-transparent relative">
-          <!-- Edit Banner -->
-          <div v-if="editingMessageId" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px]">edit</span> Editando mensagem
+          <!-- Edit / Reply Banner -->
+          <div v-if="editingMessageId || replyingToMessage" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
+            <div class="flex items-center gap-2 w-full pr-4 overflow-hidden">
+              <span class="material-symbols-outlined text-[16px]">{{ replyingToMessage ? 'reply' : 'edit' }}</span> 
+              <span class="truncate">{{ replyingToMessage ? `Respondendo: ${replyingToMessage.content}` : 'Editando mensagem' }}</span>
             </div>
-            <button @click="cancelEdit" class="text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-100"><span class="material-symbols-outlined text-sm">close</span></button>
+            <button @click="cancelEditOrReply" class="text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-100 shrink-0"><span class="material-symbols-outlined text-sm">close</span></button>
           </div>
 
           <!-- Emoji Picker (Absolute positioned) -->
@@ -336,6 +360,12 @@
             >
               <span class="material-symbols-outlined transform rotate-45">attach_file</span>
             </button>
+            <select v-model="messageExpiresIn" class="mb-1 ml-1 text-xs bg-transparent border-none text-gray-500 dark:text-slate-400 p-1 cursor-pointer outline-none ring-0 w-16" title="Temporizador de Autodestruição">
+                <option :value="null">Off</option>
+                <option :value="60">1m</option>
+                <option :value="600">10m</option>
+                <option :value="3600">1h</option>
+            </select>
             
             <div class="flex-1 min-h-[44px] py-2.5 flex items-center gap-2">
               <span v-if="isRecording" class="flex items-center gap-2 text-red-500 animate-pulse text-sm font-medium px-2">
@@ -482,12 +512,17 @@
         </div>
         
         <div class="flex flex-col items-center mb-6">
-           <div class="bg-center bg-cover rounded-full size-20 mb-3 border-4 border-primary/20" :style="{ backgroundImage: `url(${defaultAvatar})` }"></div>
-           <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ chatStore.activeConversation.name }}</h3>
+           <div class="bg-center bg-cover rounded-full size-20 mb-3 border-4 border-primary/20" :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"></div>
+           <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}</h3>
            <p class="text-sm text-gray-500 dark:text-slate-400 text-center mt-1 font-medium">{{ chatStore.activeConversation.participants.length }} Participantes</p>
         </div>
 
-        <div class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1">
+        <div class="flex gap-4 mb-4 border-b border-gray-200 dark:border-white/10 w-full justify-center">
+          <button @click="infoTab = 'members'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'members' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Membros</button>
+          <button @click="infoTab = 'media'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'media' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Mídia</button>
+        </div>
+
+        <div v-if="infoTab === 'members'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
           <div v-for="p in chatStore.activeConversation.participants" :key="p.id" class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-black/20">
              <div class="bg-cover bg-center rounded-full size-8" :style="{ backgroundImage: `url(${p.avatar_url || defaultAvatar})` }"></div>
              <span class="text-sm text-gray-900 dark:text-white font-medium truncate flex-1">{{ p.full_name || p.username }}</span>
@@ -495,7 +530,18 @@
           </div>
         </div>
 
-        <button @click="leaveGroup" class="w-full mt-2 py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-900/30">
+        <div v-if="infoTab === 'media'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full relative">
+           <div class="grid grid-cols-3 gap-2">
+              <template v-for="msg in chatStore.activeMessages">
+                 <div v-if="msg.contentType === 'image'" :key="msg.id" class="aspect-square bg-gray-100 dark:bg-black/20 rounded-lg overflow-hidden cursor-pointer">
+                    <img :src="getApiUrl(msg.content)" class="w-full h-full object-cover" @click="openImage(getApiUrl(msg.content))">
+                 </div>
+              </template>
+           </div>
+           <div v-if="chatStore.activeMessages.filter(m => m.contentType === 'image').length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma mídia.</div>
+        </div>
+
+        <button v-if="chatStore.activeConversation?.isGroup" @click="leaveGroup" class="w-full mt-2 py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-900/30">
           <span class="material-symbols-outlined text-[18px]">logout</span>
           Sair do Grupo
         </button>
@@ -573,6 +619,10 @@
             <span class="material-symbols-outlined text-2xl">{{ isCamOff ? 'videocam_off' : 'videocam' }}</span>
           </button>
 
+          <button v-if="webrtcStore.isVideoCall" @click="toggleScreenShare" class="size-14 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all">
+            <span class="material-symbols-outlined text-2xl" :class="webrtcStore.isScreenSharing ? 'text-blue-400' : ''">present_to_all</span>
+          </button>
+
           <button @click="webrtcStore.endCall()" class="size-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110">
             <span class="material-symbols-outlined text-3xl">call_end</span>
           </button>
@@ -621,6 +671,9 @@ const showMobileSidebar = ref(false)
 const fileInput = ref(null)
 
 const editingMessageId = ref(null)
+const replyingToMessage = ref(null)
+const messageExpiresIn = ref(null)
+const infoTab = ref('members')
 
 const isRecording = ref(false)
 let mediaRecorder = null
@@ -699,17 +752,23 @@ async function leaveGroup() {
 }
 
 async function sendMessage() {
-  if (!newMessage.value.trim() || !chatStore.activeConversationId) return
+  if (!newMessage.value.trim() && !editingMessageId.value && !replyingToMessage.value && !chatStore.activeConversationId) return
   
   if (editingMessageId.value) {
-    await chatStore.editMessage(editingMessageId.value, newMessage.value)
+    if (newMessage.value.trim()) {
+        await chatStore.editMessage(editingMessageId.value, newMessage.value)
+    }
     editingMessageId.value = null
-  } else {
-    await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value)
+  } else if (newMessage.value.trim()) {
+    await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value, 'text', {
+        replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
+        expiresIn: messageExpiresIn.value
+    })
   }
   
   newMessage.value = ''
   showEmojiPicker.value = false
+  replyingToMessage.value = null
   
   await nextTick()
   scrollToBottom()
@@ -732,8 +791,18 @@ function startEdit(msg) {
   })
 }
 
-function cancelEdit() {
+function startReply(msg) {
+  replyingToMessage.value = msg
   editingMessageId.value = null
+  requestAnimationFrame(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) textarea.focus()
+  })
+}
+
+function cancelEditOrReply() {
+  editingMessageId.value = null
+  replyingToMessage.value = null
   newMessage.value = ''
   requestAnimationFrame(() => {
     const textarea = document.querySelector('textarea')
@@ -824,7 +893,11 @@ async function handleFileUpload(event) {
     console.log('✅ Upload success:', uploadedFile)
     
     // Send message with file URL
-    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType)
+    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType, {
+        replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
+        expiresIn: messageExpiresIn.value
+    })
+    replyingToMessage.value = null
     await nextTick()
     scrollToBottom()
   } catch (error) {
@@ -926,6 +999,14 @@ function toggleCamera() {
   isCamOff.value = webrtcStore.toggleVideo()
 }
 
+function toggleScreenShare() {
+  webrtcStore.toggleScreenShare()
+}
+
+async function toggleReaction(messageId, emoji) {
+   await chatStore.toggleReaction(messageId, emoji)
+}
+
 
 
 // Handle new message from socket
@@ -955,6 +1036,13 @@ function handleMessageEdited(event) {
   const data = event.detail;
   if (data?.conversationId && data?.messageId) {
     chatStore.updateMessageEdited(data.conversationId, data.messageId, data.content, data.editedAt)
+  }
+}
+
+function handleMessageReaction(event) {
+  const data = event.detail;
+  if (data?.conversationId && data?.messageId) {
+    chatStore.updateMessageReaction(data.conversationId, data.messageId, data.reactions)
   }
 }
 
@@ -1009,6 +1097,7 @@ onMounted(async () => {
   window.addEventListener('socket:message', handleNewMessage)
   window.addEventListener('socket:message:edited', handleMessageEdited)
   window.addEventListener('socket:message:deleted', handleMessageDeleted)
+  window.addEventListener('socket:message:reaction', handleMessageReaction)
   window.addEventListener('socket:message:read', handleMessageRead)
   
   window.addEventListener('socket:call:offer', handleCallOffer)
@@ -1022,6 +1111,7 @@ onUnmounted(() => {
   window.removeEventListener('socket:message', handleNewMessage)
   window.removeEventListener('socket:message:edited', handleMessageEdited)
   window.removeEventListener('socket:message:deleted', handleMessageDeleted)
+  window.removeEventListener('socket:message:reaction', handleMessageReaction)
   window.removeEventListener('socket:message:read', handleMessageRead)
   
   window.removeEventListener('socket:call:offer', handleCallOffer)

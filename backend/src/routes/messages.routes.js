@@ -158,7 +158,7 @@ router.get('/conversations/:id', async (ctx) => {
 
     let query = `
         SELECT m.id, m.sender_id, m.content, m.content_type, m.file_url, m.is_read, m.is_deleted,
-               m.edited_at, m.created_at,
+               m.edited_at, m.created_at, m.reply_to, m.reactions, m.expires_at,
                u.username as sender_username, u.full_name as sender_name, u.avatar_url as sender_avatar
         FROM messages m
         JOIN users u ON u.id = m.sender_id
@@ -191,14 +191,17 @@ router.get('/conversations/:id', async (ctx) => {
             isDeleted: m.is_deleted,
             editedAt: m.edited_at,
             createdAt: m.created_at,
-        })),
+            replyTo: m.reply_to,
+            reactions: m.reactions || {},
+            expiresAt: m.expires_at,
+        })).filter(m => !m.expiresAt || new Date(m.expiresAt) > new Date()),
     };
 });
 
 // POST /api/messages/conversations/:id - Send message
 router.post('/conversations/:id', async (ctx) => {
     const { id } = ctx.params;
-    const { content, contentType = 'text', fileUrl } = ctx.request.body;
+    const { content, contentType = 'text', fileUrl, replyTo = null, expiresIn = null } = ctx.request.body;
     const userId = ctx.state.user.id;
 
     if (!content) {
@@ -218,11 +221,16 @@ router.post('/conversations/:id', async (ctx) => {
         return;
     }
 
+    let expiresAt = null;
+    if (expiresIn) {
+        expiresAt = new Date(Date.now() + expiresIn * 1000); // expiresIn is in seconds
+    }
+
     const result = await db.write(
-        `INSERT INTO messages (conversation_id, sender_id, content, content_type, file_url)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO messages (conversation_id, sender_id, content, content_type, file_url, reply_to, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, created_at`,
-        [id, userId, content, contentType, fileUrl]
+        [id, userId, content, contentType, fileUrl, replyTo, expiresAt]
     );
 
     const message = result.rows[0];
@@ -248,6 +256,9 @@ router.post('/conversations/:id', async (ctx) => {
         isDeleted: false,
         editedAt: null,
         createdAt: message.created_at,
+        replyTo,
+        reactions: {},
+        expiresAt
     };
 
     const io = ctx.app.context.io;
@@ -381,6 +392,56 @@ router.put('/:id/read', async (ctx) => {
     }
 
     ctx.body = { success: true, message: 'Mensagem marcada como lida' };
+});
+
+// POST /api/messages/:id/react - Alternar reação
+router.post('/:id/react', async (ctx) => {
+    const { id } = ctx.params;
+    const { emoji } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    if (!emoji) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Emoji é obrigatório' };
+        return;
+    }
+
+    const msgCheck = await db.write('SELECT reactions, conversation_id FROM messages WHERE id = $1', [id]);
+
+    if (msgCheck.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Mensagem não encontrada' };
+        return;
+    }
+
+    const msg = msgCheck.rows[0];
+    let reactions = msg.reactions || {};
+
+    // Toggle reaction pattern
+    if (!reactions[emoji]) reactions[emoji] = [];
+
+    if (reactions[emoji].includes(userId)) {
+        reactions[emoji] = reactions[emoji].filter(u => u !== userId);
+        if (reactions[emoji].length === 0) delete reactions[emoji];
+    } else {
+        reactions[emoji].push(userId);
+    }
+
+    await db.write('UPDATE messages SET reactions = $1 WHERE id = $2', [reactions, id]);
+
+    const io = ctx.app.context.io;
+    if (io) {
+        const convResult = await db.write('SELECT participant_ids FROM conversations WHERE id = $1', [msg.conversation_id]);
+        (convResult.rows[0]?.participant_ids || []).forEach(pid => {
+            io.to(`user:${pid}`).emit('message:reaction', {
+                messageId: id,
+                conversationId: msg.conversation_id,
+                reactions
+            });
+        });
+    }
+
+    ctx.body = { success: true, data: reactions };
 });
 
 export default router;

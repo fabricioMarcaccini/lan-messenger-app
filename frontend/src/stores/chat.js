@@ -67,11 +67,14 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    async function sendMessage(conversationId, content, type = 'text') {
+    async function sendMessage(conversationId, content, type = 'text', options = {}) {
         try {
+            const { replyTo = null, expiresIn = null } = options;
             const response = await api.post(`/messages/conversations/${conversationId}`, {
                 content,
-                contentType: type
+                contentType: type,
+                replyTo,
+                expiresIn
             })
             const newMessage = response.data.data
 
@@ -108,6 +111,15 @@ export const useChatStore = defineStore('chat', () => {
             await api.delete(`/messages/${messageId}`)
         } catch (err) {
             console.error('Failed to delete message', err)
+        }
+    }
+
+    async function toggleReaction(messageId, emoji) {
+        try {
+            const response = await api.post(`/messages/${messageId}/react`, { emoji })
+            return response.data.data // new reactions object
+        } catch (err) {
+            console.error('Failed to react', err)
         }
     }
 
@@ -213,6 +225,25 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    function updateMessageReaction(conversationId, messageId, reactions) {
+        if (messages.value[conversationId]) {
+            const msg = messages.value[conversationId].find(m => m.id === messageId);
+            if (msg) {
+                msg.reactions = reactions;
+            }
+        }
+    }
+
+    // Clean up expired messages
+    setInterval(() => {
+        Object.keys(messages.value).forEach(convId => {
+            messages.value[convId] = messages.value[convId].filter(m => {
+                if (m.expiresAt && new Date(m.expiresAt) <= new Date()) return false;
+                return true;
+            });
+        });
+    }, 10000); // Check every 10 seconds
+
     return {
         conversations,
         activeConversationId,
@@ -231,6 +262,8 @@ export const useChatStore = defineStore('chat', () => {
         markAsRead,
         updateMessageDeleted,
         updateMessageEdited,
-        updateMessageRead
+        updateMessageRead,
+        toggleReaction,
+        updateMessageReaction
     }
 })
