@@ -6,6 +6,12 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
 
 export const authMiddleware = async (ctx, next) => {
+    // Browsers don't send Authorization headers on preflight OPTIONS requests
+    if (ctx.method === 'OPTIONS') {
+        await next();
+        return;
+    }
+
     const authHeader = ctx.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
