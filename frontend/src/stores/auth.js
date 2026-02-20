@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 
-const API_URL = '/api'
+const API_URL = import.meta.env.PROD ? 'https://lan-messenger-backend.onrender.com/api' : '/api'
 
 // Export axios instance directly
 export const api = axios.create({ baseURL: API_URL })

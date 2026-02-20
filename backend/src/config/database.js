@@ -29,6 +29,7 @@ const pgPool = new pg.Pool({
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 
@@ -44,13 +45,17 @@ const mysqlPool = mysql.createPool({
     queueLimit: 0,
 });
 
-// Redis Client (Cache & Sessions)
+// Redis Client (Cache & Sessions fallback)
 const redis = new Redis({
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT) || 6379,
     retryDelayOnFailover: 100,
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: 1, // Minimize retry attempts in production
 });
+
+// Memory Cache Fallback for free-tier Render deployments
+const memoryCache = new Map();
+const fallbackEnabled = process.env.NODE_ENV === 'production' || process.env.REDIS_HOST === 'localhost';
 
 // Database utility functions
 export const db = {
@@ -96,41 +101,46 @@ export const db = {
 // Redis cache utilities
 export const cache = {
     async get(key) {
-        const value = await redis.get(key);
-        return value ? JSON.parse(value) : null;
+        if (fallbackEnabled) return memoryCache.get(key) || null;
+        try { const value = await redis.get(key); return value ? JSON.parse(value) : null; } catch (e) { return memoryCache.get(key) || null; }
     },
 
     async set(key, value, ttlSeconds = 3600) {
-        await redis.setex(key, ttlSeconds, JSON.stringify(value));
+        if (fallbackEnabled) { memoryCache.set(key, value); setTimeout(() => memoryCache.delete(key), ttlSeconds * 1000); return; }
+        try { await redis.setex(key, ttlSeconds, JSON.stringify(value)); } catch (e) { memoryCache.set(key, value); }
     },
 
     async del(key) {
-        await redis.del(key);
+        if (fallbackEnabled) { memoryCache.delete(key); return; }
+        try { await redis.del(key); } catch (e) { memoryCache.delete(key); }
     },
 
     async keys(pattern) {
-        return redis.keys(pattern);
+        if (fallbackEnabled) return [];
+        try { return await redis.keys(pattern); } catch (e) { return []; }
     },
 
     async setPresence(userId, status) {
-        await redis.hset(`presence:${userId}`, {
-            status,
-            lastSeen: Date.now(),
-        });
-        await redis.expire(`presence:${userId}`, 300); // 5 min expiry
+        if (fallbackEnabled) { memoryCache.set(`presence:${userId}`, { status, lastSeen: Date.now() }); return; }
+        try {
+            await redis.hset(`presence:${userId}`, { status, lastSeen: Date.now() });
+            await redis.expire(`presence:${userId}`, 300);
+        } catch (e) { }
     },
 
     async getPresence(userId) {
-        return redis.hgetall(`presence:${userId}`);
+        if (fallbackEnabled) return memoryCache.get(`presence:${userId}`) || null;
+        try { return await redis.hgetall(`presence:${userId}`); } catch (e) { return null; }
     },
 
     async setTyping(conversationId, userId) {
-        await redis.setex(`typing:${conversationId}:${userId}`, 3, '1');
+        if (fallbackEnabled) { memoryCache.set(`typing:${conversationId}:${userId}`, '1'); setTimeout(() => memoryCache.delete(`typing:${conversationId}:${userId}`), 3000); return; }
+        try { await redis.setex(`typing:${conversationId}:${userId}`, 3, '1'); } catch (e) { }
     },
 
     async getTyping(conversationId) {
-        const keys = await redis.keys(`typing:${conversationId}:*`);
-        return keys.map(k => k.split(':')[2]);
+        if (fallbackEnabled) return [];
+        try { const keys = await redis.keys(`typing:${conversationId}:*`); return keys.map(k => k.split(':')[2]); } catch (e) { return []; }
     },
 };
 
