@@ -128,7 +128,8 @@ app.use(async (ctx, next) => {
         ctx.body = {
             success: false,
             message: err.message || 'Internal Server Error',
-            ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+            stack: err.stack, // Always send stack trace temporarily for debugging
+            detail: err.detail || err.hint || null
         };
     }
 });
@@ -212,6 +213,10 @@ httpServer.listen(PORT, async () => {
             console.log('🔄 Executando sincronização de esquema segura no PostgreSQL...');
             const { db } = await import('./config/database.js');
             await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_admins UUID[] DEFAULT '{}'");
+            await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description TEXT");
+            await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS creator_id UUID");
+            await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT false");
+
             await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false');
             await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP');
 
