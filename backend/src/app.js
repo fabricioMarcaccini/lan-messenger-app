@@ -37,10 +37,32 @@ const app = new Koa();
 const router = new Router();
 const httpServer = createServer(app.callback());
 
+// Advanced CORS logic avoiding exact string mismatches in Vercel
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:3000'
+].filter(Boolean);
+
+const verifyOrigin = (ctx) => {
+    const origin = ctx.get('Origin');
+    if (!origin) return allowedOrigins[0] || '*';
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        return origin;
+    }
+    return allowedOrigins[0];
+};
+
 // Socket.IO setup
 const io = new SocketIO(httpServer, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: ['GET', 'POST'],
         credentials: true,
     },
@@ -49,7 +71,7 @@ const io = new SocketIO(httpServer, {
 
 // Middleware
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: verifyOrigin,
     credentials: true,
 }));
 

@@ -1,7 +1,6 @@
 {
-    "framework": "vite",
-    "buildCommand": "npm run build",
-    "outputDirectory": "dist",
+    "name": "lan-messenger-web-br",
+    "version": 2,
     "rewrites": [
         {
             "source": "/(.*)",
