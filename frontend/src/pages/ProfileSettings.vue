@@ -1,7 +1,10 @@
 <template>
   <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300">
+    <!-- Mobile Sidebar Overlay -->
+    <div v-if="showMobileSidebar" class="fixed inset-0 bg-black/50 z-30 md:hidden" @click="showMobileSidebar = false"></div>
+
     <!-- Left Sidebar (Navigation) -->
-    <aside class="w-[280px] flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full z-20 bg-white dark:bg-transparent">
+    <aside :class="['flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full bg-white dark:bg-[#131c1e] md:dark:bg-transparent w-[280px] absolute md:relative z-40 transition-transform duration-300', showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
       <!-- User Profile -->
       <div class="p-6 border-b border-gray-100 dark:border-glass-border">
         <div class="flex items-center gap-4">
@@ -58,10 +61,16 @@
 
     <!-- Main Content -->
     <main class="flex-1 flex flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300 overflow-y-auto">
-      <div class="p-8 max-w-4xl mx-auto w-full">
-        <header class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{{ locale.t.settings.title }}</h1>
-          <p class="text-gray-500 dark:text-slate-400">{{ locale.t.settings.subtitle }}</p>
+      <div class="p-4 md:p-8 max-w-4xl mx-auto w-full">
+        <header class="mb-8 flex items-start gap-4">
+          <!-- Mobile Menu Toggle -->
+          <button @click="showMobileSidebar = true" class="md:hidden size-10 rounded-xl bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0 mt-1">
+            <span class="material-symbols-outlined text-xl">menu</span>
+          </button>
+          <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{{ locale.t.settings.title }}</h1>
+            <p class="text-gray-500 dark:text-slate-400">{{ locale.t.settings.subtitle }}</p>
+          </div>
         </header>
 
         <!-- Profile Section -->
@@ -408,6 +417,7 @@ const locale = useLocaleStore()
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 const loading = ref(false)
+const showMobileSidebar = ref(false)
 
 const formData = ref({
   fullName: '',

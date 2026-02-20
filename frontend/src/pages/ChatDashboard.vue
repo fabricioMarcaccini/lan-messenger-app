@@ -1,7 +1,10 @@
 <template>
   <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300 relative">
+    <!-- Mobile Sidebar Overlay -->
+    <div v-if="showMobileSidebar" class="fixed inset-0 bg-black/50 z-30 md:hidden" @click="showMobileSidebar = false"></div>
+    
     <!-- Left Sidebar -->
-    <aside class="w-[280px] flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full z-20 bg-white dark:bg-transparent">
+    <aside :class="['flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full bg-white dark:bg-[#131c1e] md:dark:bg-transparent w-[280px] absolute md:relative z-40 transition-transform duration-300', showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
       <!-- User Profile -->
       <div class="p-6 border-b border-gray-100 dark:border-glass-border">
         <div class="flex items-center gap-4">
@@ -98,10 +101,16 @@
     </aside>
     
     <!-- Center Panel: Chat List -->
-    <section class="w-[360px] flex-shrink-0 flex flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-colors duration-300">
+    <section :class="['flex-shrink-0 flex flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-colors duration-300 w-full md:w-[360px]', chatStore.activeConversation ? 'hidden md:flex' : 'flex']">
       <div class="p-5 pb-2 pt-6">
         <div class="flex justify-between items-end mb-4">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{{ locale.t.chat.title }}</h2>
+          <div class="flex items-center">
+            <!-- Mobile Menu Toggle -->
+            <button @click="showMobileSidebar = true" class="md:hidden size-8 mr-3 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0">
+              <span class="material-symbols-outlined text-lg">menu</span>
+            </button>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{{ locale.t.chat.title }}</h2>
+          </div>
           <button 
             @click="showNewChatModal = true"
             class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
@@ -172,16 +181,21 @@
     </section>
     
     <!-- Right Panel: Active Chat -->
-    <main class="flex-1 flex flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300">
+    <main :class="['flex-1 flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300 w-full', chatStore.activeConversation ? 'flex' : 'hidden md:flex']">
       <template v-if="chatStore.activeConversation">
         <!-- Chat Header -->
-        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-6 z-20 shrink-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null">
-          <div class="flex items-center gap-4">
+        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-20 shrink-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+          <div class="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+            <!-- Back Button for Mobile -->
+            <button @click="chatStore.setActiveConversation(null)" class="md:hidden size-8 mr-1 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 text-gray-600 dark:text-white flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-lg">arrow_back</span>
+            </button>
             <div 
-              class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20"
+              @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null"
+              class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20 flex-shrink-0"
               :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
             ></div>
-            <div>
+            <div @click="chatStore.activeConversation.isGroup ? showGroupInfo = true : null" class="flex-1 min-w-0 mr-2">
               <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-none mb-1">
                 {{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
               </h2>
@@ -603,6 +617,7 @@ const messagesContainer = ref(null)
 const showNewChatModal = ref(false)
 const userFilter = ref('')
 const showEmojiPicker = ref(false)
+const showMobileSidebar = ref(false)
 const fileInput = ref(null)
 
 const editingMessageId = ref(null)
