@@ -139,11 +139,9 @@ export const useChatStore = defineStore('chat', () => {
             const formData = new FormData()
             formData.append('file', file)
 
-            const response = await api.post('/uploads', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            })
+            // NOTE: Do NOT set Content-Type manually - axios must auto-set it 
+            // with `multipart/form-data; boundary=...` for the server to parse correctly
+            const response = await api.post('/uploads', formData)
             return response.data;
         } catch (err) {
             console.error('Failed to upload file:', err)
