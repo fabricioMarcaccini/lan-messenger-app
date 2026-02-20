@@ -84,17 +84,20 @@ export const useChatStore = defineStore('chat', () => {
             messages.value[conversationId].push(newMessage)
 
             // Update last message in conversation list
+            const conv = conversations.value.find(c => c.id === conversationId)
             if (conv) {
                 if (type === 'deleted') conv.lastMessage = '🚫 Mensagem apagada';
                 else if (type === 'text') conv.lastMessage = content;
                 else if (type === 'audio') conv.lastMessage = '🎙️ Áudio';
                 else if (type === 'image') conv.lastMessage = '📷 Imagem';
+                else if (type === 'call') conv.lastMessage = '📞 Chamada';
                 else conv.lastMessage = '📎 Arquivo';
 
                 conv.lastMessageAt = new Date().toISOString()
             }
         } catch (err) {
             console.error('Failed to send message:', err)
+            throw err
         }
     }
 
@@ -236,13 +239,11 @@ export const useChatStore = defineStore('chat', () => {
 
     async function saveCallLog(conversationId, callType, duration, status) {
         try {
-            const { data } = await axios.post(
-                `/api/messages/conversations/${conversationId}/call-log`,
-                { callType, duration, status },
-                { headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } }
-            )
-            if (data.success) {
-                addMessage(data.data)
+            const response = await api.post(`/messages/conversations/${conversationId}/call-log`, {
+                callType, duration, status
+            })
+            if (response.data.success) {
+                addMessage(conversationId, response.data.data)
             }
         } catch (e) {
             console.error('Failed to save call log:', e)

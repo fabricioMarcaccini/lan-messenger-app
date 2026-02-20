@@ -1053,10 +1053,14 @@ function onEmojiClick(event) {
   newMessage.value += event.detail.unicode
 }
 
-function getApiUrl(path) {
-  if (!path) return ''
-  if (path.startsWith('http')) return path
-  return `http://localhost:3000${path}`
+const API_BASE = import.meta.env.PROD 
+  ? 'https://lan-messenger-backend.onrender.com' 
+  : 'http://localhost:3000'
+
+function getApiUrl(filePath) {
+  if (!filePath) return ''
+  if (filePath.startsWith('http')) return filePath
+  return `${API_BASE}${filePath}`
 }
 
 function getFileName(path) {
