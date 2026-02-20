@@ -2,45 +2,24 @@ import Router from 'koa-router';
 import { db } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { randomUUID } from 'crypto';
-import fs from 'fs/promises';
 import path from 'path';
 
 const router = new Router();
 
-// Pasta para uploads
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
-
-// Garantir que a pasta existe
-async function ensureUploadsDir() {
-    try {
-        await fs.access(UPLOADS_DIR);
-    } catch {
-        await fs.mkdir(UPLOADS_DIR, { recursive: true });
-    }
-}
-
 router.use(authMiddleware);
 
-// Blocked file extensions for security
+// Block dangerous extensions
 const BLOCKED_EXTENSIONS = ['.exe', '.bat', '.cmd', '.msi', '.ps1', '.vbs', '.jar', '.scr', '.pif', '.sh'];
 
-// POST /api/uploads - Upload a file
+// POST /api/uploads - Upload a file (stores in DB as base64 for Render compatibility)
 router.post('/', async (ctx) => {
-    await ensureUploadsDir();
-
     console.log('📤 Upload request received');
-    console.log('   Files:', ctx.request.files);
-    console.log('   Body:', ctx.request.body);
 
-    // koa-body pode colocar o file em ctx.request.files com qualquer nome
+    // koa-body puts file in ctx.request.files
     let file = ctx.request.files?.file;
-
-    // Se não encontrou como 'file', procura qualquer arquivo
     if (!file && ctx.request.files) {
-        const fileKeys = Object.keys(ctx.request.files);
-        if (fileKeys.length > 0) {
-            file = ctx.request.files[fileKeys[0]];
-        }
+        const keys = Object.keys(ctx.request.files);
+        if (keys.length > 0) file = ctx.request.files[keys[0]];
     }
 
     if (!file) {
@@ -50,33 +29,29 @@ router.post('/', async (ctx) => {
         return;
     }
 
-    console.log('   File object:', file);
+    const originalName = file.originalFilename || file.name || 'unknown';
+    const ext = path.extname(originalName).toLowerCase();
+
+    if (BLOCKED_EXTENSIONS.includes(ext)) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Tipo de arquivo não permitido por segurança' };
+        return;
+    }
+
+    const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+    const mimeType = file.mimetype || file.type || 'application/octet-stream';
 
     try {
-        const originalName = file.originalFilename || file.name || 'unknown';
-        const ext = path.extname(originalName).toLowerCase();
+        // Read file from tmp path
+        const { readFile } = await import('fs/promises');
+        const sourcePath = file.filepath || file.path;
+        const fileBuffer = await readFile(sourcePath);
 
-        // Security: Block dangerous extensions
-        if (BLOCKED_EXTENSIONS.includes(ext)) {
+        if (fileBuffer.length > MAX_SIZE) {
             ctx.status = 400;
-            ctx.body = { success: false, message: 'Tipo de arquivo não permitido por segurança' };
+            ctx.body = { success: false, message: 'Arquivo muito grande. Máximo permitido: 20MB' };
             return;
         }
-
-        const fileId = randomUUID();
-        const fileName = `${fileId}${ext}`;
-        const filePath = path.join(UPLOADS_DIR, fileName);
-
-        // Read and save file - try filepath first (formidable v3), then path (older versions)
-        const sourcePath = file.filepath || file.path;
-        console.log('   Source path:', sourcePath);
-
-        const data = await fs.readFile(sourcePath);
-        await fs.writeFile(filePath, data);
-
-        // Get file info
-        const stats = await fs.stat(filePath);
-        const mimeType = file.mimetype || file.type || 'application/octet-stream';
 
         // Determine content type for chat
         let contentType = 'file';
@@ -85,27 +60,29 @@ router.post('/', async (ctx) => {
         else if (mimeType.startsWith('audio/')) contentType = 'audio';
         else if (mimeType === 'application/pdf') contentType = 'pdf';
 
-        // Save to database
-        const result = await db.write(
-            `INSERT INTO file_uploads (id, user_id, original_name, file_name, file_path, mime_type, file_size, content_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             RETURNING id, original_name, file_name, mime_type, file_size, content_type, created_at`,
-            [fileId, ctx.state.user.id, originalName, fileName, `/uploads/${fileName}`, mimeType, stats.size, contentType]
+        const fileId = randomUUID();
+        const base64Data = fileBuffer.toString('base64');
+
+        // Save to database as base64 (persistent on Render - no filesystem dependency)
+        await db.write(
+            `INSERT INTO file_uploads (id, user_id, original_name, file_name, file_path, mime_type, file_size, content_type, file_data)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [fileId, ctx.state.user.id, originalName, `${fileId}${ext}`, `/api/uploads/${fileId}/file`, mimeType, fileBuffer.length, contentType, base64Data]
         );
 
-        console.log('✅ File uploaded successfully:', fileName);
+        console.log('✅ File uploaded to DB:', originalName, fileBuffer.length, 'bytes');
 
         ctx.status = 201;
         ctx.body = {
             success: true,
             data: {
-                id: result.rows[0].id,
-                originalName: result.rows[0].original_name,
-                fileName: result.rows[0].file_name,
-                url: `/uploads/${fileName}`,
-                mimeType: result.rows[0].mime_type,
-                fileSize: result.rows[0].file_size,
-                contentType: result.rows[0].content_type,
+                id: fileId,
+                originalName,
+                fileName: `${fileId}${ext}`,
+                url: `/api/uploads/${fileId}/file`,
+                mimeType,
+                fileSize: fileBuffer.length,
+                contentType,
             },
         };
     } catch (error) {
@@ -115,12 +92,41 @@ router.post('/', async (ctx) => {
     }
 });
 
-// GET /api/uploads/:id - Get file info
+// GET /api/uploads/:id/file - Serve file from DB
+router.get('/:id/file', async (ctx) => {
+    const { id } = ctx.params;
+    try {
+        const result = await db.write(
+            'SELECT file_data, mime_type, original_name, file_size FROM file_uploads WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            ctx.status = 404;
+            ctx.body = { success: false, message: 'Arquivo não encontrado' };
+            return;
+        }
+
+        const file = result.rows[0];
+        const buffer = Buffer.from(file.file_data, 'base64');
+
+        ctx.set('Content-Type', file.mime_type);
+        ctx.set('Content-Length', String(buffer.length));
+        ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(file.original_name)}"`);
+        ctx.set('Cache-Control', 'public, max-age=31536000');
+        ctx.body = buffer;
+    } catch (error) {
+        console.error('❌ File serve error:', error);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Erro ao servir arquivo' };
+    }
+});
+
+// GET /api/uploads/:id - Get file metadata
 router.get('/:id', async (ctx) => {
     const { id } = ctx.params;
-
     const result = await db.write(
-        'SELECT * FROM file_uploads WHERE id = $1',
+        'SELECT id, original_name, file_name, file_path, mime_type, file_size, content_type, created_at FROM file_uploads WHERE id = $1',
         [id]
     );
 
@@ -130,17 +136,17 @@ router.get('/:id', async (ctx) => {
         return;
     }
 
-    const file = result.rows[0];
+    const f = result.rows[0];
     ctx.body = {
         success: true,
         data: {
-            id: file.id,
-            originalName: file.original_name,
-            url: file.file_path,
-            mimeType: file.mime_type,
-            fileSize: file.file_size,
-            contentType: file.content_type,
-            createdAt: file.created_at,
+            id: f.id,
+            originalName: f.original_name,
+            url: f.file_path || `/api/uploads/${f.id}/file`,
+            mimeType: f.mime_type,
+            fileSize: f.file_size,
+            contentType: f.content_type,
+            createdAt: f.created_at,
         },
     };
 });

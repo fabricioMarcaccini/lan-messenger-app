@@ -1060,6 +1060,14 @@ const API_BASE = import.meta.env.PROD
 function getApiUrl(filePath) {
   if (!filePath) return ''
   if (filePath.startsWith('http')) return filePath
+  // Legacy /uploads/ paths -> rewrite to /api/uploads/:id/file
+  if (filePath.startsWith('/uploads/')) {
+    const fileName = filePath.replace('/uploads/', '')
+    const fileId = fileName.split('.')[0]
+    return `${API_BASE}/api/uploads/${fileId}/file`
+  }
+  // /api/uploads/ paths: use backend base
+  if (filePath.startsWith('/api/')) return `${API_BASE}${filePath}`
   return `${API_BASE}${filePath}`
 }
 
