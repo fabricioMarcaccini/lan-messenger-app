@@ -63,6 +63,22 @@ export const useSocketStore = defineStore('socket', () => {
             window.dispatchEvent(new CustomEvent('socket:message:read', { detail: data }))
         })
 
+        socket.value.on('call:offer', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:call:offer', { detail: data }))
+        })
+
+        socket.value.on('call:answer', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:call:answer', { detail: data }))
+        })
+
+        socket.value.on('call:ice-candidate', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:call:ice-candidate', { detail: data }))
+        })
+
+        socket.value.on('call:end', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:call:end', { detail: data }))
+        })
+
         socket.value.on('typing:update', ({ conversationId, userId, isTyping }) => {
             if (!typingUsers.value[conversationId]) {
                 typingUsers.value[conversationId] = []

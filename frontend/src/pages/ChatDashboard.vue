@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300">
+  <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300 relative">
     <!-- Left Sidebar -->
     <aside class="w-[280px] flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full z-20 bg-white dark:bg-transparent">
       <!-- User Profile -->
@@ -193,6 +193,24 @@
                 <span class="text-gray-500 dark:text-slate-400 font-medium">{{ chatStore.activeConversation.participants.length }} participantes, clique para ver info</span>
               </div>
             </div>
+          </div>
+
+          <div class="flex items-center gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
+            <!-- P2P Call Buttons -->
+            <button 
+              @click="startP2PCall(false)"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors"
+              title="Ligar (Apenas Áudio)"
+            >
+              <span class="material-symbols-outlined text-xl">call</span>
+            </button>
+            <button 
+              @click="startP2PCall(true)"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors"
+              title="Chamada de Vídeo"
+            >
+              <span class="material-symbols-outlined text-xl">videocam</span>
+            </button>
           </div>
         </header>
         
@@ -469,6 +487,86 @@
         </button>
       </div>
     </div>
+    <!-- Active Call Overlay Overlay (Takes entire screen) -->
+    <div v-if="webrtcStore.callState !== 'idle'" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center transition-all">
+      <!-- Background avatar blur -->
+      <div 
+        class="absolute inset-0 bg-center bg-cover opacity-20 filter blur-3xl scale-110"
+        :style="{ backgroundImage: `url(${webrtcStore.remoteUser.avatar || defaultAvatar})` }"
+      ></div>
+
+      <!-- Main Video Container -->
+      <div class="relative w-full max-w-6xl h-[70vh] flex items-center justify-center rounded-3xl overflow-hidden shadow-2xl z-10 bg-black/40 border border-white/10">
+        
+        <!-- Remote Video -->
+        <video 
+          v-if="webrtcStore.isVideoCall && webrtcStore.callState === 'connected'" 
+          :srcObject="webrtcStore.remoteStream" 
+          autoplay 
+          playsinline 
+          class="w-full h-full object-cover"
+        ></video>
+        
+        <!-- Áudio Only Placeholder -->
+        <div v-else class="flex flex-col items-center justify-center gap-6">
+          <div class="relative">
+            <div :class="['absolute inset-0 rounded-full bg-primary/20 blur-xl transition-all duration-1000', webrtcStore.callState === 'connected' ? 'animate-pulse scale-150' : '']"></div>
+            <div 
+              class="relative bg-center bg-cover rounded-full size-40 border-4 border-primary/30 shadow-2xl"
+              :style="{ backgroundImage: `url(${webrtcStore.remoteUser.avatar || defaultAvatar})` }"
+            ></div>
+          </div>
+          <div class="text-center">
+            <h2 class="text-3xl font-bold text-white mb-2">{{ webrtcStore.remoteUser.name }}</h2>
+            <p class="text-primary font-medium tracking-widest uppercase text-sm">
+              <span v-if="webrtcStore.callState === 'calling'">Chamando...</span>
+              <span v-else-if="webrtcStore.callState === 'receiving'">Chamada Recebida</span>
+              <span v-else-if="webrtcStore.callState === 'connected'">00:00 (Conectado)</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Local Video (PiP) -->
+        <div 
+          v-show="webrtcStore.isVideoCall && webrtcStore.callState === 'connected'" 
+          class="absolute bottom-6 right-6 w-48 h-64 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20"
+        >
+          <video :srcObject="webrtcStore.localStream" autoplay playsinline muted class="w-full h-full object-cover transform scale-x-[-1]"></video>
+        </div>
+      </div>
+
+      <!-- Call Controls Container -->
+      <div class="z-20 mt-12 flex items-center gap-6">
+        
+        <!-- Controls for Receiving Call -->
+        <template v-if="webrtcStore.callState === 'receiving'">
+          <button @click="webrtcStore.endCall()" class="size-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110">
+            <span class="material-symbols-outlined text-3xl">call_end</span>
+          </button>
+          
+          <button @click="webrtcStore.answerCall(incomingOffer)" class="size-20 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-500/30 transition-all hover:scale-110 animate-bounce">
+            <span class="material-symbols-outlined text-4xl">call</span>
+          </button>
+        </template>
+
+        <!-- Controls for Connected / Calling -->
+        <template v-else>
+          <button @click="toggleMuteVideo" class="size-14 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all">
+            <span class="material-symbols-outlined text-2xl">{{ isMuted ? 'mic_off' : 'mic' }}</span>
+          </button>
+          
+          <button v-if="webrtcStore.isVideoCall" @click="toggleCamera" class="size-14 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all">
+            <span class="material-symbols-outlined text-2xl">{{ isCamOff ? 'videocam_off' : 'videocam' }}</span>
+          </button>
+
+          <button @click="webrtcStore.endCall()" class="size-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/30 transition-all hover:scale-110">
+            <span class="material-symbols-outlined text-3xl">call_end</span>
+          </button>
+        </template>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -481,6 +579,7 @@ import { useNetworkStore } from '@/stores/network'
 import { useSocketStore } from '@/stores/socket'
 import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
+import { useWebRTCStore } from '@/stores/webrtc'
 import 'emoji-picker-element'
 
 const router = useRouter()
@@ -490,8 +589,13 @@ const networkStore = useNetworkStore()
 const socketStore = useSocketStore()
 const usersStore = useUsersStore()
 const locale = useLocaleStore()
-
+const webrtcStore = useWebRTCStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
+
+// WebRTC reactive local state
+const isMuted = ref(false)
+const isCamOff = ref(false)
+const incomingOffer = ref(null)
 
 const searchQuery = ref('')
 const newMessage = ref('')
@@ -781,8 +885,30 @@ watch(() => chatStore.activeMessages, (messages) => {
 
 async function handleLogout() {
   socketStore.disconnect()
+  webrtcStore.endCallLocally()
   await authStore.logout()
   router.push('/login')
+}
+
+// ==== WEBRTC Logic ====
+function startP2PCall(isVideo) {
+  const targetUser = chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)
+  if (!targetUser) return;
+  
+  webrtcStore.startCall(
+    targetUser.id,
+    targetUser.full_name || targetUser.username,
+    targetUser.avatar_url,
+    isVideo
+  )
+}
+
+function toggleMuteVideo() {
+  isMuted.value = webrtcStore.toggleMute()
+}
+
+function toggleCamera() {
+  isCamOff.value = webrtcStore.toggleVideo()
 }
 
 
@@ -831,6 +957,33 @@ function handleMessageRead(event) {
   }
 }
 
+// Handle WebRTC Call Signaling
+function handleCallOffer(event) {
+  const data = event.detail
+  if (data && data.offer) {
+    incomingOffer.value = data.offer
+    webrtcStore.handleIncomingCall(data.callerId, data.callerName, data.callerAvatar, data.isVideo)
+  }
+}
+
+function handleCallAnswer(event) {
+  const data = event.detail
+  if (data && data.answer) {
+    webrtcStore.handleAnswer(data.answer)
+  }
+}
+
+function handleIceCandidateEvent(event) {
+  const data = event.detail
+  if (data && data.candidate) {
+    webrtcStore.handleIceCandidate(data.candidate)
+  }
+}
+
+function handleCallEnd(event) {
+  webrtcStore.endCallLocally()
+}
+
 onMounted(async () => {
   await chatStore.fetchConversations()
   await networkStore.fetchDevices()
@@ -842,6 +995,11 @@ onMounted(async () => {
   window.addEventListener('socket:message:edited', handleMessageEdited)
   window.addEventListener('socket:message:deleted', handleMessageDeleted)
   window.addEventListener('socket:message:read', handleMessageRead)
+  
+  window.addEventListener('socket:call:offer', handleCallOffer)
+  window.addEventListener('socket:call:answer', handleCallAnswer)
+  window.addEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
+  window.addEventListener('socket:call:end', handleCallEnd)
 })
 
 onUnmounted(() => {
@@ -850,5 +1008,10 @@ onUnmounted(() => {
   window.removeEventListener('socket:message:edited', handleMessageEdited)
   window.removeEventListener('socket:message:deleted', handleMessageDeleted)
   window.removeEventListener('socket:message:read', handleMessageRead)
+  
+  window.removeEventListener('socket:call:offer', handleCallOffer)
+  window.removeEventListener('socket:call:answer', handleCallAnswer)
+  window.removeEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
+  window.removeEventListener('socket:call:end', handleCallEnd)
 })
 </script>

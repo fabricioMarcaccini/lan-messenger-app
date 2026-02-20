@@ -127,6 +127,45 @@ export function setupSocketHandlers(io) {
             }
         });
 
+        // ====== WebRTC Signaling ======
+        socket.on('call:offer', (data) => {
+            if (!socket.userId) return;
+            // Repassa a oferta para o participante alvo
+            socket.to(`user:${data.targetId}`).emit('call:offer', {
+                callerId: socket.userId,
+                callerName: socket.userData.full_name || socket.userData.username,
+                callerAvatar: socket.userData.avatar_url,
+                offer: data.offer,
+                isVideo: data.isVideo
+            });
+        });
+
+        socket.on('call:answer', (data) => {
+            if (!socket.userId) return;
+            // Repassa a resposta de volta ao criador da chamada
+            socket.to(`user:${data.targetId}`).emit('call:answer', {
+                answerId: socket.userId,
+                answer: data.answer
+            });
+        });
+
+        socket.on('call:ice-candidate', (data) => {
+            if (!socket.userId) return;
+            // Repassa candidatos de rede (ICE) para estabelecer o P2P
+            socket.to(`user:${data.targetId}`).emit('call:ice-candidate', {
+                remoteId: socket.userId,
+                candidate: data.candidate
+            });
+        });
+
+        socket.on('call:end', (data) => {
+            if (!socket.userId) return;
+            // Notifica o outro lado que a chamada foi desligada/rejeitada
+            socket.to(`user:${data.targetId}`).emit('call:end', {
+                remoteId: socket.userId
+            });
+        });
+
         // Disconnect
         socket.on('disconnect', async () => {
             console.log(`🔌 Socket disconnected: ${socket.id}`);
