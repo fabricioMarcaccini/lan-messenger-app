@@ -55,7 +55,7 @@ const redis = new Redis({
 
 // Memory Cache Fallback for free-tier Render deployments
 const memoryCache = new Map();
-const fallbackEnabled = process.env.NODE_ENV === 'production' || process.env.REDIS_HOST === 'localhost';
+const fallbackEnabled = !process.env.REDIS_HOST || process.env.REDIS_HOST === 'localhost';
 
 // Database utility functions
 export const db = {
