@@ -131,10 +131,11 @@
               </div>
 
               <div class="group">
-                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{{ locale.t.profile.status }}</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{{ locale.t.profile.status }} <span class="text-[10px] text-gray-400 font-normal ml-1" title="Seu status online, visível para todos os contatos">(?)</span></label>
                 <select 
                   v-model="formData.status"
                   class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  title="Altere como as outras pessoas veem o seu status (Online, Ocupado, Ausente)"
                 >
                   <option value="online">Online</option>
                   <option value="busy">Busy</option>
@@ -242,6 +243,7 @@
                   :type="showCurrentPassword ? 'text' : 'password'" 
                   class="w-full px-4 py-2.5 pr-12 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   :placeholder="locale.t.settings.currentPasswordPlaceholder || 'Digite sua senha atual'"
+                  title="Necessário informar para autorizar a troca"
                 />
                 <button 
                   type="button"
@@ -262,6 +264,7 @@
                   :type="showNewPassword ? 'text' : 'password'" 
                   class="w-full px-4 py-2.5 pr-12 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   :placeholder="locale.t.settings.newPasswordPlaceholder || 'Digite sua nova senha'"
+                  title="Mínimo de 6 caracteres recomendados para segurança"
                 />
                 <button 
                   type="button"

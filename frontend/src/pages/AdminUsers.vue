@@ -207,7 +207,7 @@
                       <button 
                         @click="handleDelete(user.id)"
                         class="p-2 rounded-lg hover:bg-red-500/10 hover:text-red-400 transition-colors text-gray-500 dark:text-slate-400" 
-                        :title="'Delete User'"
+                        :title="'Desativar ou Excluir Usuário'"
                       >
                         <span class="material-symbols-outlined text-[20px]">delete</span>
                       </button>
@@ -278,12 +278,12 @@
               <label class="text-xs font-medium text-gray-500 dark:text-white/60 uppercase tracking-wider">{{ locale.t.admin?.department || 'Department' }}</label>
               <input v-model="newUser.department" type="text" class="input-glass mt-1 bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-200 dark:border-white/20" />
             </div>
-            <div>
-              <label class="text-xs font-medium text-gray-500 dark:text-white/60 uppercase tracking-wider">{{ locale.t.admin?.role || 'Role' }}</label>
+            <div title="Define o nível de permissão do usuário no sistema">
+              <label class="text-xs font-medium text-gray-500 dark:text-white/60 uppercase tracking-wider">{{ locale.t.admin?.role || 'Role' }} <span class="text-[10px] text-primary">(?)</span></label>
               <select v-model="newUser.role" class="input-glass mt-1 bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-200 dark:border-white/20">
-                <option value="user">User</option>
-                <option value="moderator">Moderator</option>
-                <option value="admin">Admin</option>
+                <option value="user">User (Apenas Chat)</option>
+                <option value="moderator">Moderator (Aviso)</option>
+                <option value="admin">Admin (Acesso Total)</option>
               </select>
             </div>
           </div>

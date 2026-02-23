@@ -114,6 +114,7 @@
           <button 
             @click="showNewChatModal = true"
             class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
+            title="Nova Conversa ou Grupo"
           >
             <span class="material-symbols-outlined text-lg">edit_square</span>
           </button>
@@ -172,9 +173,10 @@
             </div>
           </div>
           
-          <div v-if="filteredConversations.length === 0" class="text-center text-gray-400 dark:text-slate-500 py-8">
+          <div v-if="filteredConversations.length === 0" class="text-center text-gray-400 dark:text-slate-500 py-8 px-4">
             <span class="material-symbols-outlined text-4xl mb-2 block opacity-50">chat_bubble</span>
-            <p>{{ locale.t.chat.noConversations }}</p>
+            <p class="font-medium text-sm text-gray-600 dark:text-gray-300">{{ locale.t.chat.noConversations }}</p>
+            <p class="text-xs mt-2 opacity-70">Clique no ícone de nova conversa acima para começar a papear.</p>
           </div>
         </div>
       </div>
@@ -490,8 +492,9 @@
                 @keyup.enter.exact="sendMessage"
                 rows="1"
                 @input="autoResize"
-                :placeholder="locale.t.chat.typeMessage"
+                :placeholder="locale.t.chat.typeMessage + ' (Shift+Enter para pular linha)'"
                 class="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-0 resize-none max-h-32"
+                title="Escreva sua mensagem aqui"
               ></textarea>
             </div>
             
@@ -499,7 +502,7 @@
               <button 
                 @click="showEmojiPicker = !showEmojiPicker"
                 class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
-                title="Emojis"
+                title="Inserir um Emoji (Rostinhos)"
                 v-if="!isRecording"
               >
                 <span class="material-symbols-outlined">sentiment_satisfied</span>
@@ -533,10 +536,11 @@
       
       <!-- No conversation selected -->
       <template v-else>
-        <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-transparent">
-          <div class="text-center text-gray-400 dark:text-slate-500">
-            <span class="material-symbols-outlined text-6xl mb-4 block opacity-30">forum</span>
-            <p class="text-lg">{{ locale.t.chat.selectConversation }}</p>
+        <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-transparent px-4">
+          <div class="text-center text-gray-400 dark:text-slate-500 max-w-sm">
+            <span class="material-symbols-outlined text-6xl mb-4 block opacity-30 text-primary">forum</span>
+            <p class="text-xl font-bold text-gray-700 dark:text-gray-300">{{ locale.t.chat.selectConversation }}</p>
+            <p class="text-sm mt-2 opacity-70">Escolha um contato na lista ao lado ou inicie uma nova conversa para enviar mensagens, áudios e arquivos de forma segura.</p>
           </div>
         </div>
       </template>
@@ -589,11 +593,11 @@
 
         <template v-else>
           <div class="flex flex-col gap-3 mb-4">
-             <input v-model="groupName" placeholder="Nome do Grupo" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+             <input v-model="groupName" placeholder="Nome do Grupo (ex: Equipe de Vendas)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
              <input v-model="groupDescription" placeholder="Descrição (Opcional)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
           </div>
-          <p class="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium uppercase tracking-wider">Selecione os participantes:</p>
-          <input v-model="userFilter" placeholder="Buscar usuário..." class="w-full px-4 py-2 rounded-xl mb-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+          <p class="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium uppercase tracking-wider">Selecione os participantes (Mín. 1):</p>
+          <input v-model="userFilter" placeholder="Buscar usuário por nome..." class="w-full px-4 py-2 rounded-xl mb-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
           
           <div class="flex-1 overflow-y-auto max-h-[200px] flex flex-col gap-1 pr-1">
             <label v-for="user in filteredUsers" :key="user.id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer select-none">

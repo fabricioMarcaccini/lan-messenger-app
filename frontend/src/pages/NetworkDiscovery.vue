@@ -112,6 +112,7 @@
           @click="handleScan"
           :disabled="networkStore.scanning"
           class="group flex h-10 w-full md:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-white dark:text-background-dark shadow-sm dark:shadow-[0_0_15px_rgba(0,212,255,0.3)] hover:shadow-md dark:hover:shadow-[0_0_25px_rgba(0,212,255,0.5)] transition-all disabled:opacity-50"
+          title="Varre a rede em busca de novos dispositivos conectados"
         >
           <span :class="['material-symbols-outlined text-[20px] transition-transform', networkStore.scanning ? 'animate-spin' : 'group-hover:rotate-180']">sync</span>
           {{ networkStore.scanning ? locale.t.network.scanning : locale.t.network.scan }}
@@ -156,7 +157,6 @@
             </div>
           </div>
           
-          <!-- Latency -->
           <div class="flex flex-col gap-1">
             <div class="flex justify-between text-[10px] uppercase tracking-wider text-gray-400 dark:text-slate-500">
               <span>Latency</span>
@@ -164,7 +164,7 @@
                 {{ device.isOnline ? `${device.latencyMs || '?'}ms` : 'Timeout' }}
               </span>
             </div>
-            <div class="h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-white/5">
+            <div class="h-2 w-full overflow-hidden rounded bg-gray-200 dark:bg-white/5" title="Tempo de resposta do dispositivo (quanto menor, mais rápido)">
               <div 
                 :class="[
                   'h-full transition-all',
@@ -175,6 +175,15 @@
             </div>
           </div>
         </div>
+      </div>
+      
+      <!-- Empty State / No Devices -->
+      <div v-if="filteredDevices.length === 0 && !networkStore.scanning" class="flex flex-col items-center justify-center p-12 text-center bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl mt-8">
+        <span class="material-symbols-outlined text-6xl text-gray-300 dark:text-gray-600 mb-4">wifi_tethering_off</span>
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white mb-2">Nenhum dispositivo encontrado</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+          A sua busca não retornou resultados ou a rede ainda não foi mapeada. Clique no botão de scan acima para procurar por dispositivos locais.
+        </p>
       </div>
     </main>
     
