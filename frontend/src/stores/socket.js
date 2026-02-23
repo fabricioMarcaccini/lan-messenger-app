@@ -105,6 +105,15 @@ export const useSocketStore = defineStore('socket', () => {
         socket.value.on('group-call:participant-left', (data) => {
             window.dispatchEvent(new CustomEvent('socket:group-call:participant-left', { detail: data }))
         })
+        socket.value.on('group-call:full', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:full', { detail: data }))
+        })
+        socket.value.on('group-call:active', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:active', { detail: data }))
+        })
+        socket.value.on('group-call:hand-raise', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:hand-raise', { detail: data }))
+        })
 
         socket.value.on('typing:update', ({ conversationId, userId, isTyping }) => {
             if (!typingUsers.value[conversationId]) {

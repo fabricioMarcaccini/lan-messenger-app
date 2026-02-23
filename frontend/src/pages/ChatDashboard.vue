@@ -236,6 +236,14 @@
           <!-- GROUP Call Buttons -->
           <div class="flex items-center gap-2" v-if="chatStore.activeConversation.isGroup">
             <button 
+              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'screen')"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 flex items-center justify-center transition-colors"
+              title="Apresentar Tela"
+              :disabled="groupCallStore.callState !== 'idle'"
+            >
+              <span class="material-symbols-outlined text-xl">present_to_all</span>
+            </button>
+            <button 
               @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'audio')"
               class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors"
               title="Chamada em Grupo (Áudio)"
@@ -254,6 +262,37 @@
           </div>
         </header>
         
+        <!-- Active Group Call Banner -->
+        <div v-if="groupCallStore.activeCallInfo && groupCallStore.callState === 'idle' && chatStore.activeConversation?.isGroup && groupCallStore.activeCallInfo.conversationId === chatStore.activeConversationId"
+          class="mx-4 mt-3 mb-0 px-4 py-3 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 flex items-center justify-between gap-3 animate-pulse">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="size-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-green-500 text-xl">call</span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-green-700 dark:text-green-400">Chamada em andamento</p>
+              <p class="text-xs text-green-600/70 dark:text-green-400/60 truncate">{{ groupCallStore.activeCallInfo.count }} participante(s) na chamada</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button @click="groupCallStore.joinActiveCall(false)"
+              class="px-4 py-2 rounded-lg bg-green-500 text-white text-xs font-bold hover:bg-green-600 active:scale-95 transition-all shadow-md">
+              <span class="material-symbols-outlined text-sm align-middle mr-1">call</span>
+              Entrar
+            </button>
+            <button @click="groupCallStore.joinActiveCall(true)"
+              class="px-3 py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/80 active:scale-95 transition-all shadow-md"
+              title="Entrar com vídeo">
+              <span class="material-symbols-outlined text-sm">videocam</span>
+            </button>
+            <button @click="groupCallStore.clearActiveCallInfo()"
+              class="size-8 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-slate-400 hover:bg-gray-300 flex items-center justify-center text-xs"
+              title="Dispensar">
+              <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Messages -->
         <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent">
           <template v-for="msg in chatStore.activeMessages" :key="msg.id">
@@ -795,7 +834,7 @@
             <h2 class="text-white font-bold text-lg">Chamada em Grupo</h2>
             <p class="text-xs font-semibold uppercase tracking-widest" :class="groupCallStore.callState === 'connected' ? 'text-green-400' : 'text-primary animate-pulse'">
               <span v-if="groupCallStore.callState === 'receiving'">Chamada Recebida</span>
-              <span v-else>{{ groupCallStore.callDuration }} · {{ groupCallStore.participantCount }} participantes</span>
+              <span v-else>{{ groupCallStore.callDuration }} · {{ groupCallStore.participantCount }}/{{ groupCallStore.MAX_PARTICIPANTS }} participantes</span>
             </p>
           </div>
         </div>
@@ -846,6 +885,7 @@
             <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur rounded-lg px-2.5 py-1 flex items-center gap-1.5">
               <span class="text-white text-xs font-semibold">Você</span>
               <span v-if="groupCallStore.isMuted" class="material-symbols-outlined text-red-400" style="font-size: 12px;">mic_off</span>
+              <span v-if="groupCallStore.handRaised" class="text-yellow-400" style="font-size: 14px;">✋</span>
             </div>
           </div>
           <!-- Remote Participants -->
@@ -855,8 +895,9 @@
             <div v-else class="w-full h-full flex items-center justify-center">
               <div class="bg-center bg-cover rounded-full" style="width: 80px; height: 80px;" :style="{ backgroundImage: `url(${remote.avatar || defaultAvatar})` }"></div>
             </div>
-            <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur rounded-lg px-2.5 py-1">
+            <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur rounded-lg px-2.5 py-1 flex items-center gap-1.5">
               <span class="text-white text-xs font-semibold">{{ remote.name }}</span>
+              <span v-if="remote.handRaised" class="text-yellow-400" style="font-size: 14px;">✋</span>
             </div>
           </div>
         </div>
@@ -875,6 +916,15 @@
             </button>
             <span class="text-white/60 text-xs">{{ groupCallStore.isMuted ? 'Mutado' : 'Microfone' }}</span>
           </div>
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.toggleHandRaise()"
+              class="flex items-center justify-center rounded-full active:scale-90 transition-all border"
+              style="width: 58px; height: 58px;"
+              :style="groupCallStore.handRaised ? 'background: #eab308; border-color: #eab308;' : 'background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.15);'">
+              <span class="text-2xl">✋</span>
+            </button>
+            <span class="text-white/60 text-xs">{{ groupCallStore.handRaised ? 'Abaixar' : 'Mão' }}</span>
+          </div>
           <div v-if="groupCallStore.isVideoCall" class="flex flex-col items-center gap-2">
             <button @click="groupCallStore.toggleVideo()"
               class="flex items-center justify-center rounded-full active:scale-90 transition-all border"
@@ -883,6 +933,15 @@
               <span class="material-symbols-outlined text-2xl" :class="groupCallStore.isCamOff ? 'text-gray-900' : 'text-white'">{{ groupCallStore.isCamOff ? 'videocam_off' : 'videocam' }}</span>
             </button>
             <span class="text-white/60 text-xs">{{ groupCallStore.isCamOff ? 'Câmera off' : 'Câmera' }}</span>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.toggleScreenShare()"
+              class="flex items-center justify-center rounded-full active:scale-90 transition-all border"
+              style="width: 58px; height: 58px;"
+              :style="groupCallStore.isScreenSharing ? 'background: #3b82f6; border-color: #3b82f6;' : 'background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.15);'">
+              <span class="material-symbols-outlined text-2xl text-white">{{ groupCallStore.isScreenSharing ? 'stop_screen_share' : 'present_to_all' }}</span>
+            </button>
+            <span class="text-white/60 text-xs">{{ groupCallStore.isScreenSharing ? 'Parar' : 'Tela' }}</span>
           </div>
           <div class="flex flex-col items-center gap-2">
             <button @click="groupCallStore.endCall()"
@@ -1525,6 +1584,12 @@ onMounted(async () => {
   window.addEventListener('socket:group-call:answer', (e) => groupCallStore.handleGroupAnswer(e.detail))
   window.addEventListener('socket:group-call:ice-candidate', (e) => groupCallStore.handleGroupIceCandidate(e.detail))
   window.addEventListener('socket:group-call:participant-left', (e) => groupCallStore.handleParticipantLeft(e.detail))
+  window.addEventListener('socket:group-call:full', (e) => {
+    alert(`A chamada em grupo está lotada (máximo ${e.detail.max} participantes). Tente novamente mais tarde.`)
+    groupCallStore.endCall()
+  })
+  window.addEventListener('socket:group-call:active', (e) => groupCallStore.handleActiveCall(e.detail))
+  window.addEventListener('socket:group-call:hand-raise', (e) => groupCallStore.handleHandRaise(e.detail))
 })
 
 onUnmounted(() => {

@@ -79,6 +79,18 @@ export function setupSocketHandlers(io) {
             if (!socket.userId) return;
             socket.join(`conversation:${conversationId}`);
             console.log(`👥 User ${socket.userId} joined conversation ${conversationId}`);
+
+            // Notify if there's an active group call in this conversation
+            if (io._groupCalls && io._groupCalls.has(conversationId)) {
+                const participants = io._groupCalls.get(conversationId);
+                if (participants.size > 0) {
+                    socket.emit('group-call:active', {
+                        conversationId,
+                        participants: Array.from(participants.values()),
+                        count: participants.size
+                    });
+                }
+            }
         });
 
         // Leave conversation room
@@ -163,7 +175,7 @@ export function setupSocketHandlers(io) {
         });
 
         // ====== WebRTC Group Call Signaling (Mesh Topology) ======
-        // Active group calls: Map<conversationId, Set<{userId, name, avatar}>>
+        const MAX_GROUP_CALL_PARTICIPANTS = 25;
         if (!io._groupCalls) io._groupCalls = new Map();
 
         // Host starts a group call → notify all conversation participants
@@ -208,6 +220,12 @@ export function setupSocketHandlers(io) {
                 io._groupCalls.set(conversationId, new Map());
             }
             const participants = io._groupCalls.get(conversationId);
+
+            // Enforce participant limit
+            if (participants.size >= MAX_GROUP_CALL_PARTICIPANTS) {
+                socket.emit('group-call:full', { conversationId, max: MAX_GROUP_CALL_PARTICIPANTS });
+                return;
+            }
 
             // Get existing participants BEFORE adding self (these are the ones we need to connect to)
             const existingParticipants = Array.from(participants.values());
@@ -297,6 +315,18 @@ export function setupSocketHandlers(io) {
             socket.leave(roomKey);
         });
 
+        // Hand raise in group call
+        socket.on('group-call:hand-raise', (data) => {
+            if (!socket.userId) return;
+            const { conversationId, raised } = data;
+            const roomKey = `group-call:${conversationId}`;
+            socket.to(roomKey).emit('group-call:hand-raise', {
+                userId: socket.userId,
+                name: socket.userData.full_name || socket.userData.username,
+                raised
+            });
+        });
+
         // Disconnect
         socket.on('disconnect', async () => {
             console.log(`🔌 Socket disconnected: ${socket.id}`);
@@ -304,6 +334,23 @@ export function setupSocketHandlers(io) {
             if (socket.userId) {
                 connectedUsers.delete(socket.userId);
                 await cache.setPresence(socket.userId, 'offline');
+
+                // Auto-leave any group calls on disconnect
+                if (io._groupCalls) {
+                    for (const [convId, participants] of io._groupCalls) {
+                        if (participants.has(socket.userId)) {
+                            participants.delete(socket.userId);
+                            const roomKey = `group-call:${convId}`;
+                            socket.to(roomKey).emit('group-call:participant-left', {
+                                conversationId: convId,
+                                userId: socket.userId
+                            });
+                            if (participants.size === 0) {
+                                io._groupCalls.delete(convId);
+                            }
+                        }
+                    }
+                }
 
                 if (socket.userData?.companyId) {
                     socket.to(`company:${socket.userData.companyId}`).emit('presence:change', {
