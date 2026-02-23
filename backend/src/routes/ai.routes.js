@@ -187,10 +187,12 @@ router.post('/transcribe-audio', authMiddleware, async (ctx) => {
         const audioBuffer = Buffer.from(fileRow.file_data, 'base64');
         const filename = fileRow.original_name || 'audio.webm';
 
-        // Em Node.js modernos blob global existe
-        const blob = new Blob([audioBuffer], { type: fileRow.mime_type });
+        // Em Node.js modernos blob e File globais existem
+        const mime = fileRow.mime_type || 'audio/webm';
+        // É essencial usar instancia da classe "File" para que o Nodejs (undici fetch) envie corretamente como um arquivo (e não como string Base64)
+        const fileObj = new File([audioBuffer], filename, { type: mime });
         const formData = new FormData();
-        formData.append('file', blob, filename);
+        formData.append('file', fileObj);
         formData.append('model', process.env.GROQ_API_KEY ? 'whisper-large-v3' : 'whisper-1');
         formData.append('response_format', 'json');
         formData.append('language', 'pt'); // Força PT-BR para evitar sotaque/reconhecimento ruim
