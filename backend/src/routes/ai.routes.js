@@ -57,8 +57,8 @@ router.post('/magic-text', authMiddleware, async (ctx) => {
                 'X-Title': 'LAN Messenger App' // Required by OpenRouter
             },
             body: JSON.stringify({
-                // Using a fast, free and capable model for these tasks
-                model: 'google/gemini-2.0-flash-lite-preview-02-05:free', // Using a reliable free model, or meta-llama/llama-3-8b-instruct:free
+                // Using Trinity Large Preview (Free) as requested
+                model: 'arcee-ai/trinity-large-preview:free',
                 messages: [
                     { role: 'system', content: systemInstruction },
                     { role: 'user', content: prompt }
