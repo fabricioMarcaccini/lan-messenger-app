@@ -233,6 +233,25 @@
               <span class="material-symbols-outlined text-xl">videocam</span>
             </button>
           </div>
+          <!-- GROUP Call Buttons -->
+          <div class="flex items-center gap-2" v-if="chatStore.activeConversation.isGroup">
+            <button 
+              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'audio')"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors"
+              title="Chamada em Grupo (Áudio)"
+              :disabled="groupCallStore.callState !== 'idle'"
+            >
+              <span class="material-symbols-outlined text-xl">call</span>
+            </button>
+            <button 
+              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'video')"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors"
+              title="Chamada em Grupo (Vídeo)"
+              :disabled="groupCallStore.callState !== 'idle'"
+            >
+              <span class="material-symbols-outlined text-xl">videocam</span>
+            </button>
+          </div>
         </header>
         
         <!-- Messages -->
@@ -760,7 +779,122 @@
       </div>
     </div>
 
+    <!-- ===== GROUP CALL OVERLAY ===== -->
+    <div v-if="groupCallStore.callState !== 'idle'" class="fixed inset-0 z-[100] bg-black overflow-hidden select-none">
+      <!-- Gradient background -->
+      <div class="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent"></div>
 
+      <!-- TOP BAR -->
+      <div class="absolute top-0 inset-x-0 z-40 flex items-center justify-between px-6 pt-6 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="size-10 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-xl">{{ groupCallStore.isVideoCall ? 'videocam' : 'call' }}</span>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-lg">Chamada em Grupo</h2>
+            <p class="text-xs font-semibold uppercase tracking-widest" :class="groupCallStore.callState === 'connected' ? 'text-green-400' : 'text-primary animate-pulse'">
+              <span v-if="groupCallStore.callState === 'receiving'">Chamada Recebida</span>
+              <span v-else>{{ groupCallStore.callDuration }} · {{ groupCallStore.participantCount }} participantes</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECEIVING STATE -->
+      <div v-if="groupCallStore.callState === 'receiving'" class="absolute inset-0 flex flex-col items-center justify-center gap-8 z-20">
+        <div class="relative flex items-center justify-center">
+          <div class="absolute rounded-full bg-primary/20 animate-ping" style="width: 200px; height: 200px;"></div>
+          <div class="relative bg-primary/30 rounded-full flex items-center justify-center z-10" style="width: 140px; height: 140px;">
+            <span class="material-symbols-outlined text-white text-6xl">groups</span>
+          </div>
+        </div>
+        <div class="text-center">
+          <h2 class="text-white font-bold text-2xl mb-2">{{ groupCallStore.incomingCall?.callerName }}</h2>
+          <p class="text-white/60 text-sm">está iniciando uma chamada em grupo</p>
+        </div>
+        <div class="flex gap-8 mt-4">
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.declineGroupCall()"
+              class="flex items-center justify-center rounded-full bg-red-500 active:scale-90 transition-transform"
+              style="width: 68px; height: 68px; box-shadow: 0 0 24px rgba(239,68,68,0.5);">
+              <span class="material-symbols-outlined text-white text-3xl" style="transform: rotate(135deg);">call</span>
+            </button>
+            <span class="text-white/70 text-xs font-medium">Recusar</span>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.joinGroupCall()"
+              class="flex items-center justify-center rounded-full bg-green-500 active:scale-90 transition-transform animate-bounce"
+              style="width: 80px; height: 80px; box-shadow: 0 0 30px rgba(34,197,94,0.6);">
+              <span class="material-symbols-outlined text-white text-4xl">call</span>
+            </button>
+            <span class="text-white/70 text-xs font-medium">Entrar</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONNECTED STATE: Video Grid -->
+      <div v-if="groupCallStore.callState === 'connected'" class="absolute inset-0 pt-24 pb-28 px-4 z-10">
+        <div class="w-full h-full grid gap-3 auto-rows-fr" :class="groupCallGridClass">
+          <!-- Local Video (You) -->
+          <div class="relative rounded-2xl overflow-hidden bg-gray-800 border border-white/10">
+            <video v-if="groupCallStore.localStream" :srcObject="groupCallStore.localStream" autoplay playsinline muted
+              class="w-full h-full object-cover" style="transform: scaleX(-1);"></video>
+            <div v-else class="w-full h-full flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/30 text-5xl">person</span>
+            </div>
+            <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+              <span class="text-white text-xs font-semibold">Você</span>
+              <span v-if="groupCallStore.isMuted" class="material-symbols-outlined text-red-400" style="font-size: 12px;">mic_off</span>
+            </div>
+          </div>
+          <!-- Remote Participants -->
+          <div v-for="remote in groupCallStore.remoteStreams" :key="remote.userId" class="relative rounded-2xl overflow-hidden bg-gray-800 border border-white/10">
+            <video v-if="remote.stream" :srcObject="remote.stream" autoplay playsinline
+              class="w-full h-full object-cover"></video>
+            <div v-else class="w-full h-full flex items-center justify-center">
+              <div class="bg-center bg-cover rounded-full" style="width: 80px; height: 80px;" :style="{ backgroundImage: `url(${remote.avatar || defaultAvatar})` }"></div>
+            </div>
+            <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur rounded-lg px-2.5 py-1">
+              <span class="text-white text-xs font-semibold">{{ remote.name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM CONTROLS -->
+      <div v-if="groupCallStore.callState === 'connected'" class="absolute bottom-0 inset-x-0 z-30 flex justify-center"
+        style="padding-bottom: max(env(safe-area-inset-bottom, 0px), 28px); padding-top: 60px; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);">
+        <div class="flex items-end gap-5">
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.toggleMute()"
+              class="flex items-center justify-center rounded-full active:scale-90 transition-all border"
+              style="width: 58px; height: 58px;"
+              :style="groupCallStore.isMuted ? 'background: white; border-color: white;' : 'background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.15);'">
+              <span class="material-symbols-outlined text-2xl" :class="groupCallStore.isMuted ? 'text-gray-900' : 'text-white'">{{ groupCallStore.isMuted ? 'mic_off' : 'mic' }}</span>
+            </button>
+            <span class="text-white/60 text-xs">{{ groupCallStore.isMuted ? 'Mutado' : 'Microfone' }}</span>
+          </div>
+          <div v-if="groupCallStore.isVideoCall" class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.toggleVideo()"
+              class="flex items-center justify-center rounded-full active:scale-90 transition-all border"
+              style="width: 58px; height: 58px;"
+              :style="groupCallStore.isCamOff ? 'background: white; border-color: white;' : 'background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.15);'">
+              <span class="material-symbols-outlined text-2xl" :class="groupCallStore.isCamOff ? 'text-gray-900' : 'text-white'">{{ groupCallStore.isCamOff ? 'videocam_off' : 'videocam' }}</span>
+            </button>
+            <span class="text-white/60 text-xs">{{ groupCallStore.isCamOff ? 'Câmera off' : 'Câmera' }}</span>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <button @click="groupCallStore.endCall()"
+              class="flex items-center justify-center rounded-full active:scale-90 transition-transform"
+              style="width: 68px; height: 68px; background: #ef4444; box-shadow: 0 0 24px rgba(239,68,68,0.5);">
+              <span class="material-symbols-outlined text-white text-3xl">call_end</span>
+            </button>
+            <span class="text-white/60 text-xs">Sair</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -775,6 +909,7 @@ import { useSocketStore } from '@/stores/socket'
 import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
 import { useWebRTCStore } from '@/stores/webrtc'
+import { useGroupCallStore } from '@/stores/groupCall'
 import 'emoji-picker-element'
 
 const router = useRouter()
@@ -785,7 +920,18 @@ const socketStore = useSocketStore()
 const usersStore = useUsersStore()
 const locale = useLocaleStore()
 const webrtcStore = useWebRTCStore()
+const groupCallStore = useGroupCallStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
+
+// Group call grid layout
+const groupCallGridClass = computed(() => {
+  const total = groupCallStore.remoteStreams.length + 1 // +1 for self
+  if (total <= 1) return 'grid-cols-1'
+  if (total <= 2) return 'grid-cols-2'
+  if (total <= 4) return 'grid-cols-2'
+  if (total <= 6) return 'grid-cols-3'
+  return 'grid-cols-4'
+})
 
 // WebRTC reactive local state
 const isMuted = ref(false)
@@ -1370,6 +1516,15 @@ onMounted(async () => {
   window.addEventListener('socket:call:answer', handleCallAnswer)
   window.addEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
   window.addEventListener('socket:call:end', handleCallEnd)
+
+  // Group call events
+  window.addEventListener('socket:group-call:incoming', (e) => groupCallStore.handleIncomingGroupCall(e.detail))
+  window.addEventListener('socket:group-call:existing-participants', (e) => groupCallStore.handleExistingParticipants(e.detail))
+  window.addEventListener('socket:group-call:participant-joined', (e) => groupCallStore.handleParticipantJoined(e.detail))
+  window.addEventListener('socket:group-call:offer', (e) => groupCallStore.handleGroupOffer(e.detail))
+  window.addEventListener('socket:group-call:answer', (e) => groupCallStore.handleGroupAnswer(e.detail))
+  window.addEventListener('socket:group-call:ice-candidate', (e) => groupCallStore.handleGroupIceCandidate(e.detail))
+  window.addEventListener('socket:group-call:participant-left', (e) => groupCallStore.handleParticipantLeft(e.detail))
 })
 
 onUnmounted(() => {
@@ -1384,5 +1539,8 @@ onUnmounted(() => {
   window.removeEventListener('socket:call:answer', handleCallAnswer)
   window.removeEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
   window.removeEventListener('socket:call:end', handleCallEnd)
+
+  // Cleanup group call
+  if (groupCallStore.callState !== 'idle') groupCallStore.endCall()
 })
 </script>

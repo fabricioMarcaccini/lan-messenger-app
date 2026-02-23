@@ -127,10 +127,9 @@ export function setupSocketHandlers(io) {
             }
         });
 
-        // ====== WebRTC Signaling ======
+        // ====== WebRTC Signaling (1-to-1) ======
         socket.on('call:offer', (data) => {
             if (!socket.userId) return;
-            // Repassa a oferta para o participante alvo
             socket.to(`user:${data.targetId}`).emit('call:offer', {
                 callerId: socket.userId,
                 callerName: socket.userData.full_name || socket.userData.username,
@@ -142,7 +141,6 @@ export function setupSocketHandlers(io) {
 
         socket.on('call:answer', (data) => {
             if (!socket.userId) return;
-            // Repassa a resposta de volta ao criador da chamada
             socket.to(`user:${data.targetId}`).emit('call:answer', {
                 answerId: socket.userId,
                 answer: data.answer
@@ -151,7 +149,6 @@ export function setupSocketHandlers(io) {
 
         socket.on('call:ice-candidate', (data) => {
             if (!socket.userId) return;
-            // Repassa candidatos de rede (ICE) para estabelecer o P2P
             socket.to(`user:${data.targetId}`).emit('call:ice-candidate', {
                 remoteId: socket.userId,
                 candidate: data.candidate
@@ -160,10 +157,144 @@ export function setupSocketHandlers(io) {
 
         socket.on('call:end', (data) => {
             if (!socket.userId) return;
-            // Notifica o outro lado que a chamada foi desligada/rejeitada
             socket.to(`user:${data.targetId}`).emit('call:end', {
                 remoteId: socket.userId
             });
+        });
+
+        // ====== WebRTC Group Call Signaling (Mesh Topology) ======
+        // Active group calls: Map<conversationId, Set<{userId, name, avatar}>>
+        if (!io._groupCalls) io._groupCalls = new Map();
+
+        // Host starts a group call → notify all conversation participants
+        socket.on('group-call:start', (data) => {
+            if (!socket.userId) return;
+            const { conversationId, isVideo } = data;
+            const roomKey = `group-call:${conversationId}`;
+
+            // Initialize call room
+            if (!io._groupCalls.has(conversationId)) {
+                io._groupCalls.set(conversationId, new Map());
+            }
+            const participants = io._groupCalls.get(conversationId);
+            participants.set(socket.userId, {
+                userId: socket.userId,
+                name: socket.userData.full_name || socket.userData.username,
+                avatar: socket.userData.avatar_url
+            });
+
+            socket.join(roomKey);
+
+            // Notify everyone in the conversation that a group call started
+            socket.to(`conversation:${conversationId}`).emit('group-call:incoming', {
+                conversationId,
+                callerId: socket.userId,
+                callerName: socket.userData.full_name || socket.userData.username,
+                callerAvatar: socket.userData.avatar_url,
+                isVideo,
+                participants: Array.from(participants.values())
+            });
+
+            console.log(`📞 Group call started in ${conversationId} by ${socket.userData.username}`);
+        });
+
+        // A participant joins the group call
+        socket.on('group-call:join', (data) => {
+            if (!socket.userId) return;
+            const { conversationId } = data;
+            const roomKey = `group-call:${conversationId}`;
+
+            if (!io._groupCalls.has(conversationId)) {
+                io._groupCalls.set(conversationId, new Map());
+            }
+            const participants = io._groupCalls.get(conversationId);
+
+            // Get existing participants BEFORE adding self (these are the ones we need to connect to)
+            const existingParticipants = Array.from(participants.values());
+
+            // Add self
+            participants.set(socket.userId, {
+                userId: socket.userId,
+                name: socket.userData.full_name || socket.userData.username,
+                avatar: socket.userData.avatar_url
+            });
+
+            socket.join(roomKey);
+
+            // Tell the new joiner who is already in the call → they will create offers to each
+            socket.emit('group-call:existing-participants', {
+                conversationId,
+                participants: existingParticipants
+            });
+
+            // Tell everyone already in the call that a new participant joined
+            socket.to(roomKey).emit('group-call:participant-joined', {
+                conversationId,
+                userId: socket.userId,
+                name: socket.userData.full_name || socket.userData.username,
+                avatar: socket.userData.avatar_url
+            });
+
+            console.log(`📞 ${socket.userData.username} joined group call in ${conversationId} (${participants.size} participants)`);
+        });
+
+        // WebRTC offer from one participant to another within a group call
+        socket.on('group-call:offer', (data) => {
+            if (!socket.userId) return;
+            socket.to(`user:${data.targetId}`).emit('group-call:offer', {
+                conversationId: data.conversationId,
+                callerId: socket.userId,
+                callerName: socket.userData.full_name || socket.userData.username,
+                callerAvatar: socket.userData.avatar_url,
+                offer: data.offer
+            });
+        });
+
+        // WebRTC answer within a group call
+        socket.on('group-call:answer', (data) => {
+            if (!socket.userId) return;
+            socket.to(`user:${data.targetId}`).emit('group-call:answer', {
+                conversationId: data.conversationId,
+                answererId: socket.userId,
+                answer: data.answer
+            });
+        });
+
+        // ICE candidate within a group call
+        socket.on('group-call:ice-candidate', (data) => {
+            if (!socket.userId) return;
+            socket.to(`user:${data.targetId}`).emit('group-call:ice-candidate', {
+                conversationId: data.conversationId,
+                remoteId: socket.userId,
+                candidate: data.candidate
+            });
+        });
+
+        // Participant leaves the group call
+        socket.on('group-call:leave', (data) => {
+            if (!socket.userId) return;
+            const { conversationId } = data;
+            const roomKey = `group-call:${conversationId}`;
+
+            if (io._groupCalls.has(conversationId)) {
+                const participants = io._groupCalls.get(conversationId);
+                participants.delete(socket.userId);
+
+                // Notify remaining participants
+                socket.to(roomKey).emit('group-call:participant-left', {
+                    conversationId,
+                    userId: socket.userId
+                });
+
+                // Clean up if no one is left
+                if (participants.size === 0) {
+                    io._groupCalls.delete(conversationId);
+                }
+
+                console.log(`📞 ${socket.userData?.username} left group call in ${conversationId} (${participants.size} remaining)`);
+            }
+
+            socket.leave(roomKey);
         });
 
         // Disconnect

@@ -83,6 +83,29 @@ export const useSocketStore = defineStore('socket', () => {
             window.dispatchEvent(new CustomEvent('socket:call:end', { detail: data }))
         })
 
+        // ====== Group Call Events ======
+        socket.value.on('group-call:incoming', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:incoming', { detail: data }))
+        })
+        socket.value.on('group-call:existing-participants', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:existing-participants', { detail: data }))
+        })
+        socket.value.on('group-call:participant-joined', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:participant-joined', { detail: data }))
+        })
+        socket.value.on('group-call:offer', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:offer', { detail: data }))
+        })
+        socket.value.on('group-call:answer', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:answer', { detail: data }))
+        })
+        socket.value.on('group-call:ice-candidate', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:ice-candidate', { detail: data }))
+        })
+        socket.value.on('group-call:participant-left', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:group-call:participant-left', { detail: data }))
+        })
+
         socket.value.on('typing:update', ({ conversationId, userId, isTyping }) => {
             if (!typingUsers.value[conversationId]) {
                 typingUsers.value[conversationId] = []
