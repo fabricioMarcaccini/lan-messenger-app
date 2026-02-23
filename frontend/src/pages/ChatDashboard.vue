@@ -109,7 +109,10 @@
             <button @click="showMobileSidebar = true" class="md:hidden size-8 mr-3 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0">
               <span class="material-symbols-outlined text-lg">menu</span>
             </button>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{{ locale.t.chat.title }}</h2>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              {{ locale.t.chat.title }}
+              <span class="text-[12px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-5 h-5 flex items-center justify-center cursor-help" title="Aqui ficam listadas todas as suas mensagens e grupos. Clique para abrir ou criar uma nova.">?</span>
+            </h2>
           </div>
           <button 
             @click="showNewChatModal = true"
@@ -229,10 +232,11 @@
             </button>
             <button 
               @click="startP2PCall('video')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors"
-              title="Chamada de Vídeo"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors relative group"
+              title="Chamada de Vídeo ao vivo"
             >
               <span class="material-symbols-outlined text-xl">videocam</span>
+              <span class="absolute -top-1 -right-1 text-[10px] bg-primary text-white rounded-full w-3.5 h-3.5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">?</span>
             </button>
           </div>
           <!-- GROUP Call Buttons -->
