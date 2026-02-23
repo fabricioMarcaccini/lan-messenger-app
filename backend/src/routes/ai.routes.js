@@ -1,5 +1,5 @@
 import Router from 'koa-router';
-import { authMiddleware } from '../middlewares/auth.middleware.js';
+import { authMiddleware } from '../middlewares/auth.js';
 
 const router = new Router();
 
