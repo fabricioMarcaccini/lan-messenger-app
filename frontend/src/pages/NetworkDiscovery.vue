@@ -42,7 +42,10 @@
       <!-- Header + Stats -->
       <div class="flex flex-col xl:flex-row gap-6 mb-8 justify-between items-end">
         <div class="flex-1 min-w-[300px]">
-          <h1 class="text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-2">{{ locale.t.network.title }}</h1>
+          <h1 class="text-4xl font-black tracking-tight text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+            {{ locale.t.network.title }}
+            <span class="text-[14px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-6 h-6 flex items-center justify-center cursor-help font-normal" title="Visualize e descubra dispositivos conectados na sua infraestrutura de rede local em tempo real.">?</span>
+          </h1>
           <p class="text-gray-500 dark:text-slate-400">
             Real-time topology of connected devices on Subnet 
             <span class="font-mono text-primary bg-primary/10 px-1 rounded text-sm">{{ networkStore.networkInfo?.cidr || '192.168.1.0/24' }}</span>

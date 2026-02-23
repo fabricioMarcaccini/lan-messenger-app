@@ -39,7 +39,10 @@
               <span class="material-symbols-outlined text-[16px]">chevron_right</span>
               <span class="text-primary font-medium">{{ locale.t.admin?.title || 'User Management' }}</span>
             </div>
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">{{ locale.t.admin?.title || 'User Management' }}</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+              {{ locale.t.admin?.title || 'User Management' }}
+              <span class="text-[14px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-6 h-6 flex items-center justify-center cursor-help font-normal" title="Gerencie todos os usuários do sistema, altere senhas, promova administradores e adicione novos membros.">?</span>
+            </h1>
             <p class="text-gray-500 dark:text-slate-400">{{ locale.t.admin?.subtitle || 'Manage access, roles, and permissions for enterprise users.' }}</p>
           </div>
           

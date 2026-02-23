@@ -68,7 +68,10 @@
             <span class="material-symbols-outlined text-xl">menu</span>
           </button>
           <div>
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{{ locale.t.settings.title }}</h1>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-3">
+              {{ locale.t.settings.title }}
+              <span class="text-[14px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-6 h-6 flex items-center justify-center cursor-help font-normal" title="Configure seu perfil público, troque sua foto, mude sua senha e personalize sua experiência visual no app.">?</span>
+            </h1>
             <p class="text-gray-500 dark:text-slate-400">{{ locale.t.settings.subtitle }}</p>
           </div>
         </header>
