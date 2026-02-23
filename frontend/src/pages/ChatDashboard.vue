@@ -508,7 +508,60 @@
               ></textarea>
             </div>
             
-            <div class="flex items-center gap-1 mb-0.5 shrink-0">
+            <div class="flex items-center gap-1 mb-0.5 shrink-0 relative">
+              <!-- Botão Varinha Mágica -->
+              <div class="relative">
+                <button 
+                  @click="showMagicMenu = !showMagicMenu"
+                  class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-purple-500 flex items-center justify-center transition-colors relative"
+                  title="Varinha Mágica (IA)"
+                  v-if="!isRecording"
+                  :disabled="!newMessage.trim() || isProcessingMagic"
+                  :class="(!newMessage.trim() || isProcessingMagic) ? 'opacity-50 cursor-not-allowed' : ''"
+                >
+                  <span v-if="isProcessingMagic" class="material-symbols-outlined text-purple-500 animate-spin">progress_activity</span>
+                  <template v-else>
+                    <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+                    <span v-if="newMessage.trim()" class="absolute top-1 right-1 size-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse"></span>
+                  </template>
+                </button>
+                
+                <!-- Menu IA -->
+                <div v-if="showMagicMenu" class="absolute bottom-full right-0 md:-left-1/2 mb-2 w-56 bg-white dark:bg-glass-surface border border-gray-200 dark:border-white/10 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-xl">
+                  <div class="p-2 border-b border-gray-100 dark:border-white/5 text-[10px] font-bold text-gray-400 dark:text-slate-500 text-center uppercase tracking-wider flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-xs">auto_awesome</span> Inteligência Artificial
+                  </div>
+                  <button @click="applyMagicText('professional')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
+                    <span class="material-symbols-outlined text-[18px] text-blue-500">work</span>
+                    <div class="flex flex-col leading-tight gap-0.5">
+                      <span class="font-medium">Tom Profissional</span>
+                      <span class="text-[10px] text-gray-400">Reescrever para o trabalho</span>
+                    </div>
+                  </button>
+                  <button @click="applyMagicText('grammar')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
+                    <span class="material-symbols-outlined text-[18px] text-green-500">spellcheck</span>
+                    <div class="flex flex-col leading-tight gap-0.5">
+                      <span class="font-medium">Corrigir Erros</span>
+                      <span class="text-[10px] text-gray-400">Gramática e pontuação</span>
+                    </div>
+                  </button>
+                  <button @click="applyMagicText('english')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
+                    <span class="material-symbols-outlined text-[18px] text-red-500">translate</span>
+                    <div class="flex flex-col leading-tight gap-0.5">
+                      <span class="font-medium">Traduzir (Inglês)</span>
+                      <span class="text-[10px] text-gray-400">Native english translation</span>
+                    </div>
+                  </button>
+                  <button @click="applyMagicText('summarize')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
+                    <span class="material-symbols-outlined text-[18px] text-amber-500">short_text</span>
+                    <div class="flex flex-col leading-tight gap-0.5">
+                      <span class="font-medium">Resumir Tópicos</span>
+                      <span class="text-[10px] text-gray-400">Para mensagens grandes</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <button 
                 @click="showEmojiPicker = !showEmojiPicker"
                 class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
@@ -1053,7 +1106,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, api } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useNetworkStore } from '@/stores/network'
 import { useSocketStore } from '@/stores/socket'
@@ -1107,6 +1160,9 @@ const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const showMobileSidebar = ref(false)
 const fileInput = ref(null)
+
+const showMagicMenu = ref(false)
+const isProcessingMagic = ref(false)
 
 const editingMessageId = ref(null)
 const replyingToMessage = ref(null)
@@ -1394,6 +1450,37 @@ async function handleFileUpload(event) {
 function onEmojiClick(event) {
   newMessage.value += event.detail.unicode
 }
+
+async function applyMagicText(action) {
+  if (!newMessage.value.trim()) return
+  
+  isProcessingMagic.value = true
+  showMagicMenu.value = false
+  
+  try {
+    const response = await api.post('/ai/magic-text', {
+      text: newMessage.value,
+      action: action
+    })
+    
+    if (response.data.success) {
+      newMessage.value = response.data.data.result
+    } else {
+      alert(response.data.message || 'Erro ao processar texto com IA')
+    }
+  } catch (error) {
+    console.error('Magic AI error:', error)
+    alert('Ops! Houve um erro ao se comunicar com a IA. Tente novamente mais tarde.')
+  } finally {
+    isProcessingMagic.value = false
+    // Auto resize after applying new text
+    nextTick(() => {
+      const textarea = document.querySelector('textarea')
+      if (textarea) autoResize({ target: textarea })
+    })
+  }
+}
+
 
 const API_BASE = import.meta.env.PROD 
   ? 'https://lan-messenger-backend.onrender.com' 

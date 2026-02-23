@@ -27,6 +27,7 @@ import messagesRoutes from './routes/messages.routes.js';
 import networkRoutes from './routes/network.routes.js';
 import permissionsRoutes from './routes/permissions.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 
 dotenv.config();
@@ -173,6 +174,7 @@ router.use('/api/messages', messagesRoutes.routes());
 router.use('/api/network', networkRoutes.routes());
 router.use('/api/permissions', permissionsRoutes.routes());
 router.use('/api/uploads', uploadsRoutes.routes());
+router.use('/api/ai', aiRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
