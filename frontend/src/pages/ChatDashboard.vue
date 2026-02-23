@@ -1136,6 +1136,39 @@
       </div>
     </div>
 
+    <!-- AI Insights Modal -->
+    <div v-if="showInsightsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity" @click="showInsightsModal = false">
+      <div 
+        class="bg-white dark:bg-background-dark w-full max-w-2xl rounded-2xl shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border border-gray-100 dark:border-white/10 transition-transform transform scale-100"
+        @click.stop
+      >
+        <div class="p-6 border-b border-gray-100 dark:border-white/10 flex items-center justify-between bg-white dark:bg-background-dark">
+          <h3 class="text-2xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-3">
+            <span class="material-symbols-outlined text-primary text-[32px]">{{ insightsType === 'summarize' ? 'insights' : 'checklist' }}</span>
+            {{ insightsType === 'summarize' ? 'Resumo da Conversa' : 'Ações Extraídas' }}
+          </h3>
+          <button @click="showInsightsModal = false" class="size-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+            <span class="material-symbols-outlined text-[24px]">close</span>
+          </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto bg-gray-50/50 dark:bg-glass-surface">
+          <div v-if="isProcessingInsights" class="flex flex-col items-center justify-center py-16 gap-5 text-gray-500">
+             <span class="material-symbols-outlined text-6xl text-primary animate-spin">progress_activity</span>
+             <p class="font-bold text-lg animate-pulse dark:text-slate-300">Inteligência Artificial analisando mensagens...</p>
+             <p class="text-sm opacity-60">Isso pode levar alguns segundos dependendo do tamanho do histórico.</p>
+          </div>
+          <div v-else class="text-gray-800 dark:text-gray-200 text-sm md:text-[15px] leading-relaxed select-text space-y-4 prose prose-sm max-w-none dark:prose-invert">
+             <!-- Render raw text with basic styling for bullet points or lists if model returns them -->
+             <div class="font-medium whitespace-pre-wrap">{{ insightsResult }}</div>
+          </div>
+        </div>
+        <div class="p-4 border-t border-gray-100 dark:border-white/10 bg-white dark:bg-background-dark flex justify-end">
+           <button @click="showInsightsModal = false" class="px-6 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-300 dark:hover:bg-white/20 transition-colors">Fechar</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
