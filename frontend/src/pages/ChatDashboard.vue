@@ -1533,8 +1533,8 @@ async function fetchInsights(type) {
   
   // Extrai as ultimas 60 mensagens
   const msgs = chatStore.activeMessages.slice(-60).map(m => {
-     const senderName = m.sender_id === authStore.user?.id ? 'Eu' : (m.sender?.full_name || m.sender?.username || 'Sistema')
-     return `[${formatTime(m.created_at)}] ${senderName}: ${m.content || '[Mídia ' + m.contentType + ']'}`;
+     const senderName = m.senderId === authStore.user?.id ? 'Eu' : (m.sender?.fullName || m.sender?.username || 'Sistema')
+     return `[${formatTime(m.createdAt)}] ${senderName}: ${m.content || '[Mídia ' + m.contentType + ']'}`;
   }).join('\n')
   
   try {
@@ -1552,7 +1552,7 @@ async function fetchInsights(type) {
 }
 
 async function generateSmartReplies() {
-  const lastOtherMsg = [...chatStore.activeMessages].reverse().find(m => m.sender_id !== authStore.user?.id && m.contentType === 'text')
+  const lastOtherMsg = [...chatStore.activeMessages].reverse().find(m => m.senderId !== authStore.user?.id && m.contentType === 'text')
   if(!lastOtherMsg || !lastOtherMsg.content) {
     alert("Você precisa receber uma mensagem de texto primeiro para sugerirmos respostas!")
     return
