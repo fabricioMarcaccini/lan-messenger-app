@@ -195,7 +195,7 @@ router.post('/transcribe-audio', authMiddleware, async (ctx) => {
         formData.append('file', fileObj);
         formData.append('model', process.env.GROQ_API_KEY ? 'whisper-large-v3' : 'whisper-1');
         formData.append('response_format', 'json');
-        formData.append('language', 'pt'); // Força PT-BR para evitar sotaque/reconhecimento ruim
+        // formData.append('language', 'pt'); // Desativado para permitir que a IA detecte audios em ingles, japones ou outros idiomas livremente
 
         const apiUrl = process.env.GROQ_API_KEY
             ? 'https://api.groq.com/openai/v1/audio/transcriptions'
@@ -223,10 +223,12 @@ router.post('/transcribe-audio', authMiddleware, async (ctx) => {
             const openRouterKey = process.env.OPENROUTER_API_KEY;
             if (openRouterKey) {
                 const sys = 'Você é um assistente cirúrgico focado em resumos.';
-                const prmpt = `Resuma o áudio transcrito abaixo de forma absurdamente direta (máximo uma linha forte). Ex: "Fabrício pediu o relatório até as 18h".\n\nTranscrição:\n"${fullTranscript}"`;
+                const prmpt = `Faça um resumo de no máximo 2 linhas do texto abaixo. Foque apenas no que importa. NÃO adicione saudações, não invente exemplos. Se não conseguir entender o texto, retorne o próprio texto.\n\nTexto a resumir:\n"${fullTranscript}"\n\nResumo direto:`;
                 try {
                     const r = await askOpenRouter(sys, prmpt, openRouterKey);
-                    if (r) summaryText = `📋 Resumo do áudio: ${r}`;
+                    if (r && !r.includes('Texto a resumir')) {
+                        summaryText = `📋 Resumo do áudio: ${r}`;
+                    }
                 } catch (e) { }
             }
         }
