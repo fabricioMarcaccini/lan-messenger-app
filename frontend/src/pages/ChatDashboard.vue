@@ -220,7 +220,15 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
+          <div class="flex items-center gap-1 md:gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
+            <!-- AI Insights Buttons -->
+            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
+              <span class="material-symbols-outlined text-xl">insights</span>
+            </button>
+            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
+              <span class="material-symbols-outlined text-[22px]">checklist</span>
+            </button>
+            
             <!-- P2P Call Buttons -->
             <button 
               @click="startP2PCall('screen')"
@@ -246,7 +254,15 @@
             </button>
           </div>
           <!-- GROUP Call Buttons -->
-          <div class="flex items-center gap-2" v-if="chatStore.activeConversation.isGroup">
+          <div class="flex items-center gap-1 md:gap-2" v-if="chatStore.activeConversation.isGroup">
+            <!-- AI Insights Buttons -->
+            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
+              <span class="material-symbols-outlined text-xl">insights</span>
+            </button>
+            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
+              <span class="material-symbols-outlined text-[22px]">checklist</span>
+            </button>
+            
             <button 
               @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'screen')"
               class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 flex items-center justify-center transition-colors"
@@ -465,8 +481,27 @@
             <emoji-picker class="light dark:dark"></emoji-picker>
           </div>
 
-          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex items-end gap-2 shadow-lg relative" :class="editingMessageId ? 'rounded-tl-none rounded-tr-none' : ''">
+          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex flex-col gap-2 shadow-lg relative" :class="editingMessageId ? 'rounded-tl-none rounded-tr-none' : ''">
             <div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none hidden dark:block"></div>
+            <!-- Respostas Rápidas IA -->
+            <div class="flex items-center gap-2 mb-2 ml-[44px] max-w-full overflow-x-auto no-scrollbar" v-if="!isRecording">
+              <button v-if="!smartReplies.length" @click="generateSmartReplies" :disabled="isGeneratingReplies" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all whitespace-nowrap disabled:opacity-50" title="Ler a última mensagem recebida e gerar dicas de respostas curtas">
+                <span class="material-symbols-outlined text-[14px]" :class="isGeneratingReplies ? 'animate-spin' : ''">
+                  {{ isGeneratingReplies ? 'progress_activity' : 'smart_toy' }}
+                </span>
+                {{ isGeneratingReplies ? 'Analisando...' : 'Sugerir Respostas com IA' }}
+              </button>
+              <template v-else>
+                <button v-for="(reply, idx) in smartReplies" :key="idx" @click="useSmartReply(reply)" class="flex items-center gap-1 px-4 py-1.5 rounded-full bg-white dark:bg-glass-surface text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all whitespace-nowrap shadow-sm">
+                  {{ reply }}
+                </button>
+                <button @click="smartReplies = []" class="size-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Fechar">
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </template>
+            </div>
+            
+            <div class="flex items-end gap-1 md:gap-2 w-full relative">
             
             <!-- File Upload Input (Hidden) -->
             <input 
@@ -1164,6 +1199,14 @@ const fileInput = ref(null)
 const showMagicMenu = ref(false)
 const isProcessingMagic = ref(false)
 
+// AI Functionalities State
+const smartReplies = ref([])
+const isGeneratingReplies = ref(false)
+const showInsightsModal = ref(false)
+const insightsType = ref('summarize')
+const isProcessingInsights = ref(false)
+const insightsResult = ref('')
+
 const editingMessageId = ref(null)
 const replyingToMessage = ref(null)
 const messageExpiresIn = ref(null)
@@ -1479,6 +1522,66 @@ async function applyMagicText(action) {
       if (textarea) autoResize({ target: textarea })
     })
   }
+}
+
+async function fetchInsights(type) {
+  insightsType.value = type
+  showInsightsModal.value = true
+  isProcessingInsights.value = true
+  insightsResult.value = ''
+  
+  // Extrai as ultimas 60 mensagens
+  const msgs = chatStore.activeMessages.slice(-60).map(m => {
+     const senderName = m.sender_id === authStore.user?.id ? 'Eu' : (m.sender?.full_name || m.sender?.username || 'Sistema')
+     return `[${formatTime(m.created_at)}] ${senderName}: ${m.content || '[Mídia ' + m.contentType + ']'}`;
+  }).join('\n')
+  
+  try {
+     const response = await api.post('/ai/analyze-chat', { textLog: msgs, action: type })
+     if(response.data.success) {
+        insightsResult.value = response.data.result
+     } else {
+        insightsResult.value = '❌ Não foi possível gerar o resumo. Verifique a conexão com a API.'
+     }
+  } catch(e) {
+     insightsResult.value = 'Houve um erro de comunicação intermitente com a Inteligência Artificial.'
+  } finally {
+     isProcessingInsights.value = false
+  }
+}
+
+async function generateSmartReplies() {
+  const lastOtherMsg = [...chatStore.activeMessages].reverse().find(m => m.sender_id !== authStore.user?.id && m.contentType === 'text')
+  if(!lastOtherMsg || !lastOtherMsg.content) {
+    alert("Você precisa receber uma mensagem de texto primeiro para sugerirmos respostas!")
+    return
+  }
+  
+  isGeneratingReplies.value = true
+  smartReplies.value = []
+  
+  try {
+     const res = await api.post('/ai/smart-replies', { contextText: lastOtherMsg.content })
+     if(res.data.success && res.data.replies && Array.isArray(res.data.replies)) {
+        smartReplies.value = res.data.replies
+     } else {
+        alert("A Inteligência Artificial não retornou opções no formato esperado.")
+     }
+  } catch(e) {
+     console.error(e)
+     alert("Erro ao pedir sugestão de respostas.")
+  } finally {
+     isGeneratingReplies.value = false
+  }
+}
+
+function useSmartReply(replyText) {
+  newMessage.value = replyText
+  smartReplies.value = []
+  nextTick(() => {
+    const textarea = document.querySelector('textarea')
+    if (textarea) autoResize({ target: textarea })
+  })
 }
 
 
