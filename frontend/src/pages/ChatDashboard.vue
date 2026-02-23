@@ -111,7 +111,7 @@
             </button>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               {{ locale.t.chat.title }}
-              <span class="text-[12px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-5 h-5 flex items-center justify-center cursor-help" title="Aqui ficam listadas todas as suas mensagens e grupos. Clique para abrir ou criar uma nova.">?</span>
+              <span class="material-symbols-outlined text-primary/70 hover:text-primary transition-colors cursor-help text-[24px]" title="Dica: Aqui ficam listadas todas as suas mensagens e grupos. Clique para abrir ou criar uma nova.">help</span>
             </h2>
           </div>
           <button 

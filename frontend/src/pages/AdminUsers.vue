@@ -41,7 +41,7 @@
             </div>
             <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
               {{ locale.t.admin?.title || 'User Management' }}
-              <span class="text-[14px] bg-gray-200 dark:bg-white/10 text-gray-500 rounded-full w-6 h-6 flex items-center justify-center cursor-help font-normal" title="Gerencie todos os usuários do sistema, altere senhas, promova administradores e adicione novos membros.">?</span>
+              <span class="material-symbols-outlined text-primary/70 hover:text-primary transition-colors cursor-help text-[24px]" title="Dica: Gerencie todos os usuários do sistema, altere senhas, promova administradores e adicione novos membros.">help</span>
             </h1>
             <p class="text-gray-500 dark:text-slate-400">{{ locale.t.admin?.subtitle || 'Manage access, roles, and permissions for enterprise users.' }}</p>
           </div>
