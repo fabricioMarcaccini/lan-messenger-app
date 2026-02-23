@@ -54,6 +54,9 @@ const verifyOrigin = (ctx) => {
 };
 
 // Socket.IO setup
+import { createAdapter } from '@socket.io/redis-adapter';
+import { redis } from './config/database.js';
+
 const io = new SocketIO(httpServer, {
     cors: {
         origin: (origin, callback) => {
@@ -68,6 +71,14 @@ const io = new SocketIO(httpServer, {
     },
     maxHttpBufferSize: 50 * 1024 * 1024, // 50MB for file uploads
 });
+
+// Configure Redis Adapter for Horizontal Scaling (only if Redis URL/HOST is provided)
+if ((process.env.REDIS_URL || process.env.REDIS_HOST) && process.env.REDIS_HOST !== 'localhost') {
+    const pubClient = redis;
+    const subClient = pubClient.duplicate();
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('🔗 Redis Adapter configured for Socket.IO horizontal scaling');
+}
 
 // Middleware
 app.use(cors({
