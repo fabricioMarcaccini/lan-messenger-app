@@ -396,7 +396,14 @@
                     </div>
                     
                     <!-- Text Message -->
-                    <p v-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''">{{ msg.content }}</p>
+                    <div v-if="!msg.contentType || msg.contentType === 'text'" class="flex flex-col">
+                      <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''">{{ msg.content }}</p>
+                      <!-- Translation display -->
+                      <div v-if="msg.aiTranslation" class="mx-3 mb-3 mt-0 p-2.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs leading-relaxed text-gray-800 dark:text-gray-300 relative shadow-inner">
+                        <span class="absolute -top-2 -left-2 bg-blue-100 dark:bg-blue-800 size-5 flex items-center justify-center rounded-full text-[10px] shadow-sm border border-blue-200 dark:border-blue-700">🌍</span>
+                        {{ msg.aiTranslation }}
+                      </div>
+                    </div>
                     
                     <!-- Image Message -->
                     <div v-else-if="msg.contentType === 'image'" class="p-1">
@@ -404,8 +411,15 @@
                     </div>
 
                     <!-- Audio Message -->
-                    <div v-else-if="msg.contentType === 'audio'" class="p-2">
-                      <audio :src="getApiUrl(msg.content)" controls class="h-10 w-48 custom-audio"></audio>
+                    <div v-else-if="msg.contentType === 'audio'" class="p-2 flex flex-col gap-2 relative">
+                      <audio :src="getApiUrl(msg.content)" controls class="h-10 w-full max-w-[200px] custom-audio"></audio>
+                      <button v-if="!msg.aiTranscription" @click="transcribeAudio(msg)" class="self-start text-[10px] flex items-center gap-1 mt-1 px-2 py-1 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-500/20 transition-all border border-purple-500/20" title="Criar resumo da IA para ler rápido sem ouvir">
+                        <span class="material-symbols-outlined text-[12px]" :class="msg.isTranscribing ? 'animate-spin' : ''">{{ msg.isTranscribing ? 'progress_activity' : 'auto_awesome' }}</span> 
+                        {{ msg.isTranscribing ? 'Lendo Áudio...' : 'Anotar c/ IA' }}
+                      </button>
+                      <div v-if="msg.aiTranscription" class="mx-1 mb-1 p-2 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[11px] leading-tight text-gray-800 dark:text-gray-300">
+                        {{ msg.aiTranscription }}
+                      </div>
                     </div>
 
                     <!-- File/PDF/Video Message -->
@@ -432,8 +446,9 @@
 
                 <!-- Delete/Edit buttons (Hover) -->
                 <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                  <button v-if="(!msg.contentType || msg.contentType === 'text') && !msg.aiTranslation" @click="translateMessage(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500" title="Traduzir Mensagem (IA)"><span class="material-symbols-outlined text-[14px]" :class="msg.isTranslating ? 'animate-spin' : ''">{{ msg.isTranslating ? 'progress_activity' : 'translate' }}</span></button>
                   <button @click="startReply(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-cyan-500" title="Responder"><span class="material-symbols-outlined text-[14px]">reply</span></button>
-                  <button v-if="msg.senderId === authStore.user?.id && msg.contentType === 'text'" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
+                  <button v-if="msg.senderId === authStore.user?.id && (!msg.contentType || msg.contentType === 'text')" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
                   <button v-if="msg.senderId === authStore.user?.id" @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
                 </div>
               </div>
@@ -1616,6 +1631,49 @@ function useSmartReply(replyText) {
     const textarea = document.querySelector('textarea')
     if (textarea) autoResize({ target: textarea })
   })
+}
+
+async function translateMessage(msg) {
+  msg.isTranslating = true
+  try {
+    const res = await api.post('/ai/translate-message', {
+      text: msg.content,
+      targetLanguage: navigator.language.startsWith('pt') ? 'pt-BR' : 'en' 
+    })
+    if(res.data.success) {
+      msg.aiTranslation = res.data.translation
+    }
+  } catch(e) {
+    alert("Erro ao tentar traduzir a mensagem. O servidor de IA pode estar fora.")
+  } finally {
+    msg.isTranslating = false
+  }
+}
+
+async function transcribeAudio(msg) {
+  msg.isTranscribing = true
+  // extract file id from url string
+  // Ex: "https://url.com/api/uploads/d822df-12d.../file"
+  let fileId = msg.content
+  if (msg.content && msg.content.includes('/api/uploads/')) {
+     const parts = msg.content.split('/api/uploads/')
+     if (parts.length > 1) {
+        fileId = parts[1].split('/')[0]
+     }
+  } else if (msg.content && msg.content.startsWith('/uploads/')) {
+     fileId = msg.content.replace('/uploads/', '').split('.')[0]
+  }
+
+  try {
+    const res = await api.post('/ai/transcribe-audio', { fileId: fileId })
+    if(res.data.success) {
+      msg.aiTranscription = res.data.summary || res.data.transcript
+    }
+  } catch(e) {
+    alert("Erro ao transcrever o áudio. (Verifique as API Keys no Servidor)")
+  } finally {
+    msg.isTranscribing = false
+  }
 }
 
 

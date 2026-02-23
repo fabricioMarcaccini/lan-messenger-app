@@ -1,4 +1,5 @@
 import Router from 'koa-router';
+import { db } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
 
 const router = new Router();
@@ -133,6 +134,114 @@ router.post('/magic-text', authMiddleware, async (ctx) => {
     } catch (error) {
         console.error('Magic Text Error:', error);
         ctx.status = 500; ctx.body = { success: false, message: 'Erro ao conectar na IA.' };
+    }
+});
+
+// Endpoint para Tradução em Tempo Real (Babel)
+router.post('/translate-message', authMiddleware, async (ctx) => {
+    const { text, targetLanguage = 'pt' } = ctx.request.body;
+    if (!text) {
+        ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
+    }
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+        ctx.status = 500; ctx.body = { success: false, message: 'API Key não configurada.' }; return;
+    }
+
+    const systemInstruction = `Você é um tradutor instantâneo super rápido e eficaz. Extraia o texto, entenda a gíria se houver, e TRADUZA tudo para o idioma: ${targetLanguage}. Responda APENAS E ESTRITAMENTE com o texto traduzido. Nada além disso.`;
+    const prompt = `Traduza a seguinte mensagem:\n"${text}"`;
+
+    try {
+        const aiResponse = await askOpenRouter(systemInstruction, prompt, apiKey);
+        ctx.body = { success: true, translation: aiResponse };
+    } catch (error) {
+        console.error('Translation Error:', error);
+        ctx.status = 500; ctx.body = { success: false, message: 'Erro ao traduzir.' };
+    }
+});
+
+// Endpoint para Transcrição Magnética de Áudios (Whisper via Groq)
+router.post('/transcribe-audio', authMiddleware, async (ctx) => {
+    const { fileId } = ctx.request.body;
+    if (!fileId) {
+        ctx.status = 400; ctx.body = { success: false, message: 'ID do arquivo obrigatório' }; return;
+    }
+
+    // Acessar por Groq (gratuito) ou OpenAI (pago) - Fallback
+    const groqKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+    if (!groqKey) {
+        ctx.status = 500; ctx.body = { success: false, message: 'Chave GROQ_API_KEY não configurada no .env do backend para transcrição.' }; return;
+    }
+
+    try {
+        const result = await db.write(
+            'SELECT file_data, mime_type, original_name FROM file_uploads WHERE id = $1',
+            [fileId]
+        );
+
+        if (result.rows.length === 0) {
+            ctx.status = 404; ctx.body = { success: false, message: 'Áudio não encontrado no banco' }; return;
+        }
+
+        const fileRow = result.rows[0];
+        const audioBuffer = Buffer.from(fileRow.file_data, 'base64');
+        const filename = fileRow.original_name || 'audio.webm';
+
+        // Em Node.js modernos blob global existe
+        const blob = new Blob([audioBuffer], { type: fileRow.mime_type });
+        const formData = new FormData();
+        formData.append('file', blob, filename);
+        formData.append('model', process.env.GROQ_API_KEY ? 'whisper-large-v3' : 'whisper-1');
+        formData.append('response_format', 'json');
+        formData.append('language', 'pt'); // Força PT-BR para evitar sotaque/reconhecimento ruim
+
+        const apiUrl = process.env.GROQ_API_KEY
+            ? 'https://api.groq.com/openai/v1/audio/transcriptions'
+            : 'https://api.openai.com/v1/audio/transcriptions';
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${groqKey}`
+            },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Groq/Whisper API: ${response.status} - ${errText}`);
+        }
+
+        const data = await response.json();
+        const fullTranscript = data.text;
+
+        // Se o aúdio form muito grande, usamos a OpenRouter para resumir "📋 Resumo do áudio: ..."
+        let summaryText;
+        if (fullTranscript.length > 50) {
+            const openRouterKey = process.env.OPENROUTER_API_KEY;
+            if (openRouterKey) {
+                const sys = 'Você é um assistente cirúrgico focado em resumos.';
+                const prmpt = `Resuma o áudio transcrito abaixo de forma absurdamente direta (máximo uma linha forte). Ex: "Fabrício pediu o relatório até as 18h".\n\nTranscrição:\n"${fullTranscript}"`;
+                try {
+                    const r = await askOpenRouter(sys, prmpt, openRouterKey);
+                    if (r) summaryText = `📋 Resumo do áudio: ${r}`;
+                } catch (e) { }
+            }
+        }
+
+        if (!summaryText) {
+            summaryText = `📋 Transcrição: ${fullTranscript}`;
+        }
+
+        ctx.body = {
+            success: true,
+            transcript: fullTranscript,
+            summary: summaryText
+        };
+
+    } catch (error) {
+        console.error('Transcription Error:', error);
+        ctx.status = 500; ctx.body = { success: false, message: 'Erro na IA de Transcrição: ' + error.message };
     }
 });
 
