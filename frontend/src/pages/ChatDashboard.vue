@@ -628,6 +628,7 @@
                 <span class="material-symbols-outlined text-[18px]" v-if="!editingMessageId">send</span>
               </button>
             </div>
+            </div>
           </div>
         </div>
       </template>
