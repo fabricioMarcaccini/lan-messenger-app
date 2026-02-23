@@ -111,7 +111,13 @@
             </button>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               {{ locale.t.chat.title }}
-              <span class="material-symbols-outlined text-primary/70 hover:text-primary transition-colors cursor-help text-[24px]" title="Dica: Aqui ficam listadas todas as suas mensagens e grupos. Clique para abrir ou criar uma nova.">help</span>
+              <div class="relative flex items-center group cursor-help z-[100]">
+                <span class="material-symbols-outlined text-primary/70 group-hover:text-primary transition-colors text-[28px]">help</span>
+                <div class="absolute left-full top-1/2 -translate-y-1/2 ml-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 w-64 p-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm leading-relaxed font-medium rounded-xl shadow-xl pointer-events-none transform -translate-x-2 group-hover:translate-x-0 border border-transparent dark:border-gray-200">
+                  Aqui ficam listadas as conversas. Escolha uma para abrir ou clique no botão ao lado para criar uma nova.
+                  <div class="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-gray-900 dark:bg-white rotate-45 border-l border-b border-transparent dark:border-gray-200"></div>
+                </div>
+              </div>
             </h2>
           </div>
           <button 
