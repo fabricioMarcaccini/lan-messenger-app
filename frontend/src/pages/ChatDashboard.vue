@@ -486,7 +486,7 @@
           <div v-if="editingMessageId || replyingToMessage" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
             <div class="flex items-center gap-2 w-full pr-4 overflow-hidden">
               <span class="material-symbols-outlined text-[16px]">{{ replyingToMessage ? 'reply' : 'edit' }}</span> 
-              <span class="truncate">{{ replyingToMessage ? `Respondendo: ${replyingToMessage.content}` : 'Editando mensagem' }}</span>
+              <span class="truncate">{{ replyingToMessage ? `Respondendo: ${getMessageSnippet(replyingToMessage.id)}` : 'Editando mensagem' }}</span>
             </div>
             <button @click="cancelEditOrReply" class="text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-100 shrink-0"><span class="material-symbols-outlined text-sm">close</span></button>
           </div>
