@@ -277,7 +277,7 @@ router.post('/conversations/:id', async (ctx) => {
 // POST /api/messages/conversations/:id/call-log - Record call log as a special message
 router.post('/conversations/:id/call-log', async (ctx) => {
     const { id } = ctx.params;
-    const { callType = 'audio', duration = 0, status = 'completed' } = ctx.request.body;
+    const { callType = 'audio', duration = 0, status = 'completed', isGroup = false } = ctx.request.body;
     const userId = ctx.state.user.id;
 
     const convCheck = await db.write(
@@ -292,7 +292,7 @@ router.post('/conversations/:id/call-log', async (ctx) => {
     }
 
     // Encode call info as JSON string stored as content
-    const callContent = JSON.stringify({ callType, duration, status });
+    const callContent = JSON.stringify({ callType, duration, status, isGroup });
 
     const result = await db.write(
         `INSERT INTO messages (conversation_id, sender_id, content, content_type)

@@ -359,44 +359,47 @@
                     <span class="material-symbols-outlined text-[16px]">block</span> {{ msg.content }}
                   </p>
                   
-                  <!-- Reply Context -->
-                  <div v-if="msg.replyTo && !(msg.isDeleted || msg.contentType === 'deleted')" class="px-2.5 py-1.5 mx-2 mt-2 mb-1 bg-black/10 dark:bg-black/20 rounded border-l-[3px] border-black/20 dark:border-white/20 cursor-pointer hover:opacity-80 transition-opacity" @click="scrollToMessage(msg.replyTo)">
-                     <span class="text-[10px] font-bold block opacity-70 leading-none mb-1">Respondendo a</span>
-                     <p class="text-xs truncate italic opacity-90 leading-tight">{{ getMessageSnippet(msg.replyTo) }}</p>
-                  </div>
-                  
-                  <!-- Text Message -->
-                  <p v-else-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg">{{ msg.content }}</p>
-                  
-                  <!-- Image Message -->
-                  <div v-else-if="msg.contentType === 'image'" class="p-1">
-                    <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
-                  </div>
-
-                  <!-- Audio Message -->
-                  <div v-else-if="msg.contentType === 'audio'" class="p-2">
-                    <audio :src="getApiUrl(msg.content)" controls class="h-10 w-48 custom-audio"></audio>
-                  </div>
-
-                  <!-- File/PDF/Video Message -->
-                  <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
-                    <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
-                      <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
-                      <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
-                      <span class="material-symbols-outlined text-2xl" v-else>description</span>
+                  <!-- Normal Message (not deleted) -->
+                  <template v-else>
+                    <!-- Reply Context (shown above the content) -->
+                    <div v-if="msg.replyTo" class="px-2.5 py-1.5 mx-2 mt-2 mb-0 bg-black/10 dark:bg-black/20 rounded border-l-[3px] border-black/20 dark:border-white/20 cursor-pointer hover:opacity-80 transition-opacity" @click="scrollToMessage(msg.replyTo)">
+                       <span class="text-[10px] font-bold block opacity-70 leading-none mb-1">Respondendo a</span>
+                       <p class="text-xs truncate italic opacity-90 leading-tight">{{ getMessageSnippet(msg.replyTo) }}</p>
                     </div>
-                    <div class="flex flex-col flex-1 min-w-0">
-                      <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
-                      <a 
-                        :href="getApiUrl(msg.content)" 
-                        target="_blank" 
-                        download 
-                        class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
-                      >
-                        Download <span class="material-symbols-outlined text-[10px]">download</span>
-                      </a>
+                    
+                    <!-- Text Message -->
+                    <p v-if="!msg.contentType || msg.contentType === 'text'" class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''">{{ msg.content }}</p>
+                    
+                    <!-- Image Message -->
+                    <div v-else-if="msg.contentType === 'image'" class="p-1">
+                      <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
                     </div>
-                  </div>
+
+                    <!-- Audio Message -->
+                    <div v-else-if="msg.contentType === 'audio'" class="p-2">
+                      <audio :src="getApiUrl(msg.content)" controls class="h-10 w-48 custom-audio"></audio>
+                    </div>
+
+                    <!-- File/PDF/Video Message -->
+                    <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
+                      <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
+                        <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
+                        <span class="material-symbols-outlined text-2xl" v-else>description</span>
+                      </div>
+                      <div class="flex flex-col flex-1 min-w-0">
+                        <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
+                        <a 
+                          :href="getApiUrl(msg.content)" 
+                          target="_blank" 
+                          download 
+                          class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
+                        >
+                          Download <span class="material-symbols-outlined text-[10px]">download</span>
+                        </a>
+                      </div>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- Delete/Edit buttons (Hover) -->
@@ -630,6 +633,8 @@
         <div class="flex gap-4 mb-4 border-b border-gray-200 dark:border-white/10 w-full justify-center">
           <button @click="infoTab = 'members'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'members' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Membros</button>
           <button @click="infoTab = 'media'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'media' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Mídia</button>
+          <button @click="infoTab = 'files'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'files' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Arquivos</button>
+          <button @click="infoTab = 'calls'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'calls' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Chamadas</button>
         </div>
 
         <div v-if="infoTab === 'members'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
@@ -640,15 +645,88 @@
           </div>
         </div>
 
+        <!-- MEDIA TAB: images + audio + videos -->
         <div v-if="infoTab === 'media'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full relative">
-           <div class="grid grid-cols-3 gap-2">
+           <!-- Images -->
+           <p v-if="chatStore.activeMessages.filter(m => ['image'].includes(m.contentType)).length > 0" class="text-[10px] uppercase text-gray-400 dark:text-slate-500 font-bold tracking-wider mb-1">🖼️ Imagens</p>
+           <div class="grid grid-cols-3 gap-2 mb-3">
               <template v-for="msg in chatStore.activeMessages">
                  <div v-if="msg.contentType === 'image'" :key="msg.id" class="aspect-square bg-gray-100 dark:bg-black/20 rounded-lg overflow-hidden cursor-pointer">
                     <img :src="getApiUrl(msg.content)" class="w-full h-full object-cover" @click="openImage(getApiUrl(msg.content))">
                  </div>
               </template>
            </div>
-           <div v-if="chatStore.activeMessages.filter(m => m.contentType === 'image').length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma mídia.</div>
+           <!-- Audios -->
+           <p v-if="chatStore.activeMessages.filter(m => m.contentType === 'audio').length > 0" class="text-[10px] uppercase text-gray-400 dark:text-slate-500 font-bold tracking-wider mb-1">🎧 Áudios</p>
+           <div class="flex flex-col gap-1 mb-3">
+              <template v-for="msg in chatStore.activeMessages">
+                 <div v-if="msg.contentType === 'audio'" :key="msg.id" class="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-black/20">
+                    <span class="material-symbols-outlined text-green-500" style="font-size: 18px;">graphic_eq</span>
+                    <audio :src="getApiUrl(msg.content)" controls class="h-8 flex-1 custom-audio"></audio>
+                    <span class="text-[10px] text-gray-400">{{ formatTime(msg.createdAt) }}</span>
+                 </div>
+              </template>
+           </div>
+           <!-- Videos -->
+           <p v-if="chatStore.activeMessages.filter(m => m.contentType === 'video').length > 0" class="text-[10px] uppercase text-gray-400 dark:text-slate-500 font-bold tracking-wider mb-1">🎬 Vídeos</p>
+           <div class="flex flex-col gap-1 mb-3">
+              <template v-for="msg in chatStore.activeMessages">
+                 <div v-if="msg.contentType === 'video'" :key="msg.id" class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-black/20">
+                    <span class="material-symbols-outlined text-primary" style="font-size: 20px;">movie</span>
+                    <span class="text-sm text-gray-700 dark:text-slate-200 truncate flex-1">{{ getFileName(msg.content) }}</span>
+                    <a :href="getApiUrl(msg.content)" target="_blank" download class="text-xs text-primary hover:underline">Baixar</a>
+                 </div>
+              </template>
+           </div>
+           <div v-if="chatStore.activeMessages.filter(m => ['image','audio','video'].includes(m.contentType)).length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma mídia compartilhada.</div>
+        </div>
+
+        <!-- FILES TAB: pdfs, docs, archives, etc -->
+        <div v-if="infoTab === 'files'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
+           <template v-for="msg in chatStore.activeMessages">
+              <div v-if="msg.contentType && !['text','image','audio','video','call','deleted'].includes(msg.contentType)" :key="msg.id" class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20">
+                 <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-primary" v-if="msg.contentType === 'pdf'">picture_as_pdf</span>
+                    <span class="material-symbols-outlined text-primary" v-else>description</span>
+                 </div>
+                 <div class="flex flex-col flex-1 min-w-0">
+                    <span class="text-xs font-medium text-gray-800 dark:text-slate-200 truncate">{{ getFileName(msg.content) }}</span>
+                    <span class="text-[10px] text-gray-400">{{ formatTime(msg.createdAt) }}</span>
+                 </div>
+                 <a :href="getApiUrl(msg.content)" target="_blank" download class="text-xs text-primary hover:underline flex-shrink-0">Baixar</a>
+              </div>
+           </template>
+           <div v-if="chatStore.activeMessages.filter(m => m.contentType && !['text','image','audio','video','call','deleted'].includes(m.contentType)).length === 0" class="text-center text-xs text-gray-400 py-4">Nenhum arquivo compartilhado.</div>
+        </div>
+
+        <!-- CALLS TAB: call logs -->
+        <div v-if="infoTab === 'calls'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
+           <template v-for="msg in chatStore.activeMessages">
+              <div v-if="msg.contentType === 'call'" :key="msg.id" class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20">
+                 <div class="size-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                   :class="parseCallLog(msg.content).status === 'missed' || parseCallLog(msg.content).status === 'declined' ? 'bg-red-50 dark:bg-red-500/10' : 'bg-green-50 dark:bg-green-500/10'">
+                    <span class="material-symbols-outlined" :class="parseCallLog(msg.content).status === 'missed' ? 'text-red-400' : parseCallLog(msg.content).callType === 'video' ? 'text-primary' : 'text-green-500'">
+                      {{ parseCallLog(msg.content).callType === 'video' ? 'videocam' : parseCallLog(msg.content).callType === 'screen' ? 'present_to_all' : 'call' }}
+                    </span>
+                 </div>
+                 <div class="flex flex-col flex-1 min-w-0">
+                    <span class="text-xs font-medium text-gray-800 dark:text-slate-200">
+                       <span v-if="msg.senderId === authStore.user?.id">Você</span>
+                       <span v-else>{{ msg.senderName || msg.senderUsername }}</span>
+                       —
+                       {{ parseCallLog(msg.content).callType === 'video' ? 'Vídeo' : parseCallLog(msg.content).callType === 'screen' ? 'Tela' : 'Voz' }}
+                       {{ parseCallLog(msg.content).isGroup ? '(Grupo)' : '' }}
+                    </span>
+                    <span class="text-[10px] text-gray-400">
+                       <span v-if="parseCallLog(msg.content).status === 'missed'" class="text-red-400">Não atendida</span>
+                       <span v-else-if="parseCallLog(msg.content).status === 'declined'" class="text-red-400">Recusada</span>
+                       <span v-else>{{ formatCallDuration(parseCallLog(msg.content).duration) }}</span>
+                       · {{ formatTime(msg.createdAt) }}
+                    </span>
+                 </div>
+              </div>
+           </template>
+           <div v-if="chatStore.activeMessages.filter(m => m.contentType === 'call').length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma chamada registrada.</div>
         </div>
 
         <button v-if="chatStore.activeConversation?.isGroup" @click="leaveGroup" class="w-full mt-2 py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-900/30">
@@ -1163,46 +1241,91 @@ async function deleteMsg(messageId) {
 }
 
 // === Audio Recording ===
+let _audioStream = null
+
 async function startRecording() {
   if (isRecording.value) return;
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    mediaRecorder = new MediaRecorder(stream)
+    _audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    
+    // Determine best supported mime type
+    let mimeType = 'audio/webm;codecs=opus'
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/webm'
+    }
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/mp4' // Safari fallback
+    }
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = '' // Let browser decide
+    }
+    
+    const options = mimeType ? { mimeType } : {}
+    mediaRecorder = new MediaRecorder(_audioStream, options)
     audioChunks = []
     
     mediaRecorder.ondataavailable = e => {
-      if (e.data.size > 0) audioChunks.push(e.data)
+      if (e.data && e.data.size > 0) audioChunks.push(e.data)
     }
     
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' })
-      stream.getTracks().forEach(track => track.stop()) // kill microphone usage
+      // Kill microphone
+      if (_audioStream) {
+        _audioStream.getTracks().forEach(track => track.stop())
+        _audioStream = null
+      }
       
-      // Upload
-      if (audioBlob.size > 0 && chatStore.activeConversationId) {
-        const file = new File([audioBlob], `audio-${Date.now()}.webm`, { type: 'audio/webm' })
+      if (audioChunks.length === 0) {
+        console.warn('No audio chunks recorded')
+        return
+      }
+
+      const actualMime = mediaRecorder.mimeType || mimeType || 'audio/webm'
+      const ext = actualMime.includes('mp4') ? 'mp4' : 'webm'
+      const audioBlob = new Blob(audioChunks, { type: actualMime })
+      audioChunks = []
+      
+      if (audioBlob.size < 100) {
+        console.warn('Audio too short, skipping')
+        return
+      }
+      
+      if (chatStore.activeConversationId) {
+        const file = new File([audioBlob], `audio-${Date.now()}.${ext}`, { type: actualMime })
         try {
-          const uploadedFile = await chatStore.uploadFile(file)
-          await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, 'audio')
+          const uploadResult = await chatStore.uploadFile(file)
+          // uploadResult = { success, data: { url, contentType, ... } }
+          const fileUrl = uploadResult.data?.url || uploadResult.url
+          if (!fileUrl) {
+            console.error('Upload returned no URL:', uploadResult)
+            alert('Erro ao enviar áudio: URL não retornada')
+            return
+          }
+          await chatStore.sendMessage(chatStore.activeConversationId, fileUrl, 'audio')
           await nextTick()
           scrollToBottom()
         } catch (err) {
-          alert('Erro ao enviar áudio')
+          console.error('Audio upload failed:', err)
+          alert('Erro ao enviar áudio: ' + (err.response?.data?.message || err.message || 'Erro desconhecido'))
         }
       }
     }
     
-    mediaRecorder.start()
+    // Start with 100ms timeslice to ensure data is captured even on short recordings
+    mediaRecorder.start(100)
     isRecording.value = true
   } catch (err) {
+    console.error('Microphone access error:', err)
     alert('Erro ao acessar o microfone. Verifique as permissões do navegador.')
   }
 }
 
 function stopRecording() {
   if (mediaRecorder && isRecording.value) {
-    mediaRecorder.stop()
     isRecording.value = false
+    if (mediaRecorder.state === 'recording') {
+      mediaRecorder.stop()
+    }
   }
 }
 
@@ -1391,7 +1514,7 @@ function toggleScreenShare() {
   webrtcStore.toggleScreenShare()
 }
 
-// Call timer + auto-log when call ends
+// Call timer + auto-log when P2P call ends
 let _callType = 'audio'
 let _callWasConnected = false
 
@@ -1424,6 +1547,25 @@ watch(() => webrtcStore.callState, (state, oldState) => {
     callSeconds.value = 0
     isMuted.value = false
     isCamOff.value = false
+  }
+})
+
+// Group call auto-log when call ends
+let _groupCallWasConnected = false
+let _groupCallType = 'audio'
+
+watch(() => groupCallStore.callState, (state, oldState) => {
+  if (state === 'connected') {
+    _groupCallWasConnected = true
+    _groupCallType = groupCallStore.isScreenSharing ? 'screen' : groupCallStore.isVideoCall ? 'video' : 'audio'
+  } else if (state === 'idle' && oldState !== 'idle') {
+    const duration = groupCallStore.callSeconds
+    const convId = groupCallStore.conversationId || chatStore.activeConversationId
+
+    if (convId && _groupCallWasConnected) {
+      chatStore.saveCallLog(convId, _groupCallType, duration, 'completed', true)
+    }
+    _groupCallWasConnected = false
   }
 })
 

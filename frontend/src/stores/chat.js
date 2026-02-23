@@ -176,6 +176,8 @@ export const useChatStore = defineStore('chat', () => {
             else if (message.contentType === 'text') conv.lastMessage = message.content;
             else if (message.contentType === 'audio') conv.lastMessage = '🎙️ Áudio';
             else if (message.contentType === 'image') conv.lastMessage = '📷 Imagem';
+            else if (message.contentType === 'call') conv.lastMessage = '📞 Chamada';
+            else if (message.contentType === 'video') conv.lastMessage = '🎬 Vídeo';
             else conv.lastMessage = '📎 Arquivo';
 
             conv.lastMessageAt = message.createdAt
@@ -235,10 +237,10 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    async function saveCallLog(conversationId, callType, duration, status) {
+    async function saveCallLog(conversationId, callType, duration, status, isGroup = false) {
         try {
             const response = await api.post(`/messages/conversations/${conversationId}/call-log`, {
-                callType, duration, status
+                callType, duration, status, isGroup
             })
             if (response.data.success) {
                 addMessage(conversationId, response.data.data)
