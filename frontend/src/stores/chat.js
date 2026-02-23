@@ -87,10 +87,11 @@ export const useChatStore = defineStore('chat', () => {
             const conv = conversations.value.find(c => c.id === conversationId)
             if (conv) {
                 if (type === 'deleted') conv.lastMessage = '🚫 Mensagem apagada';
-                else if (type === 'text') conv.lastMessage = content;
                 else if (type === 'audio') conv.lastMessage = '🎙️ Áudio';
                 else if (type === 'image') conv.lastMessage = '📷 Imagem';
                 else if (type === 'call') conv.lastMessage = '📞 Chamada';
+                else if (content && typeof content === 'string' && content.includes('/api/uploads/')) conv.lastMessage = '📎 Anexo de Arquivo';
+                else if (type === 'text') conv.lastMessage = content;
                 else conv.lastMessage = '📎 Arquivo';
 
                 conv.lastMessageAt = new Date().toISOString()
@@ -173,11 +174,12 @@ export const useChatStore = defineStore('chat', () => {
         const conv = conversations.value.find(c => c.id === conversationId)
         if (conv) {
             if (message.contentType === 'deleted') conv.lastMessage = '🚫 Mensagem apagada';
-            else if (message.contentType === 'text') conv.lastMessage = message.content;
             else if (message.contentType === 'audio') conv.lastMessage = '🎙️ Áudio';
             else if (message.contentType === 'image') conv.lastMessage = '📷 Imagem';
             else if (message.contentType === 'call') conv.lastMessage = '📞 Chamada';
             else if (message.contentType === 'video') conv.lastMessage = '🎬 Vídeo';
+            else if (message.content && typeof message.content === 'string' && message.content.includes('/api/uploads/')) conv.lastMessage = '📎 Anexo de Arquivo';
+            else if (message.contentType === 'text' || !message.contentType) conv.lastMessage = message.content;
             else conv.lastMessage = '📎 Arquivo';
 
             conv.lastMessageAt = message.createdAt

@@ -1717,6 +1717,12 @@ function getMessageSnippet(id) {
     if (msg.contentType === 'audio') return '🎤 Áudio';
     if (msg.contentType === 'video') return '🎥 Vídeo';
     if (msg.contentType === 'pdf') return '📄 Arquivo PDF';
+    
+    // Fallback caso a msg venha sem content type mas seja um arquivo da API de uploads ou uma imagem copiada
+    if (msg.content && msg.content.includes('/api/uploads/')) {
+        return '📎 Anexo de Arquivo';
+    }
+    
     return msg.content || '...';
 }
 
