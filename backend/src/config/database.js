@@ -46,16 +46,23 @@ const mysqlPool = mysql.createPool({
 });
 
 // Redis Client (Cache & Sessions fallback)
-const redis = new Redis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: parseInt(process.env.REDIS_PORT) || 6379,
+const redisUrl = process.env.REDIS_URL;
+const redisConfig = redisUrl
+    ? redisUrl
+    : {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+    };
+
+const redis = new Redis(redisConfig, {
     retryDelayOnFailover: 100,
     maxRetriesPerRequest: 1, // Minimize retry attempts in production
 });
 
 // Memory Cache Fallback for free-tier Render deployments
 const memoryCache = new Map();
-const fallbackEnabled = !process.env.REDIS_HOST || process.env.REDIS_HOST === 'localhost';
+const fallbackEnabled = (!process.env.REDIS_URL && !process.env.REDIS_HOST) || process.env.REDIS_HOST === 'localhost';
 
 // Database utility functions
 export const db = {
