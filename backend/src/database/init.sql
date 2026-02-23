@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS file_uploads (
     mime_type VARCHAR(100),
     file_size BIGINT,
     content_type VARCHAR(50) DEFAULT 'file',
+    file_data TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

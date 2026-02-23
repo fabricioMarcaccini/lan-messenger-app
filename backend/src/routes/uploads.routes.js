@@ -6,10 +6,41 @@ import path from 'path';
 
 const router = new Router();
 
-router.use(authMiddleware);
-
 // Block dangerous extensions
 const BLOCKED_EXTENSIONS = ['.exe', '.bat', '.cmd', '.msi', '.ps1', '.vbs', '.jar', '.scr', '.pif', '.sh'];
+
+// GET /api/uploads/:id/file - Serve file from DB (PUBLIC - no auth required for <img>, <audio>, <a> tags)
+router.get('/:id/file', async (ctx) => {
+    const { id } = ctx.params;
+    try {
+        const result = await db.write(
+            'SELECT file_data, mime_type, original_name, file_size FROM file_uploads WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            ctx.status = 404;
+            ctx.body = { success: false, message: 'Arquivo não encontrado' };
+            return;
+        }
+
+        const file = result.rows[0];
+        const buffer = Buffer.from(file.file_data, 'base64');
+
+        ctx.set('Content-Type', file.mime_type);
+        ctx.set('Content-Length', String(buffer.length));
+        ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(file.original_name)}"`);
+        ctx.set('Cache-Control', 'public, max-age=31536000');
+        ctx.body = buffer;
+    } catch (error) {
+        console.error('❌ File serve error:', error);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Erro ao servir arquivo' };
+    }
+});
+
+// All routes below require authentication
+router.use(authMiddleware);
 
 // POST /api/uploads - Upload a file (stores in DB as base64 for Render compatibility)
 router.post('/', async (ctx) => {
@@ -92,36 +123,6 @@ router.post('/', async (ctx) => {
     }
 });
 
-// GET /api/uploads/:id/file - Serve file from DB
-router.get('/:id/file', async (ctx) => {
-    const { id } = ctx.params;
-    try {
-        const result = await db.write(
-            'SELECT file_data, mime_type, original_name, file_size FROM file_uploads WHERE id = $1',
-            [id]
-        );
-
-        if (result.rows.length === 0) {
-            ctx.status = 404;
-            ctx.body = { success: false, message: 'Arquivo não encontrado' };
-            return;
-        }
-
-        const file = result.rows[0];
-        const buffer = Buffer.from(file.file_data, 'base64');
-
-        ctx.set('Content-Type', file.mime_type);
-        ctx.set('Content-Length', String(buffer.length));
-        ctx.set('Content-Disposition', `inline; filename="${encodeURIComponent(file.original_name)}"`);
-        ctx.set('Cache-Control', 'public, max-age=31536000');
-        ctx.body = buffer;
-    } catch (error) {
-        console.error('❌ File serve error:', error);
-        ctx.status = 500;
-        ctx.body = { success: false, message: 'Erro ao servir arquivo' };
-    }
-});
-
 // GET /api/uploads/:id - Get file metadata
 router.get('/:id', async (ctx) => {
     const { id } = ctx.params;
@@ -152,3 +153,4 @@ router.get('/:id', async (ctx) => {
 });
 
 export default router;
+

@@ -238,6 +238,10 @@ httpServer.listen(PORT, async () => {
             await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted'))");
 
             console.log('✅ Novas Funcionalidades (Edição/WebRTC) Sincronizadas no Banco!');
+
+            // Ensure file_uploads table has the file_data column for DB-based file storage
+            await db.write('ALTER TABLE file_uploads ADD COLUMN IF NOT EXISTS file_data TEXT');
+            console.log('✅ Coluna file_data sincronizada na tabela file_uploads!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);
