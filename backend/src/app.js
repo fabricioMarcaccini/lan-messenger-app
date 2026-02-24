@@ -267,7 +267,7 @@ httpServer.listen(PORT, async () => {
             await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP');
 
             try { await db.write("ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check"); } catch (e) { }
-            await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted'))");
+            await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted', 'call'))");
 
             console.log('✅ Novas Funcionalidades (Edição/WebRTC) Sincronizadas no Banco!');
 

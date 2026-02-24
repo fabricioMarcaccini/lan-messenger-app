@@ -349,7 +349,7 @@
         </header>
         
         <!-- Active Group Call Banner -->
-        <div v-if="groupCallStore.activeCallInfo && groupCallStore.callState === 'idle' && chatStore.activeConversation?.isGroup && groupCallStore.activeCallInfo.conversationId === chatStore.activeConversationId"
+        <div v-if="groupCallStore.activeCallInfo && groupCallStore.callState === 'idle'"
           class="mx-4 mt-3 mb-0 px-4 py-3 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 flex items-center justify-between gap-3 animate-pulse">
           <div class="flex items-center gap-3 min-w-0">
             <div class="size-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
@@ -2233,6 +2233,31 @@ async function toggleReaction(messageId, emoji) {
 
 
 // Handle new message from socket
+let notifAudioCtx = null
+function playNotificationSound() {
+  try {
+    if (!notifAudioCtx) notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
+    const ctx = notifAudioCtx
+    if (ctx.state === 'suspended') ctx.resume()
+
+    // Pleasant double-beep notification
+    const now = ctx.currentTime
+    for (let i = 0; i < 2; i++) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(880, now + i * 0.18)
+      gain.gain.setValueAtTime(0, now + i * 0.18)
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.18 + 0.04)
+      gain.gain.linearRampToValueAtTime(0, now + i * 0.18 + 0.14)
+      osc.start(now + i * 0.18)
+      osc.stop(now + i * 0.18 + 0.15)
+    }
+  } catch (e) { /* ignore audio errors */ }
+}
+
 function handleNewMessage(event) {
   const message = event.detail
   if (message && message.conversationId) {
@@ -2246,11 +2271,18 @@ function handleNewMessage(event) {
       }
     }
     
-    if (chatStore.activeConversationId !== message.conversationId && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification('Nova mensagem', {
-        body: `${message.senderName || message.senderUsername}: ${message.content}`,
-        icon: '/vite.svg'
-      })
+    // Notification for messages in other conversations
+    if (chatStore.activeConversationId !== message.conversationId && message.senderId !== authStore.user?.id) {
+      // 🔊 Play notification sound (always)
+      playNotificationSound()
+
+      // Desktop notification (if permission granted)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Nova mensagem', {
+          body: `${message.senderName || message.senderUsername}: ${message.content}`,
+          icon: '/vite.svg'
+        })
+      }
     }
   }
 }
