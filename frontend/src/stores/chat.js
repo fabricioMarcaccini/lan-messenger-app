@@ -279,6 +279,13 @@ export const useChatStore = defineStore('chat', () => {
             const msg = messages.value[conversationId].find(m => m.id === messageId)
             if (msg) {
                 msg.isRead = true
+                // Track who read it (for "Seen by" feature in groups)
+                if (readBy) {
+                    if (!msg.readBy) msg.readBy = []
+                    if (!msg.readBy.includes(readBy)) {
+                        msg.readBy.push(readBy)
+                    }
+                }
             }
         }
     }

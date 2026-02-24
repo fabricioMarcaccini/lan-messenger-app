@@ -417,7 +417,18 @@
         </div>
 
         <!-- Messages -->
-        <div ref="messagesContainer" class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent">
+        <div ref="messagesContainer" 
+          class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent relative"
+          @dragover.prevent="isDraggingFile = true"
+          @dragleave.prevent="isDraggingFile = false"
+          @drop.prevent="handleFileDrop"
+        >
+          <!-- Drag & Drop Overlay -->
+          <div v-if="isDraggingFile" class="absolute inset-0 z-50 bg-primary/10 dark:bg-primary/20 border-2 border-dashed border-primary rounded-xl flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none">
+            <span class="material-symbols-outlined text-6xl text-primary mb-3 animate-bounce">upload_file</span>
+            <p class="text-primary font-bold text-lg">Solte o arquivo aqui</p>
+            <p class="text-primary/60 text-sm">Imagens, vídeos, documentos...</p>
+          </div>
           <template v-for="msg in chatStore.activeMessages" :key="msg.id">
 
             <!-- ==== CALL LOG MESSAGE ==== -->
@@ -493,6 +504,20 @@
                     <!-- Text Message -->
                     <div v-if="!msg.contentType || msg.contentType === 'text'" class="flex flex-col">
                       <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''"><span v-html="renderMessageContent(msg.content)"></span></p>
+                      <!-- Link Preview Cards -->
+                      <div v-if="hasLinks(msg.content)" class="px-3 pb-2 flex flex-col gap-1.5">
+                        <a v-for="url in extractUrls(msg.content)" :key="url" :href="url" target="_blank" rel="noopener noreferrer" 
+                          class="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-primary/30 transition-all group/link max-w-sm shadow-sm">
+                          <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover/link:bg-primary/20 transition-colors">
+                            <span class="material-symbols-outlined text-primary text-lg">link</span>
+                          </div>
+                          <div class="flex flex-col min-w-0 flex-1">
+                            <span class="text-xs font-semibold text-gray-700 dark:text-slate-200 truncate">{{ new URL(url).hostname }}</span>
+                            <span class="text-[10px] text-gray-400 dark:text-slate-500 truncate">{{ url.length > 50 ? url.substring(0, 50) + '...' : url }}</span>
+                          </div>
+                          <span class="material-symbols-outlined text-gray-300 dark:text-slate-600 text-sm group-hover/link:text-primary transition-colors flex-shrink-0">open_in_new</span>
+                        </a>
+                      </div>
                       <!-- Translation display -->
                       <div v-if="msg.aiTranslation" class="mx-3 mb-3 mt-0 p-2.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs leading-relaxed text-gray-800 dark:text-gray-300 relative shadow-inner">
                         <span class="absolute -top-2 -left-2 bg-blue-100 dark:bg-blue-800 size-5 flex items-center justify-center rounded-full text-[10px] shadow-sm border border-blue-200 dark:border-blue-700">🌍</span>
@@ -557,16 +582,31 @@
                 </div>
 
                 <div class="flex items-center gap-1">
-                  <!-- Quick Reactions -->
-                  <div class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 mr-2 transition-opacity">
-                     <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '👍')">👍</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '❤️')">❤️</span>
+                  <!-- Quick Reactions (expanded) -->
+                  <div class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-0.5 mr-2 transition-opacity bg-gray-100 dark:bg-black/30 rounded-full px-1 py-0.5 border border-gray-200 dark:border-white/10">
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '👍')" title="Curtir">👍</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '❤️')" title="Amar">❤️</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '😂')" title="Rir">😂</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '🔥')" title="Fogo">🔥</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '😮')" title="Surpreso">😮</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '🙏')" title="Obrigado">🙏</span>
+                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm border-l border-gray-300 dark:border-white/10 pl-1 ml-0.5 text-gray-400" @click="openReactionPicker(msg.id)" title="Mais emojis">+</span>
                   </div>
 
                   <span v-if="msg.expiresAt" class="material-symbols-outlined text-[12px] text-red-400 mr-1" title="Mensagem temporária">timer</span>
                   <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
                   <span v-if="msg.editedAt" class="text-[9px] text-gray-400 dark:text-slate-500 italic ml-1">(editado)</span>
+                  <!-- Read receipts -->
                   <span v-if="msg.senderId === authStore.user?.id" class="material-symbols-outlined text-[14px] ml-1" :class="msg.isRead ? 'text-blue-500 shadow-blue-500/20' : 'text-gray-400'">{{ msg.isRead ? 'done_all' : 'check' }}</span>
+                  <!-- Seen by tooltip for groups -->
+                  <div v-if="chatStore.activeConversation?.isGroup && msg.senderId === authStore.user?.id && msg.readBy && msg.readBy.length > 0" class="relative group/seen inline-flex ml-1">
+                    <span class="text-[9px] text-blue-400 cursor-help">{{ msg.readBy.length }}👁</span>
+                    <div class="absolute bottom-full right-0 mb-1 hidden group-hover/seen:block bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] px-2 py-1.5 rounded-lg shadow-xl z-50 whitespace-nowrap max-w-48">
+                      <p class="font-bold mb-0.5">Visto por:</p>
+                      <p v-for="uid in msg.readBy.slice(0, 5)" :key="uid" class="leading-relaxed">{{ getParticipantName(uid) }}</p>
+                      <p v-if="msg.readBy.length > 5" class="opacity-60">+{{ msg.readBy.length - 5 }} mais</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1453,6 +1493,56 @@ function jumpToSearchResult(result) {
   }, 500)
 }
 
+// ====== Drag & Drop ======
+const isDraggingFile = ref(false)
+
+async function handleFileDrop(event) {
+  isDraggingFile.value = false
+  const files = event.dataTransfer?.files
+  if (!files || files.length === 0 || !chatStore.activeConversationId) return
+
+  for (const file of files) {
+    try {
+      const uploadResult = await chatStore.uploadFile(file)
+      if (uploadResult?.success && uploadResult?.data?.url) {
+        const url = uploadResult.data.url
+        const ct = uploadResult.data.contentType || 'file'
+        await chatStore.sendMessage(chatStore.activeConversationId, url, ct)
+      }
+    } catch (err) {
+      console.error('Drop upload failed:', err)
+    }
+  }
+}
+
+// ====== Reaction Picker (open full emoji picker for a specific message) ======
+const reactionPickerMessageId = ref(null)
+
+function openReactionPicker(messageId) {
+  reactionPickerMessageId.value = messageId
+  showEmojiPicker.value = true
+}
+
+// ====== Link Preview Detection ======
+const urlRegex = /(https?:\/\/[^\s<]+)/g
+
+function extractUrls(text) {
+  if (!text || typeof text !== 'string') return []
+  return text.match(urlRegex) || []
+}
+
+function hasLinks(text) {
+  return extractUrls(text).length > 0
+}
+
+// ====== "Seen By" Helper ======
+function getParticipantName(userId) {
+  const conv = chatStore.activeConversation
+  if (!conv?.participants) return 'Desconhecido'
+  const p = conv.participants.find(pp => pp.id === userId)
+  return p?.full_name || p?.username || 'Desconhecido'
+}
+
 // WebRTC reactive local state
 const isMuted = ref(false)
 const isCamOff = ref(false)
@@ -1926,7 +2016,15 @@ async function handleFileUpload(event) {
 }
 
 function onEmojiClick(event) {
-  newMessage.value += event.detail.unicode
+  const emoji = event.detail.unicode
+  // If we opened the picker for a reaction, use it as a reaction
+  if (reactionPickerMessageId.value) {
+    toggleReaction(reactionPickerMessageId.value, emoji)
+    reactionPickerMessageId.value = null
+    showEmojiPicker.value = false
+    return
+  }
+  newMessage.value += emoji
 }
 
 async function applyMagicText(action) {
