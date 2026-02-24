@@ -17,21 +17,21 @@
             </div>
           </div>
         </div>
-        <h1 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-3">Escolha seu plano</h1>
+        <h1 class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white mb-3">{{ locale.t.pricing.title }}</h1>
         <p class="text-gray-500 dark:text-slate-400 text-sm max-w-md mx-auto">
-          Seu trial expirou. Assine para continuar usando o LAN Messenger com sua equipe.
+          {{ locale.t.pricing.subtitle }}
         </p>
 
         <!-- Trial expired badge -->
         <div v-if="isTrialExpired" class="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-red-50 dark:bg-red-400/10 rounded-full border border-red-200 dark:border-red-400/20">
           <span class="material-symbols-outlined text-red-500 text-sm">timer_off</span>
-          <span class="text-sm font-medium text-red-600 dark:text-red-400">Trial expirado</span>
+          <span class="text-sm font-medium text-red-600 dark:text-red-400">{{ locale.t.pricing.trialExpired }}</span>
         </div>
       </div>
 
       <!-- Seats Selector -->
       <div class="max-w-md mx-auto mb-8 p-4 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
-        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 text-center">Quantos usuários (seats) você precisa?</label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 text-center">{{ locale.t.pricing.seatsLabel }}</label>
         <div class="flex items-center justify-center gap-4">
           <button @click="selectedSeats = Math.max(1, selectedSeats - 1)"
             class="size-10 rounded-xl bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/5 transition-colors text-gray-700 dark:text-white">
@@ -43,13 +43,13 @@
             class="size-10 rounded-xl bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/5 transition-colors text-gray-700 dark:text-white">
             <span class="material-symbols-outlined">add</span>
           </button>
-          <span class="text-sm text-gray-500 dark:text-slate-400">usuários</span>
+          <span class="text-sm text-gray-500 dark:text-slate-400">{{ locale.t.pricing.users }}</span>
         </div>
       </div>
 
       <!-- Pricing Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div v-for="plan in subStore.plans" :key="plan.id"
+        <div v-for="plan in localizedPlans" :key="plan.id"
           class="relative flex flex-col p-6 rounded-2xl border transition-all duration-300 hover:shadow-xl group bg-white dark:bg-glass-surface"
           :class="plan.badge ? `${plan.borderColor} shadow-lg ring-2 ring-primary/10` : 'border-gray-200 dark:border-white/10 hover:border-primary/30'">
           
@@ -75,12 +75,12 @@
           <!-- Price -->
           <div class="mb-5">
             <div class="flex items-baseline gap-1">
-              <span class="text-sm text-gray-500 dark:text-slate-400">R$</span>
-              <span class="text-4xl font-black text-gray-900 dark:text-white">{{ plan.price.toFixed(2).replace('.', ',') }}</span>
-              <span class="text-sm text-gray-500 dark:text-slate-400">{{ plan.period }}</span>
+              <span class="text-sm text-gray-500 dark:text-slate-400">$</span>
+              <span class="text-4xl font-black text-gray-900 dark:text-white">{{ plan.price.toFixed(2) }}</span>
+              <span class="text-sm text-gray-500 dark:text-slate-400">{{ locale.t.pricing.month }}</span>
             </div>
             <p v-if="selectedSeats > 1" class="text-xs text-primary font-medium mt-1">
-              Total: R$ {{ (plan.price * selectedSeats).toFixed(2).replace('.', ',') }}/mês ({{ selectedSeats }} usuários)
+              {{ locale.t.pricing.total }}: ${{ (plan.price * selectedSeats).toFixed(2) }}{{ locale.t.pricing.month }} ({{ selectedSeats }} {{ locale.t.pricing.users }})
             </p>
           </div>
 
@@ -101,7 +101,7 @@
             :class="`bg-gradient-to-r ${plan.color} hover:opacity-90`">
             <span v-if="subStore.checkoutLoading" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
             <span class="material-symbols-outlined text-base" v-else>credit_card</span>
-            Assinar {{ plan.name }}
+            {{ locale.t.pricing.subscribe }} {{ plan.name }}
           </button>
         </div>
       </div>
@@ -116,7 +116,7 @@
       <div class="mt-8 text-center">
         <button @click="handleLogout" class="text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
           <span class="material-symbols-outlined text-sm align-middle mr-1">logout</span>
-          Sair da conta
+          {{ locale.t.pricing.logout }}
         </button>
       </div>
     </div>
@@ -128,10 +128,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSubscriptionStore } from '@/stores/subscription'
+import { useLocaleStore } from '@/stores/locale'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const subStore = useSubscriptionStore()
+const locale = useLocaleStore()
 
 const selectedSeats = ref(5)
 
@@ -139,6 +141,17 @@ const isTrialExpired = computed(() => {
   const user = authStore.user
   if (!user?.trialEndsAt) return false
   return new Date(user.trialEndsAt) < new Date()
+})
+
+// Build localized plan list using subscription store + locale
+const localizedPlans = computed(() => {
+  const t = locale.t
+  return subStore.plans.map(plan => ({
+    ...plan,
+    name: t.pricing[`plan${plan.id.charAt(0).toUpperCase() + plan.id.slice(1)}`] || plan.name,
+    description: t.pricing[`desc${plan.id.charAt(0).toUpperCase() + plan.id.slice(1)}`] || plan.description,
+    badge: plan.id === 'medium' ? t.pricing.badgeMostPopular : plan.id === 'max' ? t.pricing.badgeBestAI : null,
+  }))
 })
 
 onMounted(() => {

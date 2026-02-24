@@ -14,9 +14,9 @@
       <div v-if="trialDaysLeft !== null && trialDaysLeft > 0 && $route.name !== 'Pricing' && $route.name !== 'Login'"
         class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
         <span class="material-symbols-outlined text-base">timer</span>
-        <span>Seu trial expira em <strong>{{ trialDaysLeft }} dia{{ trialDaysLeft > 1 ? 's' : '' }}</strong></span>
+        <span>{{ locale.t.pricing.trialBanner }} <strong>{{ trialDaysLeft }} {{ trialDaysLeft > 1 ? locale.t.pricing.daysPlural : locale.t.pricing.days }}</strong></span>
         <router-link to="/pricing" class="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg font-bold transition-colors text-xs">
-          Assinar agora →
+          {{ locale.t.pricing.subscribeNow }}
         </router-link>
       </div>
       <router-view />
@@ -44,10 +44,12 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSocketStore } from '@/stores/socket'
 import { useThemeStore } from '@/stores/theme'
+import { useLocaleStore } from '@/stores/locale'
 
 const authStore = useAuthStore()
 const socketStore = useSocketStore()
-const themeStore = useThemeStore() // Just initializing it applies the theme
+const themeStore = useThemeStore()
+const locale = useLocaleStore()
 
 // Trial countdown
 const trialDaysLeft = computed(() => {

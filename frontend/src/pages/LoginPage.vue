@@ -95,8 +95,8 @@
         <div class="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-400/10 rounded-xl border border-amber-200 dark:border-amber-400/20">
           <span class="material-symbols-outlined text-amber-500 text-xl mt-0.5" style="font-variation-settings: 'FILL' 1;">shield_person</span>
           <div>
-            <p class="text-sm font-bold text-amber-700 dark:text-amber-400">Você será o Administrador.</p>
-            <p class="text-xs text-amber-600 dark:text-amber-400/70 mt-0.5">Depois de entrar, poderá cadastrar colaboradores no painel de gestão.</p>
+            <p class="text-sm font-bold text-amber-700 dark:text-amber-400">{{ locale.t.register.adminNotice }}</p>
+            <p class="text-xs text-amber-600 dark:text-amber-400/70 mt-0.5">{{ locale.t.register.adminNoticeDesc }}</p>
           </div>
         </div>
 
@@ -104,7 +104,7 @@
         <div class="relative group">
           <input v-model="regForm.companyName" type="text" id="companyName" placeholder=" "
             class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
-          <label for="companyName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Nome da Empresa</label>
+          <label for="companyName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">{{ locale.t.register.companyName }}</label>
           <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
             <span class="material-symbols-outlined text-[20px]">business</span>
           </div>
@@ -114,7 +114,7 @@
         <div class="relative group">
           <input v-model="regForm.fullName" type="text" id="fullName" placeholder=" "
             class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
-          <label for="fullName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Seu Nome Completo</label>
+          <label for="fullName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">{{ locale.t.register.fullName }}</label>
           <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
             <span class="material-symbols-outlined text-[20px]">person</span>
           </div>
@@ -144,7 +144,7 @@
         <div class="relative group">
           <input v-model="regForm.password" :type="showPassword ? 'text' : 'password'" id="regPassword" placeholder=" "
             class="floating-input pr-12 bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
-          <label for="regPassword" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Senha</label>
+          <label for="regPassword" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">{{ locale.t.register.password }}</label>
           <button type="button" @click="showPassword = !showPassword"
             class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-white transition-colors focus:outline-none">
             <span class="material-symbols-outlined text-[20px]">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
@@ -159,7 +159,7 @@
         <!-- Trial Info -->
         <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
           <span class="material-symbols-outlined text-green-500 text-sm">verified</span>
-          7 dias grátis com acesso total — sem cartão de crédito
+          {{ locale.t.register.trialInfo }}
         </div>
 
         <!-- Submit Button -->
@@ -167,7 +167,7 @@
           <div class="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg blur opacity-40 group-hover:opacity-75 transition duration-200"></div>
           <div class="relative w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3.5 rounded-lg shadow-xl flex items-center justify-center gap-2 transform transition-all active:scale-[0.98] hover:brightness-110">
             <span v-if="loading" class="animate-spin"><span class="material-symbols-outlined">progress_activity</span></span>
-            <span v-else class="tracking-wide">Criar Conta Grátis</span>
+            <span v-else class="tracking-wide">{{ locale.t.register.submit }}</span>
             <span v-if="!loading" class="material-symbols-outlined text-xl">rocket_launch</span>
           </div>
         </button>
@@ -176,8 +176,8 @@
       <!-- Toggle Login/Register -->
       <div class="mt-6 text-center">
         <button @click="toggleMode" class="text-sm text-gray-500 dark:text-slate-400 hover:text-primary transition-colors">
-          <span v-if="!isRegister">Não tem conta? <strong class="text-primary">Criar conta grátis</strong></span>
-          <span v-else>Já tem conta? <strong class="text-primary">Fazer login</strong></span>
+          <span v-if="!isRegister">{{ locale.t.register.noAccount }} <strong class="text-primary">{{ locale.t.register.createFree }}</strong></span>
+          <span v-else>{{ locale.t.register.hasAccount }} <strong class="text-primary">{{ locale.t.register.doLogin }}</strong></span>
         </button>
       </div>
 
@@ -190,6 +190,15 @@
           {{ locale.t.login.contact }}
         </a>
         <p class="text-gray-400 dark:text-slate-600 text-[10px] uppercase tracking-wider font-semibold">v3.0.0 • {{ locale.t.login.secure }}</p>
+        <!-- Language Selector -->
+        <div class="flex items-center gap-2 mt-1">
+          <button v-for="lang in [{code:'en',flag:'🇺🇸'},{code:'pt',flag:'🇧🇷'},{code:'es',flag:'🇪🇸'}]" :key="lang.code"
+            @click="locale.setLanguage(lang.code)"
+            class="px-2 py-1 text-xs rounded-md transition-all"
+            :class="locale.currentLang === lang.code ? 'bg-primary/20 text-primary font-bold border border-primary/30' : 'text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/5'">
+            {{ lang.flag }} {{ lang.code.toUpperCase() }}
+          </button>
+        </div>
       </div>
     </div>
 

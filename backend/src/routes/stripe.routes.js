@@ -60,24 +60,38 @@ router.post('/create-checkout-session', authMiddleware, async (ctx) => {
         }
 
         const user = ctx.state.user;
-        const companyId = user.companyId;
+        let companyId = user.companyId;
+
+        // Fallback: fetch companyId from DB if not in JWT (old tokens)
+        if (!companyId) {
+            const userResult = await db.write('SELECT company_id FROM users WHERE id = $1', [user.id]);
+            companyId = userResult.rows[0]?.company_id;
+        }
 
         if (!companyId) {
             ctx.status = 400;
-            ctx.body = { success: false, message: 'Usuário não pertence a nenhuma empresa.' };
+            ctx.body = { success: false, message: 'Usuário não pertence a nenhuma empresa. Faça logout e registre novamente.' };
             return;
         }
 
         // Check if company already has a Stripe customer
-        const companyResult = await db.write(
+        let companyResult = await db.write(
             'SELECT stripe_customer_id, name FROM companies WHERE id = $1',
             [companyId]
         );
 
+        // Auto-create company record if it doesn't exist (legacy users)
         if (companyResult.rows.length === 0) {
-            ctx.status = 404;
-            ctx.body = { success: false, message: 'Empresa não encontrada.' };
-            return;
+            await db.write(
+                `INSERT INTO companies (id, name, plan_id, subscription_status, max_seats)
+                 VALUES ($1, $2, 'free', 'inactive', 5)
+                 ON CONFLICT (id) DO NOTHING`,
+                [companyId, `Empresa de ${user.username || user.email}`]
+            );
+            companyResult = await db.write(
+                'SELECT stripe_customer_id, name FROM companies WHERE id = $1',
+                [companyId]
+            );
         }
 
         const company = companyResult.rows[0];
