@@ -28,6 +28,7 @@ import networkRoutes from './routes/network.routes.js';
 import permissionsRoutes from './routes/permissions.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import stripeRoutes from './routes/stripe.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 
 dotenv.config();
@@ -94,7 +95,24 @@ app.use(cors({
 // Serve uploaded files as static
 app.use(mount('/uploads', serve(path.join(__dirname, '..', 'uploads'))));
 
-// Body parser with multipart support
+// ⚡ CRITICAL: Raw body capture for Stripe webhook — MUST be BEFORE koaBody
+// Stripe requires the raw body (Buffer) to verify webhook signatures.
+// koaBody would parse it first, breaking verification on Render/production.
+app.use(async (ctx, next) => {
+    if (ctx.path === '/api/stripe/webhook' && ctx.method === 'POST') {
+        const chunks = [];
+        for await (const chunk of ctx.req) {
+            chunks.push(chunk);
+        }
+        ctx.request.rawBody = Buffer.concat(chunks);
+        // Set an empty body so koaBody skips this request
+        ctx.request.body = {};
+        ctx.req._stripeRawBodyRead = true;
+    }
+    await next();
+});
+
+// Body parser with multipart support (skips Stripe webhook due to raw body above)
 app.use(koaBody({
     multipart: true,
     formidable: {
@@ -175,6 +193,7 @@ router.use('/api/network', networkRoutes.routes());
 router.use('/api/permissions', permissionsRoutes.routes());
 router.use('/api/uploads', uploadsRoutes.routes());
 router.use('/api/ai', aiRoutes.routes());
+router.use('/api/stripe', stripeRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -255,6 +274,14 @@ httpServer.listen(PORT, async () => {
             // Ensure file_uploads table has the file_data column for DB-based file storage
             await db.write('ALTER TABLE file_uploads ADD COLUMN IF NOT EXISTS file_data TEXT');
             console.log('✅ Coluna file_data sincronizada na tabela file_uploads!');
+
+            // 🔵 Stripe Billing: Colunas de assinatura na tabela companies
+            await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_id VARCHAR(20) DEFAULT 'free'");
+            await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'inactive'");
+            await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)');
+            await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)');
+            await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_seats INTEGER DEFAULT 5');
+            console.log('✅ Colunas de Stripe Billing sincronizadas na tabela companies!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);

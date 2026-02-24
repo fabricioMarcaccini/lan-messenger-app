@@ -61,6 +61,20 @@ const dismissInstall = () => {
 }
 
 onMounted(async () => {
+  // 🔗 Affiliate tracking: capture ?ref= from URL and save to localStorage
+  const urlParams = new URLSearchParams(window.location.search)
+  const ref = urlParams.get('ref')
+  if (ref) {
+    localStorage.setItem('affiliate_ref', ref)
+    console.log('🤝 Affiliate ref captured:', ref)
+    // Clean URL without losing other params
+    urlParams.delete('ref')
+    const cleanUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
+    window.history.replaceState({}, '', cleanUrl)
+  }
+
   // Check if user is authenticated
   await authStore.checkAuth()
   

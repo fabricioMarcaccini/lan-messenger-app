@@ -166,6 +166,147 @@
           </div>
         </section>
 
+        <!-- Subscription & Pricing Section -->
+        <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">credit_card</span>
+              Plano & Assinatura
+            </h2>
+            <div v-if="subStore.hasSubscription" class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                :class="subStore.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'">
+                <span class="size-2 rounded-full" :class="subStore.isActive ? 'bg-green-500' : 'bg-yellow-500'"></span>
+                {{ subStore.isActive ? 'Ativo' : subStore.subscriptionStatus }}
+              </span>
+              <button @click="handleOpenPortal"
+                class="text-xs text-primary hover:text-cyan-400 font-medium hover:underline flex items-center gap-1">
+                <span class="material-symbols-outlined text-sm">settings</span>
+                Gerenciar
+              </button>
+            </div>
+          </div>
+
+          <!-- Seats Info Bar -->
+          <div v-if="subStore.hasSubscription" class="mb-6 p-4 bg-gray-50 dark:bg-black/20 rounded-xl border border-gray-100 dark:border-white/5">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-600 dark:text-slate-300">Usuários ativos</span>
+              <span class="text-sm font-bold text-gray-900 dark:text-white">{{ subStore.activeUsers }} / {{ subStore.maxSeats }} seats</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-white/10 rounded-full h-2">
+              <div class="bg-primary rounded-full h-2 transition-all duration-500"
+                :style="{ width: `${Math.min(100, (subStore.activeUsers / subStore.maxSeats) * 100)}%` }"
+                :class="subStore.activeUsers >= subStore.maxSeats ? 'bg-red-500' : 'bg-primary'"></div>
+            </div>
+            <p v-if="subStore.activeUsers >= subStore.maxSeats" class="text-xs text-red-500 dark:text-red-400 mt-2 flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">warning</span>
+              Limite de seats atingido. Adicione mais no portal de assinatura.
+            </p>
+          </div>
+
+          <!-- Seats Selector (for new checkout) -->
+          <div v-if="!subStore.hasSubscription" class="mb-6 p-4 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/20">
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Quantos usuários (seats) você precisa?</label>
+            <div class="flex items-center gap-4">
+              <button @click="selectedSeats = Math.max(1, selectedSeats - 1)"
+                class="size-10 rounded-xl bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-gray-700 dark:text-white">
+                <span class="material-symbols-outlined">remove</span>
+              </button>
+              <input v-model.number="selectedSeats" type="number" min="1" max="500"
+                class="w-20 text-center text-2xl font-bold bg-transparent border-b-2 border-primary text-gray-900 dark:text-white focus:outline-none" />
+              <button @click="selectedSeats = Math.min(500, selectedSeats + 1)"
+                class="size-10 rounded-xl bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-gray-700 dark:text-white">
+                <span class="material-symbols-outlined">add</span>
+              </button>
+              <span class="text-sm text-gray-500 dark:text-slate-400">usuários</span>
+            </div>
+          </div>
+
+          <!-- Pricing Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div v-for="plan in subStore.plans" :key="plan.id"
+              class="relative flex flex-col p-5 rounded-2xl border transition-all duration-300 hover:shadow-lg group"
+              :class="[
+                subStore.currentPlan === plan.id 
+                  ? `${plan.borderColor} bg-gradient-to-b from-white to-gray-50 dark:from-glass-surface dark:to-background-dark shadow-md ring-2 ring-primary/20` 
+                  : 'border-gray-200 dark:border-white/10 bg-white dark:bg-glass-surface hover:border-primary/30',
+              ]">
+              <!-- Badge -->
+              <div v-if="plan.badge" class="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span class="px-3 py-1 rounded-full text-xs font-bold text-white shadow-lg"
+                  :class="plan.id === 'medium' ? 'bg-gradient-to-r from-violet-500 to-purple-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'">
+                  {{ plan.badge }}
+                </span>
+              </div>
+
+              <!-- Plan Icon & Name -->
+              <div class="flex items-center gap-3 mb-3 mt-1">
+                <div class="size-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white shadow-md" :class="plan.color">
+                  <span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">{{ plan.icon }}</span>
+                </div>
+                <div>
+                  <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ plan.name }}</h3>
+                  <p class="text-xs text-gray-500 dark:text-slate-400">{{ plan.description }}</p>
+                </div>
+              </div>
+
+              <!-- Price -->
+              <div class="mb-4">
+                <div class="flex items-baseline gap-1">
+                  <span class="text-sm text-gray-500 dark:text-slate-400">R$</span>
+                  <span class="text-3xl font-black text-gray-900 dark:text-white">{{ plan.price.toFixed(2).replace('.', ',') }}</span>
+                  <span class="text-sm text-gray-500 dark:text-slate-400">{{ plan.period }}</span>
+                </div>
+                <p v-if="!subStore.hasSubscription && selectedSeats > 1" class="text-xs text-primary font-medium mt-1">
+                  Total: R$ {{ (plan.price * selectedSeats).toFixed(2).replace('.', ',') }}/mês ({{ selectedSeats }} usuários)
+                </p>
+              </div>
+
+              <!-- Features -->
+              <ul class="flex-1 space-y-2 mb-4">
+                <li v-for="(feat, fi) in plan.features" :key="fi" class="flex items-center gap-2 text-sm">
+                  <span class="material-symbols-outlined text-base" :class="feat.included ? 'text-green-500' : 'text-gray-300 dark:text-white/20'">
+                    {{ feat.included ? 'check_circle' : 'cancel' }}
+                  </span>
+                  <span :class="feat.included ? 'text-gray-700 dark:text-slate-300' : 'text-gray-400 dark:text-white/30 line-through'">{{ feat.text }}</span>
+                </li>
+              </ul>
+
+              <!-- Action Button -->
+              <button v-if="subStore.currentPlan === plan.id && subStore.isActive"
+                disabled
+                class="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 font-bold text-sm cursor-default flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-base">verified</span>
+                Plano Atual
+              </button>
+              <button v-else
+                @click="handleCheckout(plan.id)"
+                :disabled="subStore.checkoutLoading"
+                class="w-full py-2.5 rounded-xl font-bold text-sm text-white shadow-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                :class="`bg-gradient-to-r ${plan.color} hover:opacity-90`">
+                <span v-if="subStore.checkoutLoading" class="material-symbols-outlined animate-spin text-base">progress_activity</span>
+                <span class="material-symbols-outlined text-base" v-else>upgrade</span>
+                {{ subStore.currentPlan === 'free' ? 'Assinar' : 'Fazer Upgrade' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Error Message -->
+          <div v-if="subStore.error" class="mt-4 text-red-500 dark:text-red-400 text-sm bg-red-50 dark:bg-red-400/10 py-2 px-4 rounded-lg border border-red-200 dark:border-red-400/20 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">error</span>
+            {{ subStore.error }}
+          </div>
+
+          <!-- Checkout Success Toast -->
+          <div v-if="showCheckoutSuccess" class="mt-4 text-green-600 dark:text-green-400 text-sm bg-green-50 dark:bg-green-400/10 py-3 px-4 rounded-lg border border-green-200 dark:border-green-400/20 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">celebration</span>
+            <div>
+              <p class="font-bold">Assinatura ativada com sucesso! 🎉</p>
+              <p class="text-xs mt-0.5">Seu plano já está ativo. Aproveite todos os recursos.</p>
+            </div>
+          </div>
+        </section>
+
         <!-- Appearance Section -->
         <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -417,19 +558,24 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, api } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
+import { useSubscriptionStore } from '@/stores/subscription'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const locale = useLocaleStore()
+const subStore = useSubscriptionStore()
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 const loading = ref(false)
 const showMobileSidebar = ref(false)
+const selectedSeats = ref(5)
+const showCheckoutSuccess = ref(false)
 
 const formData = ref({
   fullName: '',
@@ -550,6 +696,22 @@ onMounted(() => {
       avatarUrl: authStore.user.avatarUrl || ''
     }
   }
+
+  // Fetch subscription status
+  subStore.fetchSubscriptionStatus()
+
+  // Check for checkout success/cancel query params
+  const checkoutParam = new URLSearchParams(window.location.search).get('checkout')
+  if (checkoutParam === 'success') {
+    showCheckoutSuccess.value = true
+    subStore.fetchSubscriptionStatus() // Refresh after checkout
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname)
+    // Auto-hide after 8 seconds
+    setTimeout(() => { showCheckoutSuccess.value = false }, 8000)
+  } else if (checkoutParam === 'cancel') {
+    window.history.replaceState({}, '', window.location.pathname)
+  }
 })
 
 async function saveProfile() {
@@ -605,5 +767,15 @@ async function handleChangePassword() {
 async function handleLogout() {
   await authStore.logout()
   router.push('/login')
+}
+
+// ─── Stripe Functions ─────────────────────────────────────────────────────
+async function handleCheckout(planId) {
+  const seats = subStore.hasSubscription ? subStore.maxSeats : selectedSeats.value
+  await subStore.createCheckout(planId, seats)
+}
+
+async function handleOpenPortal() {
+  await subStore.openPortal()
 }
 </script>

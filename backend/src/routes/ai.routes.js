@@ -1,6 +1,6 @@
 import Router from 'koa-router';
 import { db } from '../config/database.js';
-import { authMiddleware } from '../middlewares/auth.js';
+import { authMiddleware, requirePlan } from '../middlewares/auth.js';
 
 const router = new Router();
 
@@ -93,8 +93,8 @@ router.post('/analyze-chat', authMiddleware, async (ctx) => {
     }
 });
 
-// Endpoint for Magic Text (Productivity feature)
-router.post('/magic-text', authMiddleware, async (ctx) => {
+// Endpoint for Magic Text (Productivity feature) — REQUIRES MAX PLAN
+router.post('/magic-text', authMiddleware, requirePlan('max'), async (ctx) => {
     const { text, action } = ctx.request.body;
     if (!text) {
         ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
@@ -160,8 +160,8 @@ router.post('/translate-message', authMiddleware, async (ctx) => {
     }
 });
 
-// Endpoint para Transcrição Magnética de Áudios (Whisper via Groq)
-router.post('/transcribe-audio', authMiddleware, async (ctx) => {
+// Endpoint para Transcrição Magnética de Áudios (Whisper via Groq) — REQUIRES MAX PLAN
+router.post('/transcribe-audio', authMiddleware, requirePlan('max'), async (ctx) => {
     const { fileId } = ctx.request.body;
     if (!fileId) {
         ctx.status = 400; ctx.body = { success: false, message: 'ID do arquivo obrigatório' }; return;
