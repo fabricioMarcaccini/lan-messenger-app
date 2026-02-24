@@ -455,7 +455,7 @@
                     
                     <!-- Text Message -->
                     <div v-if="!msg.contentType || msg.contentType === 'text'" class="flex flex-col">
-                      <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''">{{ msg.content }}</p>
+                      <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''"><span v-html="renderMessageContent(msg.content)"></span></p>
                       <!-- Translation display -->
                       <div v-if="msg.aiTranslation" class="mx-3 mb-3 mt-0 p-2.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs leading-relaxed text-gray-800 dark:text-gray-300 relative shadow-inner">
                         <span class="absolute -top-2 -left-2 bg-blue-100 dark:bg-blue-800 size-5 flex items-center justify-center rounded-full text-[10px] shadow-sm border border-blue-200 dark:border-blue-700">🌍</span>
@@ -503,7 +503,7 @@
                 </div>
 
                 <!-- Delete/Edit buttons (Hover) -->
-                <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+                <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 transition-opacity">
                   <button v-if="(!msg.contentType || msg.contentType === 'text') && !msg.aiTranslation" @click="translateMessage(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500" title="Traduzir Mensagem (IA)"><span class="material-symbols-outlined text-[14px]" :class="msg.isTranslating ? 'animate-spin' : ''">{{ msg.isTranslating ? 'progress_activity' : 'translate' }}</span></button>
                   <button @click="startReply(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-cyan-500" title="Responder"><span class="material-symbols-outlined text-[14px]">reply</span></button>
                   <button v-if="msg.senderId === authStore.user?.id && (!msg.contentType || msg.contentType === 'text')" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
@@ -521,7 +521,7 @@
 
                 <div class="flex items-center gap-1">
                   <!-- Quick Reactions -->
-                  <div class="opacity-0 group-hover:opacity-100 flex gap-1 mr-2 transition-opacity">
+                  <div class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 mr-2 transition-opacity">
                      <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '👍')">👍</span>
                      <span class="cursor-pointer hover:scale-125 transition-transform" @click="toggleReaction(msg.id, '❤️')">❤️</span>
                   </div>
@@ -627,6 +627,24 @@
                 class="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-0 resize-none max-h-32"
                 title="Escreva sua mensagem aqui"
               ></textarea>
+            </div>
+
+            <!-- Mentions Dropdown -->
+            <div v-if="showMentionDropdown && filteredMentionUsers.length > 0" class="absolute bottom-full left-10 mb-2 w-64 bg-white dark:bg-glass-surface border border-gray-200 dark:border-white/10 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-xl max-h-48 overflow-y-auto">
+              <div class="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider border-b border-gray-100 dark:border-white/5">Membros</div>
+              <ul>
+                <li v-for="u in filteredMentionUsers" :key="u.id" 
+                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                    @click="selectMention(u)">
+                   <div class="size-6 rounded-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center text-white text-[10px] uppercase shadow-sm shrink-0">
+                      {{ (u.full_name || u.username).substring(0, 2) }}
+                   </div>
+                   <div class="flex flex-col overflow-hidden leading-tight">
+                     <span class="text-xs font-semibold text-gray-900 dark:text-white truncate">{{ u.full_name || u.username }}</span>
+                     <span class="text-[10px] text-gray-500 truncate">@{{ u.username }}</span>
+                   </div>
+                </li>
+              </ul>
             </div>
             
             <div class="flex items-center gap-1 mb-0.5 shrink-0 relative">
@@ -1680,8 +1698,86 @@ function autoResize(event) {
 }
 
 let typingTimeout = null
+
+// Mentions State
+const showMentionDropdown = ref(false)
+const mentionSearchQuery = ref('')
+const mentionStartIndex = ref(-1)
+
+const filteredMentionUsers = computed(() => {
+    if (!chatStore.activeConversationId) return [];
+    
+    let users = [];
+    if (chatStore.activeConversation?.is_public) {
+       users = usersList.value;
+    } else {
+       users = chatStore.activeConversation?.participants || [];
+       users = users.filter(u => u.id !== authStore.user?.id);
+    }
+
+    if (!mentionSearchQuery.value) return users;
+
+    const query = mentionSearchQuery.value.toLowerCase();
+    return users.filter(user => {
+        const full = (user.full_name || '').toLowerCase();
+        const uname = (user.username || '').toLowerCase();
+        return full.includes(query) || uname.includes(query);
+    });
+})
+
+function selectMention(user) {
+    if (mentionStartIndex.value === -1) return;
+    
+    const textBefore = newMessage.value.substring(0, mentionStartIndex.value);
+    const textAfter = newMessage.value.substring(mentionStartIndex.value + mentionSearchQuery.value.length + 1);
+    
+    newMessage.value = `${textBefore}@${user.username} ${textAfter}`;
+    
+    showMentionDropdown.value = false;
+    mentionSearchQuery.value = '';
+    mentionStartIndex.value = -1;
+    
+    setTimeout(() => {
+      const inputEl = document.getElementById('tour-input');
+      if (inputEl) {
+          inputEl.focus();
+          const newPos = textBefore.length + user.username.length + 2;
+          inputEl.setSelectionRange(newPos, newPos);
+      }
+    }, 10);
+}
+
+function renderMessageContent(content) {
+    if (!content) return '';
+    let safeContent = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    safeContent = safeContent.replace(/@([a-zA-Z0-9_.-]+)/g, (match, username) => {
+        const isMe = authStore.user?.username === username;
+        const colorClass = isMe 
+            ? 'text-primary dark:text-primary font-bold bg-primary/10 px-1 rounded shadow-sm' 
+            : 'text-blue-500 font-bold hover:underline cursor-pointer';
+        return `<span class="${colorClass}">@${username}</span>`;
+    });
+    
+    return safeContent;
+}
+
 function handleTyping(event) {
   autoResize(event)
+  
+  const text = newMessage.value;
+  const cursorPsn = event.target.selectionStart;
+  const textBeforeCursor = text.substring(0, cursorPsn);
+  const lastAt = textBeforeCursor.lastIndexOf('@');
+  
+  if (lastAt !== -1 && (lastAt === 0 || /\\s/.test(textBeforeCursor[lastAt - 1]))) {
+      showMentionDropdown.value = true;
+      mentionSearchQuery.value = textBeforeCursor.substring(lastAt + 1);
+      mentionStartIndex.value = lastAt;
+  } else {
+      showMentionDropdown.value = false;
+  }
+
   if (!chatStore.activeConversationId) return;
   
   socketStore.sendTyping(chatStore.activeConversationId, true)
