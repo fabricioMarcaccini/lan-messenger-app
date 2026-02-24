@@ -10,6 +10,15 @@
     
     <!-- Main content -->
     <div class="relative z-10">
+      <!-- Trial Banner -->
+      <div v-if="trialDaysLeft !== null && trialDaysLeft > 0 && $route.name !== 'Pricing' && $route.name !== 'Login'"
+        class="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2.5 flex items-center justify-center gap-3 text-sm font-medium shadow-lg">
+        <span class="material-symbols-outlined text-base">timer</span>
+        <span>Seu trial expira em <strong>{{ trialDaysLeft }} dia{{ trialDaysLeft > 1 ? 's' : '' }}</strong></span>
+        <router-link to="/pricing" class="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg font-bold transition-colors text-xs">
+          Assinar agora →
+        </router-link>
+      </div>
       <router-view />
     </div>
 
@@ -31,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useSocketStore } from '@/stores/socket'
 import { useThemeStore } from '@/stores/theme'
@@ -39,6 +48,15 @@ import { useThemeStore } from '@/stores/theme'
 const authStore = useAuthStore()
 const socketStore = useSocketStore()
 const themeStore = useThemeStore() // Just initializing it applies the theme
+
+// Trial countdown
+const trialDaysLeft = computed(() => {
+  const user = authStore.user
+  if (!user?.trialEndsAt || user.planId !== 'trial') return null
+  const diff = new Date(user.trialEndsAt) - new Date()
+  if (diff <= 0) return 0
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+})
 
 // PWA Install Logic
 const deferredPrompt = ref(null)

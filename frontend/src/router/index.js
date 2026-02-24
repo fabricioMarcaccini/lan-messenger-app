@@ -9,6 +9,12 @@ const routes = [
         meta: { guest: true }
     },
     {
+        path: '/pricing',
+        name: 'Pricing',
+        component: () => import('@/pages/PricingPage.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/',
         name: 'Dashboard',
         component: () => import('@/pages/ChatDashboard.vue'),
@@ -61,6 +67,21 @@ router.beforeEach(async (to, from, next) => {
         next({ name: 'Dashboard' })
     } else if (to.meta.requiresAdmin && !isAdmin) {
         next({ name: 'Dashboard' })
+    } else if (isAuthenticated && to.name !== 'Pricing' && to.name !== 'Login') {
+        // Paywall guard: check if plan is valid
+        const user = authStore.user
+        const planId = user?.planId || 'free'
+        const trialEndsAt = user?.trialEndsAt ? new Date(user.trialEndsAt) : null
+
+        const isTrialActive = planId === 'trial' && trialEndsAt && trialEndsAt > new Date()
+        const hasPaidPlan = ['starter', 'medium', 'max'].includes(planId)
+
+        if (!isTrialActive && !hasPaidPlan) {
+            // No valid plan — redirect to pricing
+            next({ name: 'Pricing' })
+        } else {
+            next()
+        }
     } else {
         next()
     }

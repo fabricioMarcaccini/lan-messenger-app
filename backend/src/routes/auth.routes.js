@@ -5,13 +5,19 @@ import { generateTokens, verifyRefreshToken } from '../middlewares/auth.js';
 
 const router = new Router();
 
-// POST /api/auth/register (Public)
+// POST /api/auth/register (Public) — Creates company + admin user with 7-day trial
 router.post('/register', async (ctx) => {
-    const { username, email, password, fullName } = ctx.request.body;
+    const { companyName, username, email, password, fullName } = ctx.request.body;
 
-    if (!username || !email || !password) {
+    if (!companyName || !username || !email || !password) {
         ctx.status = 400;
-        ctx.body = { success: false, message: 'Username, email e password são obrigatórios' };
+        ctx.body = { success: false, message: 'Nome da empresa, username, email e password são obrigatórios' };
+        return;
+    }
+
+    if (companyName.trim().length < 2) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Nome da empresa deve ter pelo menos 2 caracteres' };
         return;
     }
 
@@ -31,15 +37,23 @@ router.post('/register', async (ctx) => {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 12);
 
-        // Get default company
-        const defaultCompany = '00000000-0000-0000-0000-000000000001';
+        // 1) Create the company with 7-day trial
+        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // NOW + 7 days
+        const companyResult = await db.write(
+            `INSERT INTO companies (name, plan_id, subscription_status, max_seats, trial_ends_at)
+             VALUES ($1, 'trial', 'trialing', 5, $2)
+             RETURNING id`,
+            [companyName.trim(), trialEndsAt.toISOString()]
+        );
 
-        // Create user
+        const companyId = companyResult.rows[0].id;
+
+        // 2) Create admin user for the new company
         const result = await db.write(
             `INSERT INTO users (company_id, username, email, password_hash, full_name, role)
-             VALUES ($1, $2, $3, $4, $5, 'user')
+             VALUES ($1, $2, $3, $4, $5, 'admin')
              RETURNING id, username, email, full_name, role`,
-            [defaultCompany, username, email, passwordHash, fullName || username]
+            [companyId, username, email, passwordHash, fullName || username]
         );
 
         const user = result.rows[0];
@@ -58,7 +72,7 @@ router.post('/register', async (ctx) => {
         ctx.status = 201;
         ctx.body = {
             success: true,
-            message: 'Cadastro realizado com sucesso',
+            message: 'Empresa e conta criadas com sucesso! Você tem 7 dias de trial.',
             data: {
                 user: {
                     id: user.id,
@@ -66,7 +80,14 @@ router.post('/register', async (ctx) => {
                     email: user.email,
                     fullName: user.full_name,
                     role: user.role,
-                    companyId: defaultCompany,
+                    companyId,
+                },
+                company: {
+                    id: companyId,
+                    name: companyName.trim(),
+                    planId: 'trial',
+                    subscriptionStatus: 'trialing',
+                    trialEndsAt: trialEndsAt.toISOString(),
                 },
                 ...tokens,
             },
@@ -74,7 +95,7 @@ router.post('/register', async (ctx) => {
     } catch (error) {
         console.error('❌ Register error:', error);
         ctx.status = 500;
-        ctx.body = { success: false, message: 'Erro ao criar usuário' };
+        ctx.body = { success: false, message: 'Erro ao criar empresa e conta' };
     }
 });
 
@@ -138,6 +159,22 @@ router.post('/login', async (ctx) => {
         // Set user as online
         await cache.setPresence(user.id, 'online');
 
+        // Fetch company plan info
+        let planId = 'free';
+        let subscriptionStatus = 'inactive';
+        let trialEndsAt = null;
+        if (user.company_id) {
+            const companyResult = await db.write(
+                'SELECT plan_id, subscription_status, trial_ends_at FROM companies WHERE id = $1',
+                [user.company_id]
+            );
+            if (companyResult.rows[0]) {
+                planId = companyResult.rows[0].plan_id || 'free';
+                subscriptionStatus = companyResult.rows[0].subscription_status || 'inactive';
+                trialEndsAt = companyResult.rows[0].trial_ends_at || null;
+            }
+        }
+
         ctx.body = {
             success: true,
             message: 'Login realizado com sucesso',
@@ -151,6 +188,9 @@ router.post('/login', async (ctx) => {
                     role: user.role,
                     department: user.department,
                     companyId: user.company_id,
+                    planId,
+                    subscriptionStatus,
+                    trialEndsAt,
                 },
                 ...tokens,
             },
@@ -257,6 +297,22 @@ router.get('/me', async (ctx) => {
 
         const user = result.rows[0];
 
+        // Fetch company plan info
+        let planId = 'free';
+        let subscriptionStatus = 'inactive';
+        let trialEndsAt = null;
+        if (user.company_id) {
+            const companyResult = await db.write(
+                'SELECT plan_id, subscription_status, trial_ends_at FROM companies WHERE id = $1',
+                [user.company_id]
+            );
+            if (companyResult.rows[0]) {
+                planId = companyResult.rows[0].plan_id || 'free';
+                subscriptionStatus = companyResult.rows[0].subscription_status || 'inactive';
+                trialEndsAt = companyResult.rows[0].trial_ends_at || null;
+            }
+        }
+
         ctx.body = {
             success: true,
             data: {
@@ -268,6 +324,9 @@ router.get('/me', async (ctx) => {
                 role: user.role,
                 department: user.department,
                 companyId: user.company_id,
+                planId,
+                subscriptionStatus,
+                trialEndsAt,
             },
         };
     } catch (e) {

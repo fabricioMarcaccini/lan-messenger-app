@@ -19,7 +19,7 @@
       </div>
       
       <!-- Login Form -->
-      <form @submit.prevent="handleLogin" class="flex flex-col gap-6 w-full">
+      <form v-if="!isRegister" @submit.prevent="handleLogin" class="flex flex-col gap-6 w-full">
         <!-- Username Input -->
         <div class="relative group">
           <input 
@@ -88,9 +88,101 @@
           </div>
         </button>
       </form>
+
+      <!-- Register Form -->
+      <form v-else @submit.prevent="handleRegister" class="flex flex-col gap-4 w-full">
+        <!-- Admin Notice -->
+        <div class="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-400/10 rounded-xl border border-amber-200 dark:border-amber-400/20">
+          <span class="material-symbols-outlined text-amber-500 text-xl mt-0.5" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+          <div>
+            <p class="text-sm font-bold text-amber-700 dark:text-amber-400">Você será o Administrador.</p>
+            <p class="text-xs text-amber-600 dark:text-amber-400/70 mt-0.5">Depois de entrar, poderá cadastrar colaboradores no painel de gestão.</p>
+          </div>
+        </div>
+
+        <!-- Company Name -->
+        <div class="relative group">
+          <input v-model="regForm.companyName" type="text" id="companyName" placeholder=" "
+            class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
+          <label for="companyName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Nome da Empresa</label>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
+            <span class="material-symbols-outlined text-[20px]">business</span>
+          </div>
+        </div>
+
+        <!-- Full Name -->
+        <div class="relative group">
+          <input v-model="regForm.fullName" type="text" id="fullName" placeholder=" "
+            class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
+          <label for="fullName" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Seu Nome Completo</label>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
+            <span class="material-symbols-outlined text-[20px]">person</span>
+          </div>
+        </div>
+
+        <!-- Username -->
+        <div class="relative group">
+          <input v-model="regForm.username" type="text" id="regUsername" placeholder=" "
+            class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
+          <label for="regUsername" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Username</label>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
+            <span class="material-symbols-outlined text-[20px]">alternate_email</span>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div class="relative group">
+          <input v-model="regForm.email" type="email" id="regEmail" placeholder=" "
+            class="floating-input bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
+          <label for="regEmail" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Email</label>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none peer-focus:text-primary transition-colors">
+            <span class="material-symbols-outlined text-[20px]">mail</span>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="relative group">
+          <input v-model="regForm.password" :type="showPassword ? 'text' : 'password'" id="regPassword" placeholder=" "
+            class="floating-input pr-12 bg-gray-50 dark:bg-transparent text-gray-900 dark:text-white border-gray-300 dark:border-white/20 focus:border-primary peer" :disabled="loading" />
+          <label for="regPassword" class="floating-label text-gray-500 dark:text-slate-400 peer-focus:text-primary bg-white dark:bg-transparent px-1">Senha</label>
+          <button type="button" @click="showPassword = !showPassword"
+            class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-white transition-colors focus:outline-none">
+            <span class="material-symbols-outlined text-[20px]">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
+          </button>
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="error" class="text-red-500 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-400/10 py-2 px-4 rounded-lg border border-red-200 dark:border-red-400/20">
+          {{ error }}
+        </div>
+
+        <!-- Trial Info -->
+        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+          <span class="material-symbols-outlined text-green-500 text-sm">verified</span>
+          7 dias grátis com acesso total — sem cartão de crédito
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="relative w-full group mt-1" :disabled="loading">
+          <div class="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg blur opacity-40 group-hover:opacity-75 transition duration-200"></div>
+          <div class="relative w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3.5 rounded-lg shadow-xl flex items-center justify-center gap-2 transform transition-all active:scale-[0.98] hover:brightness-110">
+            <span v-if="loading" class="animate-spin"><span class="material-symbols-outlined">progress_activity</span></span>
+            <span v-else class="tracking-wide">Criar Conta Grátis</span>
+            <span v-if="!loading" class="material-symbols-outlined text-xl">rocket_launch</span>
+          </div>
+        </button>
+      </form>
       
+      <!-- Toggle Login/Register -->
+      <div class="mt-6 text-center">
+        <button @click="toggleMode" class="text-sm text-gray-500 dark:text-slate-400 hover:text-primary transition-colors">
+          <span v-if="!isRegister">Não tem conta? <strong class="text-primary">Criar conta grátis</strong></span>
+          <span v-else>Já tem conta? <strong class="text-primary">Fazer login</strong></span>
+        </button>
+      </div>
+
       <!-- Footer -->
-      <div class="mt-8 pt-6 border-t border-gray-200 dark:border-white/5 flex flex-col items-center gap-3">
+      <div class="mt-6 pt-6 border-t border-gray-200 dark:border-white/5 flex flex-col items-center gap-3">
         <a class="text-gray-500 dark:text-slate-500 hover:text-gray-700 dark:hover:text-white text-xs transition-colors flex items-center gap-2 group" href="#">
           <span class="p-1 rounded-full bg-gray-100 dark:bg-white/5 group-hover:bg-gray-200 dark:group-hover:bg-white/10 transition-colors">
             <span class="material-symbols-outlined text-sm">contact_support</span>
@@ -197,6 +289,16 @@ const form = reactive({
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
+const isRegister = ref(false)
+
+// Registration Form
+const regForm = reactive({
+  companyName: '',
+  fullName: '',
+  username: '',
+  email: '',
+  password: '',
+})
 
 // Forgot Password Modal
 const showForgotModal = ref(false)
@@ -253,6 +355,60 @@ async function handleLogin() {
   }
   
   loading.value = false
+}
+
+async function handleRegister() {
+  if (!regForm.companyName || !regForm.username || !regForm.email || !regForm.password) {
+    error.value = 'Preencha todos os campos'
+    return
+  }
+  if (regForm.password.length < 6) {
+    error.value = 'A senha deve ter pelo menos 6 caracteres'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await api.post('/auth/register', {
+      companyName: regForm.companyName,
+      fullName: regForm.fullName,
+      username: regForm.username,
+      email: regForm.email,
+      password: regForm.password,
+    })
+
+    if (response.data.success) {
+      const { user, company, accessToken, refreshToken } = response.data.data
+      
+      // Set auth tokens
+      authStore.accessToken = accessToken
+      authStore.refreshToken = refreshToken
+      authStore.user = {
+        ...user,
+        planId: company.planId,
+        subscriptionStatus: company.subscriptionStatus,
+        trialEndsAt: company.trialEndsAt,
+      }
+      localStorage.setItem('accessToken', accessToken)
+      localStorage.setItem('refreshToken', refreshToken)
+
+      socketStore.connect()
+      router.push('/')
+    } else {
+      error.value = response.data.message
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message || 'Erro ao criar conta'
+  } finally {
+    loading.value = false
+  }
+}
+
+function toggleMode() {
+  isRegister.value = !isRegister.value
+  error.value = ''
 }
 
 async function handleForgotPassword() {

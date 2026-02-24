@@ -69,13 +69,20 @@ export const requirePlan = (...allowedPlans) => {
 
         try {
             const result = await db.write(
-                'SELECT plan_id, subscription_status FROM companies WHERE id = $1',
+                'SELECT plan_id, subscription_status, trial_ends_at FROM companies WHERE id = $1',
                 [companyId]
             );
 
             const company = result.rows[0];
             const currentPlan = company?.plan_id || 'free';
             const status = company?.subscription_status || 'inactive';
+            const trialEndsAt = company?.trial_ends_at ? new Date(company.trial_ends_at) : null;
+
+            // Allow access if trial is still active
+            if (currentPlan === 'trial' && trialEndsAt && trialEndsAt > new Date()) {
+                await next();
+                return;
+            }
 
             // Allow access if plan matches and subscription is active (or free tier)
             if (allowedPlans.includes(currentPlan) && (status === 'active' || currentPlan === 'free')) {

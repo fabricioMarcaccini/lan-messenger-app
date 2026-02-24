@@ -281,6 +281,7 @@ httpServer.listen(PORT, async () => {
             await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255)');
             await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255)');
             await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_seats INTEGER DEFAULT 5');
+            await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP');
             console.log('✅ Colunas de Stripe Billing sincronizadas na tabela companies!');
         }
     } catch (err) {
