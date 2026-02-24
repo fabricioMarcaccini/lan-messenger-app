@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://lan-messenger-backend.onrender.com/api';
 
 async function runTests() {
     console.log('╔═══════════════════════════════════════════════════════════╗');
@@ -17,22 +17,26 @@ async function runTests() {
         const loginRes = await axios.post(`${API_URL}/auth/login`, {
             username: 'admin', password: 'password123'
         });
-        token = loginRes.data.data.token;
+        token = loginRes.data.data.token || loginRes.data.data.accessToken;
         userId = loginRes.data.data.user.id;
-        console.log('✅ Login OK.');
-    } catch {
-        console.log('⚠️ Login falhou. Criando nova conta...');
+        console.log('✅ Login OK. UserId:', userId);
+    } catch (loginErr) {
+        console.log('⚠️ Login falhou:', loginErr.response?.status, loginErr.response?.data?.message || loginErr.message);
+        console.log('   Criando nova conta de teste...');
         const ts = Date.now();
         try {
             const regRes = await axios.post(`${API_URL}/auth/register`, {
                 companyName: `TestCo ${ts}`, fullName: 'Teste CLI',
-                username: `tester_${ts}`, email: `t${ts}@test.com`, password: 'password123!'
+                username: `tester_${ts}`, email: `t${ts}@test.com`, password: 'Password123!'
             });
-            token = regRes.data.data.token;
+            token = regRes.data.data.token || regRes.data.data.accessToken;
             userId = regRes.data.data.user.id;
-            console.log('✅ Conta criada OK.');
+            console.log('✅ Conta criada OK. UserId:', userId);
+            console.log('   Token (20 chars):', token?.substring(0, 20) + '...');
         } catch (e) {
-            console.error('❌ FATAL: Não foi possível autenticar:', e.response?.data || e.message);
+            console.error('❌ FATAL: Não foi possível autenticar.');
+            console.error('   Status:', e.response?.status);
+            console.error('   Body:', JSON.stringify(e.response?.data));
             process.exit(1);
         }
     }
@@ -154,7 +158,7 @@ async function runTests() {
     console.log('TESTE 3: Verificar mensagens call log no GET');
     console.log('───────────────────────────────────────────────────────────');
     try {
-        const msgsRes = await axios.get(`${API_URL}/messages/conversations/${conversationId}/messages`, auth);
+        const msgsRes = await axios.get(`${API_URL}/messages/conversations/${conversationId}`, auth);
         const messages = msgsRes.data.data || [];
         const callMessages = messages.filter(m => m.contentType === 'call');
         if (callMessages.length > 0) {
