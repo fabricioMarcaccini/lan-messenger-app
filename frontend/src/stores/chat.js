@@ -9,6 +9,9 @@ export const useChatStore = defineStore('chat', () => {
     const messages = ref({}) // Map conversationId -> messages array
     const typingUsers = ref({}) // Map conversationId -> array of {userId, username}
     const publicChannels = ref([]) // Discoverable public channels
+    const onlineUsers = ref({}) // Map userId -> 'online' | 'offline' | 'away'
+    const searchResults = ref([]) // Message search results
+    const isSearching = ref(false)
 
     // Computeds
     const activeConversation = computed(() =>
@@ -42,9 +45,13 @@ export const useChatStore = defineStore('chat', () => {
 
     function setActiveConversation(id) {
         activeConversationId.value = id
-        // Fetch messages for this conversation if not already loaded empty
-        // Assuming we might want to refresh or load initial
-        if (!messages.value[id]) {
+        // Reset unread count when user opens a conversation
+        if (id) {
+            const conv = conversations.value.find(c => c.id === id)
+            if (conv) conv.unreadCount = 0
+        }
+        // Fetch messages for this conversation if not already loaded
+        if (id && !messages.value[id]) {
             fetchMessages(id)
         }
     }
@@ -298,6 +305,55 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    // ====== Online Presence ======
+    async function fetchOnlineUsers() {
+        try {
+            const response = await api.get('/messages/online-users')
+            onlineUsers.value = response.data.data || {}
+        } catch (err) {
+            console.error('Failed to fetch online users:', err)
+        }
+    }
+
+    function updatePresence(userId, status) {
+        onlineUsers.value = { ...onlineUsers.value, [userId]: status }
+        // Also update participant status in conversations for DMs
+        conversations.value.forEach(conv => {
+            if (conv.participants) {
+                const p = conv.participants.find(pp => pp.id === userId)
+                if (p) p.status = status
+            }
+        })
+    }
+
+    function isUserOnline(userId) {
+        return onlineUsers.value[userId] === 'online'
+    }
+
+    // ====== Message Search ======
+    async function searchMessages(query) {
+        if (!query || query.trim().length < 2) {
+            searchResults.value = []
+            isSearching.value = false
+            return
+        }
+        isSearching.value = true
+        try {
+            const response = await api.get(`/messages/search?q=${encodeURIComponent(query.trim())}`)
+            searchResults.value = response.data.data || []
+        } catch (err) {
+            console.error('Failed to search messages:', err)
+            searchResults.value = []
+        } finally {
+            isSearching.value = false
+        }
+    }
+
+    function clearSearch() {
+        searchResults.value = []
+        isSearching.value = false
+    }
+
     // Clean up expired messages
     setInterval(() => {
         Object.keys(messages.value).forEach(convId => {
@@ -315,6 +371,9 @@ export const useChatStore = defineStore('chat', () => {
         activeMessages,
         activeTypingUsers,
         publicChannels,
+        onlineUsers,
+        searchResults,
+        isSearching,
         setActiveConversation,
         fetchConversations,
         fetchPublicChannels,
@@ -334,6 +393,11 @@ export const useChatStore = defineStore('chat', () => {
         toggleReaction,
         updateMessageReaction,
         saveCallLog,
-        setTyping
+        setTyping,
+        fetchOnlineUsers,
+        updatePresence,
+        isUserOnline,
+        searchMessages,
+        clearSearch
     }
 })

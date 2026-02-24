@@ -137,10 +137,34 @@
           </div>
           <input 
             v-model="searchQuery"
+            @input="handleSearchInput"
             type="text" 
             :placeholder="locale.t.chat.search"
-            class="block w-full pl-10 pr-3 py-2.5 border-none rounded-xl leading-5 bg-white dark:bg-black/20 text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white dark:focus:bg-black/30 sm:text-sm transition-all shadow-sm dark:shadow-inner"
+            class="block w-full pl-10 pr-8 py-2.5 border-none rounded-xl leading-5 bg-white dark:bg-black/20 text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white dark:focus:bg-black/30 sm:text-sm transition-all shadow-sm dark:shadow-inner"
           />
+          <button v-if="searchQuery" @click="searchQuery = ''; chatStore.clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+            <span class="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+        
+        <!-- Message Search Results -->
+        <div v-if="chatStore.searchResults.length > 0" class="mt-2 bg-white dark:bg-black/30 rounded-xl border border-gray-200 dark:border-white/10 max-h-60 overflow-y-auto shadow-lg">
+          <p class="px-3 py-1.5 text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider border-b border-gray-100 dark:border-white/5">Mensagens encontradas ({{ chatStore.searchResults.length }})</p>
+          <div 
+            v-for="result in chatStore.searchResults" :key="result.id"
+            @click="jumpToSearchResult(result)"
+            class="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer border-b border-gray-50 dark:border-white/5 last:border-0"
+          >
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-[10px] font-bold text-primary truncate">{{ result.senderName }}</span>
+              <span class="text-[10px] text-gray-400">em {{ result.conversationName || 'DM' }}</span>
+              <span class="text-[10px] text-gray-300 dark:text-slate-600 ml-auto flex-shrink-0">{{ formatTime(result.createdAt) }}</span>
+            </div>
+            <p class="text-xs text-gray-600 dark:text-slate-300 truncate">{{ result.content }}</p>
+          </div>
+        </div>
+        <div v-if="chatStore.isSearching" class="mt-2 text-center py-3">
+          <span class="material-symbols-outlined text-primary animate-spin text-lg">progress_activity</span>
         </div>
       </div>
       
@@ -174,6 +198,10 @@
                 >
                   <span v-if="conv.isPublic" class="material-symbols-outlined text-[20px]">public</span>
                   <span v-else-if="!conv.isPublic && !conv.participants" class="material-symbols-outlined text-[20px]">lock</span>
+                </div>
+                <!-- Online count indicator for groups -->
+                <div v-if="conv.isGroup" class="absolute -bottom-0.5 -right-0.5 min-w-[16px] h-[16px] bg-green-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-[#131c1e] shadow-sm" :title="getGroupOnlineCount(conv) + ' online'">
+                  {{ getGroupOnlineCount(conv) }}
                 </div>
               </div>
               <div class="flex flex-col flex-1 min-w-0 justify-center">
@@ -219,7 +247,15 @@
                   class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
                   :style="{ backgroundImage: `url(${conv.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar})` }"
                 ></div>
-                <div v-if="conv.participants.find(p => p.id !== authStore.user?.id)?.status === 'online'" class="absolute bottom-0 right-0 size-3 border-2 border-white dark:border-background-dark bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                <!-- Online/Offline dot for DM -->
+                <div 
+                  :class="[
+                    'absolute bottom-0 right-0 size-3 border-2 border-white dark:border-[#131c1e] rounded-full transition-colors',
+                    chatStore.isUserOnline(conv.participants.find(p => p.id !== authStore.user?.id)?.id)
+                      ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+                      : 'bg-gray-400 dark:bg-slate-600'
+                  ]"
+                ></div>
               </div>
               <div class="flex flex-col flex-1 min-w-0 justify-center">
                 <div class="flex justify-between items-baseline mb-0.5">
@@ -269,11 +305,12 @@
                 {{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
               </h2>
               <div class="flex items-center gap-2 text-xs" v-if="!chatStore.activeConversation.isGroup">
-                <span class="flex size-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-                <span class="text-green-600 dark:text-green-400 font-medium">{{ locale.t.chat.online }}</span>
+                <span :class="['flex size-2 rounded-full', getOtherUserOnline(chatStore.activeConversation) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-400']" ></span>
+                <span :class="getOtherUserOnline(chatStore.activeConversation) ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-400 dark:text-slate-500 font-medium'">{{ getOtherUserOnline(chatStore.activeConversation) ? locale.t.chat.online : 'Offline' }}</span>
               </div>
               <div class="flex items-center gap-2 text-xs" v-else>
-                <span class="text-gray-500 dark:text-slate-400 font-medium">{{ chatStore.activeConversation.participants.length }} participantes, clique para ver info</span>
+                <span class="flex size-2 bg-green-500 rounded-full"></span>
+                <span class="text-gray-500 dark:text-slate-400 font-medium">{{ getGroupOnlineCount(chatStore.activeConversation) }}/{{ chatStore.activeConversation.participants.length }} online · clique para ver info</span>
               </div>
             </div>
           </div>
@@ -1375,6 +1412,47 @@ const groupCallGridClass = computed(() => {
   return 'grid-cols-4'
 })
 
+// ====== Presence Helpers ======
+function getOtherUserOnline(conv) {
+  const other = conv.participants?.find(p => p.id !== authStore.user?.id)
+  if (!other) return false
+  return chatStore.isUserOnline(other.id)
+}
+
+function getGroupOnlineCount(conv) {
+  if (!conv.participants) return 0
+  return conv.participants.filter(p => chatStore.isUserOnline(p.id)).length
+}
+
+// ====== Message Search with Debounce ======
+let searchDebounceTimer = null
+function handleSearchInput() {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    if (searchQuery.value && searchQuery.value.trim().length >= 3) {
+      chatStore.searchMessages(searchQuery.value)
+    } else {
+      chatStore.clearSearch()
+    }
+  }, 400)
+}
+
+function jumpToSearchResult(result) {
+  // Navigate to that conversation and scroll to message
+  selectConversation(result.conversationId)
+  searchQuery.value = ''
+  chatStore.clearSearch()
+  // After messages load, try to scroll to the message
+  setTimeout(() => {
+    const msgEl = document.getElementById(`msg-${result.id}`)
+    if (msgEl) {
+      msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      msgEl.classList.add('ring-2', 'ring-primary', 'ring-offset-2')
+      setTimeout(() => msgEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2500)
+    }
+  }, 500)
+}
+
 // WebRTC reactive local state
 const isMuted = ref(false)
 const isCamOff = ref(false)
@@ -2258,6 +2336,14 @@ function playNotificationSound() {
   } catch (e) { /* ignore audio errors */ }
 }
 
+// Handle presence change from socket
+function handlePresenceChange(event) {
+  const { userId, status } = event.detail || {}
+  if (userId && status) {
+    chatStore.updatePresence(userId, status)
+  }
+}
+
 function handleNewMessage(event) {
   const message = event.detail
   if (message && message.conversationId) {
@@ -2346,6 +2432,11 @@ onMounted(async () => {
   await chatStore.fetchConversations()
   await networkStore.fetchDevices()
   await usersStore.fetchUsers(1, '')
+  await chatStore.fetchOnlineUsers()
+  
+  // Refresh online status periodically (every 30s)
+  const presenceInterval = setInterval(() => chatStore.fetchOnlineUsers(), 30000)
+  window._presenceInterval = presenceInterval
   
   document.addEventListener('emoji-click', onEmojiClick)
   
@@ -2374,6 +2465,14 @@ onMounted(async () => {
   })
   window.addEventListener('socket:group-call:active', (e) => groupCallStore.handleActiveCall(e.detail))
   window.addEventListener('socket:group-call:hand-raise', (e) => groupCallStore.handleHandRaise(e.detail))
+
+  // Presence events (online/offline in real-time)
+  window.addEventListener('socket:presence', handlePresenceChange)
+
+  // Request notification permission early
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
 
   // Run Onboarding Tour
   if (localStorage.getItem('lan_tour_completed') !== 'true') {
@@ -2413,6 +2512,9 @@ onUnmounted(() => {
   window.removeEventListener('socket:call:answer', handleCallAnswer)
   window.removeEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
   window.removeEventListener('socket:call:end', handleCallEnd)
+  window.removeEventListener('socket:presence', handlePresenceChange)
+
+  if (window._presenceInterval) clearInterval(window._presenceInterval)
 
   // Cleanup group call
   if (groupCallStore.callState !== 'idle') groupCallStore.endCall()

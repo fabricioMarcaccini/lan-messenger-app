@@ -574,4 +574,71 @@ router.post('/:id/react', async (ctx) => {
     ctx.body = { success: true, data: reactions };
 });
 
+// GET /api/messages/search?q=query - Global message search across user's conversations
+router.get('/search', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const { q, limit = 30 } = ctx.query;
+
+    if (!q || q.trim().length < 2) {
+        ctx.body = { success: true, data: [] };
+        return;
+    }
+
+    const result = await db.write(`
+        SELECT m.id, m.conversation_id, m.sender_id, m.content, m.content_type, m.created_at,
+               u.username as sender_username, u.full_name as sender_name, u.avatar_url as sender_avatar,
+               c.name as conversation_name, c.is_group
+        FROM messages m
+        JOIN users u ON u.id = m.sender_id
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE m.conversation_id IN (
+            SELECT id FROM conversations WHERE $1 = ANY(participant_ids)
+        )
+        AND m.is_deleted = false
+        AND m.content_type IN ('text', 'call')
+        AND m.content ILIKE $2
+        ORDER BY m.created_at DESC
+        LIMIT $3
+    `, [userId, `%${q.trim()}%`, parseInt(limit)]);
+
+    ctx.body = {
+        success: true,
+        data: result.rows.map(m => ({
+            id: m.id,
+            conversationId: m.conversation_id,
+            conversationName: m.conversation_name || m.sender_name,
+            isGroup: m.is_group,
+            senderId: m.sender_id,
+            senderUsername: m.sender_username,
+            senderName: m.sender_name,
+            senderAvatar: m.sender_avatar,
+            content: m.content,
+            contentType: m.content_type,
+            createdAt: m.created_at,
+        }))
+    };
+});
+
+// GET /api/messages/online-users - Get list of online users in same company
+router.get('/online-users', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
+
+    // Get all company users
+    const users = await db.write(
+        'SELECT id, username, full_name, avatar_url FROM users WHERE company_id = $1',
+        [companyId]
+    );
+
+    // Check presence for each
+    const onlineStatuses = {};
+    for (const user of users.rows) {
+        const status = await cache.getPresence(user.id);
+        onlineStatuses[user.id] = status || 'offline';
+    }
+
+    ctx.body = { success: true, data: onlineStatuses };
+});
+
 export default router;
+
