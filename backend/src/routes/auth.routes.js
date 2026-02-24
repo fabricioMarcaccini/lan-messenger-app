@@ -1,9 +1,21 @@
 import Router from 'koa-router';
 import bcrypt from 'bcrypt';
+import ratelimit from 'koa-ratelimit';
 import { db, cache } from '../config/database.js';
 import { generateTokens, verifyRefreshToken } from '../middlewares/auth.js';
 
 const router = new Router();
+
+// Rate Limiter for Login
+const loginRateLimit = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 15 * 60 * 1000, // 15 minutes
+    errorMessage: 'Muitas tentativas de login. Tente novamente mais tarde.',
+    id: (ctx) => ctx.ip,
+    max: 15,
+    disableHeader: false
+});
 
 // POST /api/auth/register (Public) — Creates company + admin user with 7-day trial
 router.post('/register', async (ctx) => {
@@ -15,11 +27,31 @@ router.post('/register', async (ctx) => {
         return;
     }
 
-    if (companyName.trim().length < 2) {
+    if (password.trim().length < 6 || password.length > 72) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Senha deve ter entre 6 e 72 caracteres válidos' };
+        return;
+    }
+
+    if (companyName.length > 100 || username.length > 50 || (fullName && fullName.length > 100)) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Campos excedem o tamanho máximo permitido' };
+        return;
+    }
+
+    if (/[<>]/.test(companyName) || /[<>]/.test(username) || (fullName && /[<>]/.test(fullName))) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Caracteres inválidos detectados' };
+        return;
+    }
+
+    const safeCompanyName = companyName.trim();
+    if (safeCompanyName.length < 2) {
         ctx.status = 400;
         ctx.body = { success: false, message: 'Nome da empresa deve ter pelo menos 2 caracteres' };
         return;
     }
+    const safeFullName = fullName || username;
 
     try {
         // Check if user exists
@@ -43,7 +75,7 @@ router.post('/register', async (ctx) => {
             `INSERT INTO companies (name, plan_id, subscription_status, max_seats, trial_ends_at)
              VALUES ($1, 'trial', 'trialing', 5, $2)
              RETURNING id`,
-            [companyName.trim(), trialEndsAt.toISOString()]
+            [safeCompanyName, trialEndsAt.toISOString()]
         );
 
         const companyId = companyResult.rows[0].id;
@@ -53,7 +85,7 @@ router.post('/register', async (ctx) => {
             `INSERT INTO users (company_id, username, email, password_hash, full_name, role)
              VALUES ($1, $2, $3, $4, $5, 'admin')
              RETURNING id, username, email, full_name, role`,
-            [companyId, username, email, passwordHash, fullName || username]
+            [companyId, username, email, passwordHash, safeFullName]
         );
 
         const user = result.rows[0];
@@ -100,7 +132,7 @@ router.post('/register', async (ctx) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (ctx) => {
+router.post('/login', loginRateLimit, async (ctx) => {
     const { username, password } = ctx.request.body;
 
     console.log('🔐 Login attempt:', { username, passwordLength: password?.length });

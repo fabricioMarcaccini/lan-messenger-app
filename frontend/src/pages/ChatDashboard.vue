@@ -109,7 +109,7 @@
             <button @click="showMobileSidebar = true" class="md:hidden size-8 mr-3 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0">
               <span class="material-symbols-outlined text-lg">menu</span>
             </button>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+            <h2 id="tour-conversations" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               {{ locale.t.chat.title }}
               <div class="relative flex items-center group cursor-help z-[100]">
                 <span class="material-symbols-outlined text-primary/70 group-hover:text-primary transition-colors text-[28px]">help</span>
@@ -121,6 +121,7 @@
             </h2>
           </div>
           <button 
+            id="tour-new-chat"
             @click="showNewChatModal = true"
             class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
             title="Nova Conversa ou Grupo"
@@ -145,9 +146,18 @@
       
       <!-- Conversations List -->
       <div class="flex-1 overflow-y-auto px-3 pb-4">
-        <div class="flex flex-col gap-2 mt-2">
+        
+        <!-- Canais / Grupos -->
+        <div class="mt-4 mb-2 px-1 flex justify-between items-center group">
+          <h3 class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Canais & Grupos</h3>
+          <button @click="showPublicChannelsModal = true" class="opacity-0 group-hover:opacity-100 transition-opacity text-primary hover:text-primary/80 size-5 flex items-center justify-center rounded-md bg-primary/10" title="Descobrir Canais">
+            <span class="material-symbols-outlined text-[14px]">explore</span>
+          </button>
+        </div>
+        
+        <div class="flex flex-col gap-1">
           <div 
-            v-for="conv in filteredConversations" 
+            v-for="conv in filteredChannels" 
             :key="conv.id"
             @click="selectConversation(conv.id)"
             :class="[
@@ -158,14 +168,18 @@
             <div class="flex gap-3 relative z-10">
               <div class="relative flex-shrink-0">
                 <div 
-                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12"
-                  :style="{ backgroundImage: `url(${conv.isGroup ? defaultAvatar : (conv.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
-                ></div>
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 text-white flex items-center justify-center font-bold"
+                  :class="conv.isPublic ? 'bg-indigo-500/80 shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'bg-slate-700'"
+                  :style="!conv.isPublic && conv.participants ? { backgroundImage: `url(${defaultAvatar})` } : {}"
+                >
+                  <span v-if="conv.isPublic" class="material-symbols-outlined text-[20px]">public</span>
+                  <span v-else-if="!conv.isPublic && !conv.participants" class="material-symbols-outlined text-[20px]">lock</span>
+                </div>
               </div>
               <div class="flex flex-col flex-1 min-w-0 justify-center">
                 <div class="flex justify-between items-baseline mb-0.5">
                   <h3 class="text-gray-900 dark:text-white text-sm font-semibold truncate">
-                    {{ conv.name || conv.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
+                    <span v-if="conv.isPublic" class="text-indigo-500 dark:text-indigo-400 mr-0.5">#</span>{{ conv.name }}
                   </h3>
                   <span class="text-gray-400 dark:text-slate-400 text-xs">{{ formatTime(conv.lastMessageAt) }}</span>
                 </div>
@@ -181,13 +195,57 @@
               </div>
             </div>
           </div>
-          
-          <div v-if="filteredConversations.length === 0" class="text-center text-gray-400 dark:text-slate-500 py-8 px-4">
-            <span class="material-symbols-outlined text-4xl mb-2 block opacity-50">chat_bubble</span>
-            <p class="font-medium text-sm text-gray-600 dark:text-gray-300">{{ locale.t.chat.noConversations }}</p>
-            <p class="text-xs mt-2 opacity-70">Clique no ícone de nova conversa acima para começar a papear.</p>
-          </div>
+          <p v-if="filteredChannels.length === 0" class="text-[11px] text-gray-400 opacity-60 text-center py-2 font-medium">Nenhum canal</p>
         </div>
+
+        <!-- Mensagens Diretas -->
+        <div class="mt-6 mb-2 px-1 flex justify-between items-center">
+          <h3 class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Mensagens Diretas</h3>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <div 
+            v-for="conv in filteredDirectMessages" 
+            :key="conv.id"
+            @click="selectConversation(conv.id)"
+            :class="[
+              'glass-card p-3 rounded-xl cursor-pointer relative group border border-transparent hover:bg-white dark:hover:bg-white/5',
+              chatStore.activeConversationId === conv.id ? 'bg-primary/10 border-primary/30 shadow-sm dark:shadow-neon' : 'bg-transparent'
+            ]"
+          >
+            <div class="flex gap-3 relative z-10">
+              <div class="relative flex-shrink-0">
+                <div 
+                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
+                  :style="{ backgroundImage: `url(${conv.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar})` }"
+                ></div>
+                <div v-if="conv.participants.find(p => p.id !== authStore.user?.id)?.status === 'online'" class="absolute bottom-0 right-0 size-3 border-2 border-white dark:border-background-dark bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+              </div>
+              <div class="flex flex-col flex-1 min-w-0 justify-center">
+                <div class="flex justify-between items-baseline mb-0.5">
+                  <h3 class="text-gray-900 dark:text-white text-sm font-semibold truncate">
+                    {{ conv.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
+                  </h3>
+                  <span class="text-gray-400 dark:text-slate-400 text-xs">{{ formatTime(conv.lastMessageAt) }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <p class="text-gray-500 dark:text-slate-400 text-xs truncate pr-2">
+                     <span v-if="conv.lastMessageSenderId === authStore.user?.id" class="text-[10px] text-gray-400">Você: </span>
+                     {{ conv.lastMessage }}
+                  </p>
+                  <span 
+                    v-if="conv.unreadCount > 0"
+                    class="flex items-center justify-center min-w-[18px] h-[18px] bg-primary text-white dark:text-background-dark text-[10px] font-bold rounded-full px-1 shadow-sm dark:shadow-neon"
+                  >
+                    {{ conv.unreadCount }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p v-if="filteredDirectMessages.length === 0" class="text-[11px] text-gray-400 opacity-60 text-center py-2 font-medium">Nenhuma mensagem direta</p>
+        </div>
+        
       </div>
     </section>
     
@@ -220,7 +278,7 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-1 md:gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
+          <div id="tour-actions" class="flex items-center gap-1 md:gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
             <!-- AI Insights Buttons -->
             <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
               <span class="material-symbols-outlined text-xl">insights</span>
@@ -482,6 +540,17 @@
         
         <!-- Input Area -->
         <div class="p-6 pt-2 shrink-0 z-20 bg-gray-50 dark:bg-transparent relative">
+          <!-- Typing Indicator -->
+          <div v-if="typingUserNames.length > 0" class="absolute -top-6 left-6 text-xs text-gray-500 italic flex items-center gap-1.5 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full dark:bg-black/30">
+             <div class="flex gap-1 pr-1">
+               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
+               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
+             </div>
+             <span class="font-medium text-primary">{{ typingUserNames.join(', ') }}</span> 
+             {{ typingUserNames.length > 1 ? 'estão digitando' : 'está digitando' }}...
+          </div>
+
           <!-- Edit / Reply Banner -->
           <div v-if="editingMessageId || replyingToMessage" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
             <div class="flex items-center gap-2 w-full pr-4 overflow-hidden">
@@ -528,6 +597,7 @@
             />
             
             <button 
+              id="tour-attachment"
               @click="$refs.fileInput.click()"
               class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
               :disabled="editingMessageId"
@@ -547,11 +617,12 @@
                 <span class="material-symbols-outlined text-lg">mic</span> Gravando áudio...
               </span>
               <textarea 
+                id="tour-input"
                 v-else
                 v-model="newMessage"
                 @keyup.enter.exact="sendMessage"
                 rows="1"
-                @input="autoResize"
+                @input="handleTyping"
                 :placeholder="locale.t.chat.typeMessage + ' (Shift+Enter para pular linha)'"
                 class="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-0 resize-none max-h-32"
                 title="Escreva sua mensagem aqui"
@@ -562,6 +633,7 @@
               <!-- Botão Varinha Mágica -->
               <div class="relative">
                 <button 
+                  id="tour-magic"
                   @click="showMagicMenu = !showMagicMenu"
                   class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-purple-500 flex items-center justify-center transition-colors relative"
                   title="Varinha Mágica (IA)"
@@ -707,13 +779,22 @@
 
         <template v-else>
           <div class="flex flex-col gap-3 mb-4">
-             <input v-model="groupName" placeholder="Nome do Grupo (ex: Equipe de Vendas)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
+             <input v-model="groupName" placeholder="Nome do Canal/Grupo (ex: Geral)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
              <input v-model="groupDescription" placeholder="Descrição (Opcional)" class="w-full px-4 py-2 rounded-xl text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
           </div>
-          <p class="text-xs text-gray-500 dark:text-slate-400 mb-2 font-medium uppercase tracking-wider">Selecione os participantes (Mín. 1):</p>
+
+          <label class="flex items-center gap-2 cursor-pointer mb-4 select-none p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 border border-transparent transition-colors">
+            <input type="checkbox" v-model="isPublicGroup" class="form-checkbox rounded text-primary focus:ring-primary border-gray-300 dark:border-white/20 bg-white dark:bg-black/20" />
+            <div class="flex flex-col">
+              <span class="text-sm font-bold text-gray-900 dark:text-white">Canal Público</span>
+              <span class="text-[11px] text-gray-500 dark:text-slate-400 leading-tight">Membros da empresa podem descobrir e entrar sem convite direto.</span>
+            </div>
+          </label>
+
+          <p class="text-[10px] text-gray-500 dark:text-slate-400 mb-2 font-bold uppercase tracking-wider">Adicionar Participantes <span v-if="!isPublicGroup">(Mín. 1)</span>:</p>
           <input v-model="userFilter" placeholder="Buscar usuário por nome..." class="w-full px-4 py-2 rounded-xl mb-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-black/20 border-none focus:ring-1 focus:ring-primary/50 transition-all shadow-inner" />
           
-          <div class="flex-1 overflow-y-auto max-h-[200px] flex flex-col gap-1 pr-1">
+          <div class="flex-1 overflow-y-auto max-h-[160px] flex flex-col gap-1 pr-1">
             <label v-for="user in filteredUsers" :key="user.id" class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer select-none">
               <input type="checkbox" :value="user.id" v-model="selectedUsers" class="form-checkbox rounded text-primary focus:ring-primary bg-white dark:bg-black/20 border-gray-300 dark:border-white/20 size-4" />
               <div class="bg-cover bg-center rounded-full size-8" :style="{ backgroundImage: `url(${user.avatarUrl || defaultAvatar})` }"></div>
@@ -725,10 +806,63 @@
               {{ locale.t.chat.noUsers }}
             </p>
           </div>
-          <button @click="createGroup" :disabled="!groupName || selectedUsers.length === 0" class="mt-4 w-full bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold py-2.5 rounded-xl transition-colors shadow-sm dark:shadow-neon disabled:opacity-50 disabled:cursor-not-allowed">
-            Criar Grupo
+          <button @click="createGroup" :disabled="!groupName.trim() || (!isPublicGroup && selectedUsers.length === 0)" class="mt-4 w-full bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold py-2.5 rounded-xl transition-colors shadow-sm dark:shadow-neon disabled:opacity-50 disabled:cursor-not-allowed">
+            Criar {{ isPublicGroup ? 'Canal' : 'Grupo' }}
           </button>
         </template>
+      </div>
+    </div>
+
+    <!-- Public Channels Modal -->
+    <div v-if="showPublicChannelsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="glass-panel w-full max-w-md rounded-2xl p-6 relative flex flex-col max-h-[80vh] bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[28px]">explore</span>
+            Descobrir Canais
+          </h2>
+          <button @click="showPublicChannelsModal = false" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto min-h-[200px] flex flex-col gap-2">
+          <div
+            v-for="channel in chatStore.publicChannels"
+            :key="channel.id"
+            class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-transparent hover:border-primary/20 transition-all"
+          >
+            <div class="flex items-center gap-3 min-w-0 pr-2">
+              <div class="size-10 rounded-full bg-indigo-500/80 text-white flex flex-shrink-0 items-center justify-center shadow-[0_0_8px_rgba(99,102,241,0.5)]">
+                <span class="material-symbols-outlined text-lg">public</span>
+              </div>
+              <div class="flex flex-col min-w-0">
+                <span class="text-gray-900 dark:text-white font-bold leading-tight truncate">#{{ channel.name }}</span>
+                <span class="text-[11px] text-gray-500 dark:text-slate-400 truncate mt-0.5">{{ channel.description || 'Sem descrição' }}</span>
+                <span class="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 font-medium">{{ channel.member_count }} membros</span>
+              </div>
+            </div>
+            
+            <button 
+              v-if="!channel.is_member"
+              @click="joinChannel(channel.id)" 
+              :disabled="isJoiningChannel"
+              class="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-cyan-400 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+            >
+              Entrar
+            </button>
+            <span v-else class="text-[11px] font-bold text-green-500 bg-green-500/10 px-2.5 py-1 rounded-md flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">check_circle</span>
+              Membro
+            </span>
+          </div>
+          
+          <p v-if="chatStore.publicChannels.length === 0" class="text-gray-400 dark:text-slate-500 text-center py-8">
+            <span class="material-symbols-outlined text-4xl mb-2 opacity-50 block">search_off</span>
+            <span class="font-medium text-sm text-gray-600 dark:text-gray-400">Nenhum canal público encontrado.</span>
+            <span class="block text-xs opacity-70 mt-1">Seja o primeiro a criar um canal aberto!</span>
+          </p>
+        </div>
       </div>
     </div>
 
@@ -1199,6 +1333,8 @@ import { useLocaleStore } from '@/stores/locale'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useGroupCallStore } from '@/stores/groupCall'
 import 'emoji-picker-element'
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -1276,12 +1412,25 @@ const unreadCount = computed(() =>
 )
 // ... computed properties ...
 
-const filteredConversations = computed(() => {
-  if (!searchQuery.value) return chatStore.conversations
+const filteredChannels = computed(() => {
+  if (!searchQuery.value) return chatStore.conversations.filter(c => c.isGroup)
   const query = searchQuery.value.toLowerCase()
   return chatStore.conversations.filter(c => 
-    c.name?.toLowerCase().includes(query) ||
-    c.participants.some(p => p.full_name?.toLowerCase().includes(query))
+    c.isGroup && (
+      c.name?.toLowerCase().includes(query) ||
+      c.participants.some(p => p.full_name?.toLowerCase().includes(query))
+    )
+  )
+})
+
+const filteredDirectMessages = computed(() => {
+  if (!searchQuery.value) return chatStore.conversations.filter(c => !c.isGroup)
+  const query = searchQuery.value.toLowerCase()
+  return chatStore.conversations.filter(c => 
+    !c.isGroup && (
+      c.name?.toLowerCase().includes(query) ||
+      c.participants.some(p => p.full_name?.toLowerCase().includes(query))
+    )
   )
 })
 
@@ -1298,6 +1447,27 @@ const filteredUsers = computed(() => {
   )
 })
 
+const showPublicChannelsModal = ref(false)
+const isJoiningChannel = ref(false)
+const isPublicGroup = ref(false)
+
+async function joinChannel(channelId) {
+  isJoiningChannel.value = true;
+  try {
+    const success = await chatStore.joinPublicChannel(channelId);
+    if (success) {
+       showPublicChannelsModal.value = false;
+       selectConversation(channelId);
+    } else {
+       alert("Erro ao entrar no canal.");
+    }
+  } catch (err) {
+    alert("Erro ao entrar no canal: " + (err.response?.data?.message || err.message));
+  } finally {
+    isJoiningChannel.value = false;
+  }
+}
+
 function selectConversation(id) {
   chatStore.setActiveConversation(id)
   socketStore.joinConversation(id)
@@ -1312,14 +1482,15 @@ async function startConversation(userId) {
 }
 
 async function createGroup() {
-  if (!groupName.value.trim() || selectedUsers.value.length === 0) return;
-  const conversationId = await chatStore.createConversation(selectedUsers.value, true, groupName.value, groupDescription.value);
+  if (!groupName.value.trim() || (!isPublicGroup.value && selectedUsers.value.length === 0)) return;
+  const conversationId = await chatStore.createConversation(selectedUsers.value, true, groupName.value, groupDescription.value, isPublicGroup.value);
   if (conversationId) {
     showNewChatModal.value = false;
     isCreatingGroup.value = false;
     groupName.value = '';
     groupDescription.value = '';
     selectedUsers.value = [];
+    isPublicGroup.value = false;
     selectConversation(conversationId);
   }
 }
@@ -1340,6 +1511,12 @@ async function leaveGroup() {
 async function sendMessage() {
   if (!newMessage.value.trim() && !editingMessageId.value && !replyingToMessage.value && !chatStore.activeConversationId) return
   
+  // Stop typing indicator immediately
+  if (typingTimeout) clearTimeout(typingTimeout)
+  if (chatStore.activeConversationId) {
+    socketStore.sendTyping(chatStore.activeConversationId, false)
+  }
+
   if (editingMessageId.value) {
     if (newMessage.value.trim()) {
         await chatStore.editMessage(editingMessageId.value, newMessage.value)
@@ -1390,6 +1567,12 @@ function cancelEditOrReply() {
   editingMessageId.value = null
   replyingToMessage.value = null
   newMessage.value = ''
+
+  if (typingTimeout) clearTimeout(typingTimeout)
+  if (chatStore.activeConversationId) {
+    socketStore.sendTyping(chatStore.activeConversationId, false)
+  }
+
   requestAnimationFrame(() => {
     const textarea = document.querySelector('textarea')
     if (textarea) textarea.style.height = 'auto'
@@ -1495,6 +1678,35 @@ function autoResize(event) {
   event.target.style.height = 'auto'
   event.target.style.height = event.target.scrollHeight + 'px'
 }
+
+let typingTimeout = null
+function handleTyping(event) {
+  autoResize(event)
+  if (!chatStore.activeConversationId) return;
+  
+  socketStore.sendTyping(chatStore.activeConversationId, true)
+  
+  if (typingTimeout) clearTimeout(typingTimeout)
+  typingTimeout = setTimeout(() => {
+    socketStore.sendTyping(chatStore.activeConversationId, false)
+  }, 2000)
+}
+
+const typingUserNames = computed(() => {
+  if (!chatStore.activeConversationId) return [];
+  const typersIds = socketStore.getTypingUsers(chatStore.activeConversationId) || [];
+  const participants = chatStore.activeConversation?.participants || [];
+  
+  return typersIds
+    .filter(id => id !== authStore.user?.id) // exclude self just in case
+    .map(id => {
+      const p = participants.find(p => p.id === id);
+      if (p) {
+        return p.full_name || p.username || 'Alguém';
+      }
+      return 'Alguém';
+    });
+})
 
 async function handleFileUpload(event) {
   const file = event.target.files[0]
@@ -2034,6 +2246,31 @@ onMounted(async () => {
   })
   window.addEventListener('socket:group-call:active', (e) => groupCallStore.handleActiveCall(e.detail))
   window.addEventListener('socket:group-call:hand-raise', (e) => groupCallStore.handleHandRaise(e.detail))
+
+  // Run Onboarding Tour
+  if (localStorage.getItem('lan_tour_completed') !== 'true') {
+     setTimeout(() => {
+        const driverObj = driver({
+          showProgress: true,
+          nextBtnText: 'Próximo ›',
+          prevBtnText: '‹ Anterior',
+          doneBtnText: 'Pronto!',
+          progressText: 'Passo {{current}} de {{total}}',
+          steps: [
+            { element: '#tour-conversations', popover: { title: 'Bem-vindo ao LAN Messenger!', description: 'Sua plataforma de comunicação corporativa rápida e segura.', side: "bottom", align: 'start' }},
+            { element: '#tour-new-chat', popover: { title: 'Inicie ou Crie Canais', description: 'Clique aqui para buscar usuários, iniciar um chat ou criar grupos e canais abertos da empresa.', side: "bottom", align: 'end' }},
+            { popover: { title: 'Área de Trabalho', description: 'Selecione uma conversa ou canal à esquerda para interagir. Use o painel central para ler mensagens antigas e enviar novas respostas.' }},
+            { element: '#tour-network', popover: { title: 'Rede Local', description: 'Descubra rapidamente os dispositivos conectados na mesma rede local de sua sede.', side: "right", align: 'center' }}
+          ],
+          onDestroyStarted: () => {
+             // Marca como concluído mesmo se fechou pela metade
+             localStorage.setItem('lan_tour_completed', 'true')
+             driverObj.destroy()
+          }
+        });
+        driverObj.drive();
+     }, 1500) // Dá um tempo para as conversas carregarem
+  }
 })
 
 onUnmounted(() => {

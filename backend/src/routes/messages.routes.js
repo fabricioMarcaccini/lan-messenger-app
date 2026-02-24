@@ -11,7 +11,7 @@ router.get('/conversations', async (ctx) => {
     const userId = ctx.state.user.id;
 
     const result = await db.write(`
-        SELECT c.id, c.participant_ids, c.name, c.is_group, c.last_message_at, c.group_admins,
+        SELECT c.id, c.participant_ids, c.name, c.description, c.is_group, c.is_public, c.last_message_at, c.group_admins,
                m.content as last_message_content, m.sender_id as last_message_sender,
                m.content_type as last_message_type, m.is_deleted as last_message_deleted,
                (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND is_read = false AND sender_id != $1 AND is_deleted = false) as unread_count
@@ -29,7 +29,9 @@ router.get('/conversations', async (ctx) => {
         return {
             id: conv.id,
             name: conv.name,
+            description: conv.description,
             isGroup: conv.is_group,
+            isPublic: conv.is_public,
             groupAdmins: conv.group_admins || [],
             participants: participantResult.rows,
             lastMessage: conv.last_message_deleted ? '🚫 Mensagem apagada' : conv.last_message_content,
@@ -45,8 +47,9 @@ router.get('/conversations', async (ctx) => {
 
 // POST /api/messages/conversations
 router.post('/conversations', async (ctx) => {
-    const { participantIds, name, description = '', isGroup = false } = ctx.request.body;
+    const { participantIds, name, description = '', isGroup = false, isPublic = false } = ctx.request.body;
     const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
 
     if (!participantIds || !Array.isArray(participantIds)) {
         ctx.status = 400;
@@ -72,13 +75,73 @@ router.post('/conversations', async (ctx) => {
 
     const groupAdmins = isGroup ? [userId] : [];
     const result = await db.write(
-        `INSERT INTO conversations (participant_ids, name, description, is_group, creator_id, group_admins)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [allParticipants, name, description, isGroup, isGroup ? userId : null, groupAdmins]
+        `INSERT INTO conversations (company_id, participant_ids, name, description, is_group, is_public, creator_id, group_admins)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        [companyId, allParticipants, name, description, isGroup, isPublic, isGroup ? userId : null, groupAdmins]
     );
 
     ctx.status = 201;
     ctx.body = { success: true, data: { id: result.rows[0].id } };
+});
+
+// GET /api/messages/channels
+// Lista todos os canais públicos da empresa do usuário
+router.get('/channels', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
+
+    const result = await db.write(`
+        SELECT c.id, c.name, c.description, c.participant_ids, c.created_at,
+               (SELECT COUNT(*) FROM unnest(c.participant_ids)) as member_count,
+               ($1 = ANY(c.participant_ids)) as is_member
+        FROM conversations c
+        WHERE c.company_id = $2 AND c.is_public = true
+        ORDER BY c.name ASC
+    `, [userId, companyId]);
+
+    ctx.body = { success: true, data: result.rows };
+});
+
+// POST /api/messages/channels/:id/join
+// Entra em um canal público da empresa
+router.post('/channels/:id/join', async (ctx) => {
+    const { id } = ctx.params;
+    const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
+
+    // Verify if it's a public channel of the same company
+    const channelCheck = await db.write(
+        'SELECT id, participant_ids FROM conversations WHERE id = $1 AND company_id = $2 AND is_public = true',
+        [id, companyId]
+    );
+
+    if (channelCheck.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Canal não encontrado ou acesso restrito' };
+        return;
+    }
+
+    const channel = channelCheck.rows[0];
+    if (channel.participant_ids.includes(userId)) {
+        ctx.body = { success: true, message: 'Você já participa deste canal' };
+        return;
+    }
+
+    const nextParticipants = [...channel.participant_ids, userId];
+
+    await db.write(
+        'UPDATE conversations SET participant_ids = $1 WHERE id = $2',
+        [nextParticipants, id]
+    );
+
+    // Notify others in the socket group that someone joined (optional, or just handle joining the room)
+    const io = ctx.app.context.io;
+    if (io) {
+        // We emit a system message or just update member list if needed.
+        // For now, the user just joins the room on the frontend when selecting the channel.
+    }
+
+    ctx.body = { success: true, message: 'Entrou no canal com sucesso' };
 });
 
 // PUT /api/messages/conversations/:id/participants

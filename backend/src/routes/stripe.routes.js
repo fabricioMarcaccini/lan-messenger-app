@@ -9,8 +9,8 @@ dotenv.config();
 const router = new Router();
 
 // ─── Stripe SDK Instance ────────────────────────────────────────────────────
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia',
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_local_dev', {
+    apiVersion: '2023-10-16', // Or whatever version you prefer
 });
 
 // ─── Price Map (env-based for production safety) ────────────────────────────

@@ -35,12 +35,17 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Conversations table
+-- Conversations (DMs, Groups, and Channels) table
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    participant_ids UUID[] NOT NULL,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    participant_ids UUID[] NOT NULL DEFAULT '{}',
     name VARCHAR(255),
+    description VARCHAR(500),
     is_group BOOLEAN DEFAULT false,
+    is_public BOOLEAN DEFAULT false,
+    creator_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    group_admins UUID[] DEFAULT '{}',
     last_message_id UUID,
     last_message_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
@@ -52,10 +57,11 @@ CREATE TABLE IF NOT EXISTS messages (
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
     content TEXT NOT NULL,
-    content_type VARCHAR(20) DEFAULT 'text' CHECK (content_type IN ('text', 'file', 'image')),
+    content_type VARCHAR(20) DEFAULT 'text' CHECK (content_type IN ('text', 'file', 'image', 'audio', 'video', 'pdf')),
     file_url TEXT,
     is_read BOOLEAN DEFAULT false,
     read_at TIMESTAMP,
+    reactions JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

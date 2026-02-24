@@ -7,6 +7,8 @@ export const useChatStore = defineStore('chat', () => {
     const conversations = ref([])
     const activeConversationId = ref(null)
     const messages = ref({}) // Map conversationId -> messages array
+    const typingUsers = ref({}) // Map conversationId -> array of {userId, username}
+    const publicChannels = ref([]) // Discoverable public channels
 
     // Computeds
     const activeConversation = computed(() =>
@@ -18,7 +20,26 @@ export const useChatStore = defineStore('chat', () => {
         return messages.value[activeConversationId.value] || []
     })
 
+    const activeTypingUsers = computed(() => {
+        if (!activeConversationId.value) return []
+        return typingUsers.value[activeConversationId.value] || []
+    })
+
     // Actions
+    function setTyping(conversationId, userId, username, isTyping) {
+        if (!typingUsers.value[conversationId]) {
+            typingUsers.value[conversationId] = []
+        }
+        const currentTyping = typingUsers.value[conversationId]
+        if (isTyping) {
+            if (!currentTyping.find(u => u.userId === userId)) {
+                currentTyping.push({ userId, username })
+            }
+        } else {
+            typingUsers.value[conversationId] = currentTyping.filter(u => u.userId !== userId)
+        }
+    }
+
     function setActiveConversation(id) {
         activeConversationId.value = id
         // Fetch messages for this conversation if not already loaded empty
@@ -41,9 +62,34 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    async function createConversation(participantIds, isGroup = false, name = '', description = '') {
+    async function fetchPublicChannels() {
         try {
-            const response = await api.post('/messages/conversations', { participantIds, isGroup, name, description })
+            const response = await api.get('/messages/channels')
+            publicChannels.value = response.data.data || []
+        } catch (err) {
+            console.error('Failed to fetch public channels:', err)
+            publicChannels.value = []
+        }
+    }
+
+    async function joinPublicChannel(channelId) {
+        try {
+            const response = await api.post(`/messages/channels/${channelId}/join`)
+            if (response.data.success) {
+                await fetchConversations() // Refresh user's joined conversations
+                await fetchPublicChannels() // Refresh public list status
+                return true
+            }
+            return false
+        } catch (err) {
+            console.error('Failed to join public channel:', err)
+            throw err
+        }
+    }
+
+    async function createConversation(participantIds, isGroup = false, name = '', description = '', isPublic = false) {
+        try {
+            const response = await api.post('/messages/conversations', { participantIds, isGroup, name, description, isPublic })
             const newConv = response.data.data
 
             // Refresh conversations list to get complete data with participants
@@ -267,8 +313,12 @@ export const useChatStore = defineStore('chat', () => {
         activeConversationId,
         activeConversation,
         activeMessages,
+        activeTypingUsers,
+        publicChannels,
         setActiveConversation,
         fetchConversations,
+        fetchPublicChannels,
+        joinPublicChannel,
         createConversation,
         manageGroupParticipants,
         sendMessage,
@@ -283,6 +333,7 @@ export const useChatStore = defineStore('chat', () => {
         updateMessageRead,
         toggleReaction,
         updateMessageReaction,
-        saveCallLog
+        saveCallLog,
+        setTyping
     }
 })
