@@ -425,7 +425,7 @@
 
         <!-- Messages -->
         <div ref="messagesContainer" 
-          class="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-gray-50 dark:bg-transparent relative"
+          class="flex-1 overflow-y-auto p-6 flex flex-col bg-gray-50 dark:bg-transparent relative"
           @dragover.prevent="isDraggingFile = true"
           @dragleave.prevent="isDraggingFile = false"
           @drop.prevent="handleFileDrop"
@@ -438,14 +438,38 @@
             <p class="text-primary/60 text-sm">Imagens, vídeos, documentos...</p>
           </div>
           <!-- Load older messages indicator -->
-          <div v-if="chatStore.loadingOlder" class="flex justify-center py-2">
-            <span class="material-symbols-outlined text-primary animate-spin text-xl">progress_activity</span>
-            <span class="text-xs text-gray-400 ml-2">Carregando mensagens anteriores...</span>
+          <div v-if="chatStore.loadingOlder" class="flex items-center justify-center py-3 gap-2">
+            <span class="material-symbols-outlined text-primary animate-spin text-lg">progress_activity</span>
+            <span class="text-xs text-gray-400">Carregando mensagens anteriores...</span>
           </div>
-          <div v-else-if="chatStore.hasMoreMessages[chatStore.activeConversationId]" class="flex justify-center py-1">
-            <span class="text-[10px] text-gray-400 dark:text-slate-500">↑ Role para cima para ver mais</span>
+          <div v-else-if="chatStore.hasMoreMessages[chatStore.activeConversationId]" class="flex justify-center py-2">
+            <span class="text-[10px] text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-full">↑ Role para cima para ver mais</span>
           </div>
-          <template v-for="msg in chatStore.activeMessages" :key="msg.id">
+
+          <!-- ★ Floating "New Messages" Button -->
+          <Transition name="slide-up">
+            <button
+              v-if="newMessagesCount > 0 && !isNearBottom"
+              @click="scrollToBottomSmooth"
+              class="fixed bottom-28 right-8 md:right-auto md:left-1/2 md:-translate-x-1/2 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:scale-105 active:scale-95 transition-all font-semibold text-sm border border-primary/50 backdrop-blur-md"
+            >
+              <span class="material-symbols-outlined text-lg">keyboard_double_arrow_down</span>
+              <span>{{ newMessagesCount }} nova{{ newMessagesCount > 1 ? 's' : '' }}</span>
+            </button>
+          </Transition>
+
+          <!-- ★ Scroll-to-bottom button (no new messages, just far from bottom) -->
+          <Transition name="slide-up">
+            <button
+              v-if="newMessagesCount === 0 && !isNearBottom && chatStore.activeMessages.length > 10"
+              @click="scrollToBottomSmooth"
+              class="fixed bottom-28 right-8 md:right-auto md:left-1/2 md:-translate-x-1/2 z-30 size-10 rounded-full bg-white dark:bg-glass-surface text-gray-500 dark:text-slate-400 shadow-lg border border-gray-200 dark:border-white/10 hover:text-primary hover:border-primary/30 hover:shadow-primary/20 active:scale-90 transition-all flex items-center justify-center"
+            >
+              <span class="material-symbols-outlined">keyboard_arrow_down</span>
+            </button>
+          </Transition>
+
+          <template v-for="(msg, msgIndex) in chatStore.activeMessages" :key="msg.id">
 
             <!-- ==== CALL LOG MESSAGE ==== -->
             <div v-if="msg.contentType === 'call'" :id="`msg-${msg.id}`" class="flex justify-center">
@@ -487,16 +511,27 @@
               </div>
             </div>
 
+            <!-- ★ Date separator between different days -->
+            <div v-if="shouldShowDateSeparator(msgIndex) && msg.contentType !== 'call'" class="flex items-center justify-center my-4">
+              <div class="bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-slate-400 text-[11px] font-semibold px-4 py-1 rounded-full">
+                {{ formatDateSeparator(msg.createdAt) }}
+              </div>
+            </div>
+
             <!-- ==== NORMAL MESSAGE ==== -->
-            <div v-else :id="`msg-${msg.id}`" :class="[
-              'flex items-end gap-3 max-w-[80%] transition-colors duration-500 rounded-2xl',
-              msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : ''
+            <div v-if="msg.contentType !== 'call'" :id="`msg-${msg.id}`" :class="[
+              'flex items-end max-w-[80%] transition-colors duration-500 rounded-2xl',
+              msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : '',
+              isGroupedMessage(msgIndex) ? 'mt-0.5' : 'mt-4',
+              isGroupedMessage(msgIndex) ? '' : 'gap-3'
             ]">
-            <div 
+            <!-- ★ Avatar: hidden for grouped messages (same sender, < 5min apart) -->
+            <div v-if="!isGroupedMessage(msgIndex)"
               class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80"
               :style="{ backgroundImage: `url(${msg.senderAvatar || defaultAvatar})` }"
             ></div>
-            <div :class="['flex flex-col gap-1 relative group max-w-full', msg.senderId === authStore.user?.id ? 'items-end' : '']">
+            <div v-else class="w-8 flex-shrink-0"></div>
+            <div :class="['flex flex-col relative group max-w-full', msg.senderId === authStore.user?.id ? 'items-end' : '', isGroupedMessage(msgIndex) ? 'gap-0' : 'gap-1']">
               <div :class="['flex items-center gap-2', msg.senderId === authStore.user?.id ? 'flex-row-reverse' : '']">
                 <div :class="[
                   'rounded-2xl border shadow-sm overflow-hidden min-w-[60px]',
@@ -831,13 +866,51 @@
         </div>
       </template>
       
-      <!-- No conversation selected -->
+      <!-- ★ Premium Empty State -->
       <template v-else>
-        <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-transparent px-4">
-          <div class="text-center text-gray-400 dark:text-slate-500 max-w-sm">
-            <span class="material-symbols-outlined text-6xl mb-4 block opacity-30 text-primary">forum</span>
-            <p class="text-xl font-bold text-gray-700 dark:text-gray-300">{{ locale.t.chat.selectConversation }}</p>
-            <p class="text-sm mt-2 opacity-70">Escolha um contato na lista ao lado ou inicie uma nova conversa para enviar mensagens, áudios e arquivos de forma segura.</p>
+        <div class="flex-1 flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-transparent dark:via-transparent dark:to-transparent px-6">
+          <div class="text-center max-w-md">
+            <!-- Animated Icon -->
+            <div class="relative inline-flex mb-6">
+              <div class="size-20 rounded-3xl bg-gradient-to-br from-primary/20 to-blue-500/10 flex items-center justify-center rotate-6 shadow-lg shadow-primary/10">
+                <span class="material-symbols-outlined text-5xl text-primary -rotate-6" style="font-variation-settings: 'FILL' 1;">chat</span>
+              </div>
+              <div class="absolute -top-2 -right-2 size-7 bg-green-500 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/30 animate-bounce" style="animation-duration: 2s">
+                <span class="material-symbols-outlined text-white text-sm" style="font-variation-settings: 'FILL' 1;">waving_hand</span>
+              </div>
+            </div>
+
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">{{ locale.t.chat.selectConversation }}</h2>
+            <p class="text-sm text-gray-500 dark:text-slate-400 mb-8 leading-relaxed">
+              Selecione uma conversa na lista ou comece algo novo. Comunique-se com segurança usando mensagens, áudios, vídeos e arquivos.
+            </p>
+
+            <!-- Quick Action Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+              <button @click="showNewChatModal = true; isCreatingGroup = false" class="group p-4 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all text-left">
+                <div class="size-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                  <span class="material-symbols-outlined text-primary">person_add</span>
+                </div>
+                <p class="text-sm font-bold text-gray-800 dark:text-white">Nova Conversa</p>
+                <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Inicie um chat direto com alguém do time</p>
+              </button>
+
+              <button @click="showNewChatModal = true; isCreatingGroup = true" class="group p-4 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:border-purple-400/40 hover:shadow-lg hover:shadow-purple-500/5 transition-all text-left">
+                <div class="size-10 rounded-xl bg-purple-500/10 flex items-center justify-center mb-3 group-hover:bg-purple-500/20 transition-colors">
+                  <span class="material-symbols-outlined text-purple-500">group_add</span>
+                </div>
+                <p class="text-sm font-bold text-gray-800 dark:text-white">Criar Canal</p>
+                <p class="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Crie um grupo ou canal público para o time</p>
+              </button>
+            </div>
+
+            <!-- Keyboard shortcut tip -->
+            <p class="text-[11px] text-gray-300 dark:text-slate-600 mt-6 flex items-center justify-center gap-1.5">
+              <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-[10px] font-mono border border-gray-200 dark:border-white/10">Shift</kbd>
+              <span>+</span>
+              <kbd class="px-1.5 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-[10px] font-mono border border-gray-200 dark:border-white/10">Enter</kbd>
+              <span>para pular linha na mensagem</span>
+            </p>
           </div>
         </div>
       </template>
@@ -1512,18 +1585,78 @@ function jumpToSearchResult(result) {
 }
 
 // ====== Infinite Scroll — Load Older Messages ======
+const isNearBottom = ref(true)
+const newMessagesCount = ref(0)
+
 async function handleMessagesScroll(event) {
   const el = event.target
-  // Trigger when scrolled near top (within 80px)
+  
+  // Track if user is near the bottom
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  isNearBottom.value = distanceFromBottom < 120
+  
+  // Reset new messages count when user scrolls to bottom
+  if (isNearBottom.value) {
+    newMessagesCount.value = 0
+  }
+  
+  // Trigger loading older messages when near top
   if (el.scrollTop < 80 && chatStore.activeConversationId) {
     const prevHeight = el.scrollHeight
     const loaded = await chatStore.fetchOlderMessages(chatStore.activeConversationId)
     if (loaded) {
-      // Maintain scroll position after prepending messages
       await nextTick()
       el.scrollTop = el.scrollHeight - prevHeight
     }
   }
+}
+
+function scrollToBottomSmooth() {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: 'smooth' })
+    newMessagesCount.value = 0
+    isNearBottom.value = true
+  }
+}
+
+// ====== Message Grouping (Slack/WhatsApp style) ======
+function isGroupedMessage(index) {
+  if (index === 0) return false
+  const msgs = chatStore.activeMessages
+  const curr = msgs[index]
+  const prev = msgs[index - 1]
+  if (!curr || !prev) return false
+  // Different sender → not grouped
+  if (curr.senderId !== prev.senderId) return false
+  // Call log messages break grouping
+  if (curr.contentType === 'call' || prev.contentType === 'call') return false
+  // More than 5 minutes apart → not grouped
+  const diff = new Date(curr.createdAt) - new Date(prev.createdAt)
+  return diff < 5 * 60 * 1000
+}
+
+// ====== Date Separators ======
+function shouldShowDateSeparator(index) {
+  if (index === 0) return true
+  const msgs = chatStore.activeMessages
+  const curr = msgs[index]
+  const prev = msgs[index - 1]
+  if (!curr || !prev) return false
+  const currDate = new Date(curr.createdAt).toDateString()
+  const prevDate = new Date(prev.createdAt).toDateString()
+  return currDate !== prevDate
+}
+
+function formatDateSeparator(dateStr) {
+  const d = new Date(dateStr)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  
+  if (d.toDateString() === today.toDateString()) return 'Hoje'
+  if (d.toDateString() === yesterday.toDateString()) return 'Ontem'
+  
+  return d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
 // ====== Drag & Drop ======
@@ -2221,9 +2354,15 @@ function openImage(url) {
   window.open(url, '_blank')
 }
 
-function scrollToBottom() {
+function scrollToBottom(force) {
   if (messagesContainer.value) {
+    // If user is scrolled up, don't auto-scroll — show floating button instead
+    if (!force && !isNearBottom.value) {
+      newMessagesCount.value++
+      return
+    }
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    newMessagesCount.value = 0
   }
 }
 
@@ -2651,3 +2790,32 @@ onUnmounted(() => {
   if (groupCallStore.callState !== 'idle') groupCallStore.endCall()
 })
 </script>
+
+<style scoped>
+/* Floating button slide-up transition */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(16px) scale(0.9);
+}
+.slide-up-enter-to,
+.slide-up-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Mobile bottom nav */
+@media (max-width: 767px) {
+  .mobile-bottom-safe {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
