@@ -84,7 +84,7 @@ router.post('/register', async (ctx) => {
         const result = await db.write(
             `INSERT INTO users (company_id, username, email, password_hash, full_name, role)
              VALUES ($1, $2, $3, $4, $5, 'admin')
-             RETURNING id, username, email, full_name, role`,
+             RETURNING id, company_id, username, email, full_name, role`,
             [companyId, username, email, passwordHash, safeFullName]
         );
 
