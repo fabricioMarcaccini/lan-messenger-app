@@ -32,7 +32,11 @@ export const useUsersStore = defineStore('users', () => {
             await fetchUsers()
             return { success: true, data: response.data.data }
         } catch (err) {
-            return { success: false, message: err.response?.data?.message }
+            return {
+                success: false,
+                message: err.response?.data?.message,
+                code: err.response?.data?.code // e.g. SEAT_LIMIT_REACHED
+            }
         }
     }
 

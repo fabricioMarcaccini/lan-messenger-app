@@ -103,6 +103,44 @@
             <h3 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">{{ usersStore.stats.networkDevices }}</h3>
           </div>
         </div>
+
+        <!-- ★ Seat Usage Bar -->
+        <div v-if="seatInfo.maxSeats > 0" class="bg-white dark:bg-glass-surface rounded-xl border border-gray-200 dark:border-white/10 p-5 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg" :class="seatBarColor.bg">
+                <span class="material-symbols-outlined" :class="seatBarColor.icon">group</span>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white">Assentos Utilizados</h3>
+                <p class="text-xs text-gray-500 dark:text-slate-400">
+                  {{ seatInfo.activeUsers }} de {{ seatInfo.maxSeats }} licenças em uso
+                  <span v-if="seatInfo.remaining <= 2 && seatInfo.remaining > 0" class="text-amber-500 font-semibold"> • Quase lotado!</span>
+                  <span v-if="seatInfo.remaining === 0" class="text-red-500 font-semibold"> • Lotado!</span>
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-2xl font-bold" :class="seatBarColor.text">{{ seatUsagePercent }}%</span>
+              <button v-if="seatUsagePercent >= 80" @click="showUpsellModal = true" class="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-primary to-blue-500 text-white text-xs font-bold rounded-lg shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all">
+                <span class="material-symbols-outlined text-sm">upgrade</span>
+                Ampliar Plano
+              </button>
+            </div>
+          </div>
+          <!-- Progress Bar -->
+          <div class="w-full h-3 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-700 ease-out"
+              :class="seatBarColor.bar"
+              :style="{ width: `${Math.min(seatUsagePercent, 100)}%` }"
+            ></div>
+          </div>
+          <div class="flex justify-between mt-2 text-[10px] text-gray-400 dark:text-slate-500">
+            <span>0</span>
+            <span>{{ seatInfo.maxSeats }} seats ({{ subscriptionStore.currentPlan }})</span>
+          </div>
+        </div>
         
         <!-- Password Reset Requests Alert -->
         <div v-if="passwordResetRequests.length > 0" class="bg-amber-50 dark:bg-amber-400/10 border border-amber-200 dark:border-amber-400/30 rounded-xl p-5 animate-pulse-slow">
@@ -399,29 +437,125 @@
         </form>
       </div>
     </div>
+
+    <!-- ★ Upsell Modal (SEAT_LIMIT_REACHED) -->
+    <div v-if="showUpsellModal" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div class="bg-white dark:bg-[#131c1e] w-full max-w-lg rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-2xl">
+        <!-- Header gradient -->
+        <div class="bg-gradient-to-r from-primary via-blue-500 to-purple-600 p-6 text-center relative overflow-hidden">
+          <div class="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%2210%22%20r%3D%221%22%20fill%3D%22rgba(255%2C255%2C255%2C0.1)%22%2F%3E%3C%2Fsvg%3E')] opacity-50"></div>
+          <div class="relative">
+            <div class="size-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+              <span class="material-symbols-outlined text-white text-4xl">rocket_launch</span>
+            </div>
+            <h2 class="text-xl font-bold text-white">Seu time está crescendo! 🚀</h2>
+            <p class="text-white/80 text-sm mt-1">Você atingiu o limite de {{ seatInfo.maxSeats }} usuários do plano atual.</p>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <!-- Current usage -->
+          <div class="flex items-center justify-between bg-red-50 dark:bg-red-500/10 rounded-xl p-4 mb-5 border border-red-200 dark:border-red-500/20">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-red-500 text-2xl">group</span>
+              <div>
+                <p class="text-sm font-bold text-red-700 dark:text-red-400">{{ seatInfo.activeUsers }}/{{ seatInfo.maxSeats }} assentos ocupados</p>
+                <p class="text-xs text-red-500/70">Nenhum assento disponível</p>
+              </div>
+            </div>
+            <div class="size-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+              <span class="text-red-500 font-black text-lg">100%</span>
+            </div>
+          </div>
+
+          <!-- Upgrade options -->
+          <p class="text-gray-600 dark:text-slate-400 text-sm mb-4">Aumente o número de assentos para adicionar mais membros:</p>
+
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <button @click="upgradeSeats = 10" :class="['p-3 rounded-xl border-2 text-center transition-all', upgradeSeats === 10 ? 'border-primary bg-primary/5 shadow-md' : 'border-gray-200 dark:border-white/10 hover:border-primary/30']">
+              <p class="text-lg font-black text-gray-900 dark:text-white">10</p>
+              <p class="text-[10px] text-gray-500 dark:text-slate-400">seats</p>
+            </button>
+            <button @click="upgradeSeats = 25" :class="['p-3 rounded-xl border-2 text-center transition-all relative', upgradeSeats === 25 ? 'border-primary bg-primary/5 shadow-md' : 'border-gray-200 dark:border-white/10 hover:border-primary/30']">
+              <div class="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Popular</div>
+              <p class="text-lg font-black text-gray-900 dark:text-white">25</p>
+              <p class="text-[10px] text-gray-500 dark:text-slate-400">seats</p>
+            </button>
+            <button @click="upgradeSeats = 50" :class="['p-3 rounded-xl border-2 text-center transition-all', upgradeSeats === 50 ? 'border-primary bg-primary/5 shadow-md' : 'border-gray-200 dark:border-white/10 hover:border-primary/30']">
+              <p class="text-lg font-black text-gray-900 dark:text-white">50</p>
+              <p class="text-[10px] text-gray-500 dark:text-slate-400">seats</p>
+            </button>
+          </div>
+
+          <button
+            @click="handleUpgrade"
+            :disabled="subscriptionStore.checkoutLoading"
+            class="w-full py-3.5 bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90 text-white font-bold rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 text-sm"
+          >
+            <span v-if="subscriptionStore.checkoutLoading" class="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+            <span v-else class="material-symbols-outlined text-lg">shopping_cart</span>
+            {{ subscriptionStore.checkoutLoading ? 'Redirecionando...' : `Contratar ${upgradeSeats} seats — ${upgradePlanLabel}` }}
+          </button>
+
+          <button @click="showUpsellModal = false" class="w-full mt-3 py-2.5 text-gray-500 dark:text-slate-400 hover:text-gray-700 text-sm font-medium transition-colors">
+            Agora não
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, api } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
 import { useSocketStore } from '@/stores/socket'
+import { useSubscriptionStore } from '@/stores/subscription'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const usersStore = useUsersStore()
 const locale = useLocaleStore()
 const socketStore = useSocketStore()
+const subscriptionStore = useSubscriptionStore()
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 const searchQuery = ref('')
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const showUpsellModal = ref(false)
+const upgradeSeats = ref(25)
 const loadingCreate = ref(false)
 const loadingEdit = ref(false)
+
+// ★ Seat usage computed
+const seatInfo = computed(() => ({
+  maxSeats: subscriptionStore.maxSeats || 5,
+  activeUsers: subscriptionStore.activeUsers || 0,
+  remaining: subscriptionStore.seatsRemaining || 0,
+}))
+
+const seatUsagePercent = computed(() => {
+  if (!seatInfo.value.maxSeats) return 0
+  return Math.round((seatInfo.value.activeUsers / seatInfo.value.maxSeats) * 100)
+})
+
+const seatBarColor = computed(() => {
+  const pct = seatUsagePercent.value
+  if (pct >= 100) return { bar: 'bg-gradient-to-r from-red-500 to-red-600', bg: 'bg-red-100 dark:bg-red-500/20', icon: 'text-red-500', text: 'text-red-500' }
+  if (pct >= 80) return { bar: 'bg-gradient-to-r from-amber-400 to-orange-500', bg: 'bg-amber-100 dark:bg-amber-500/20', icon: 'text-amber-500', text: 'text-amber-500' }
+  return { bar: 'bg-gradient-to-r from-primary to-blue-500', bg: 'bg-primary/10', icon: 'text-primary', text: 'text-primary' }
+})
+
+const upgradePlanLabel = computed(() => {
+  const plan = subscriptionStore.currentPlan
+  if (plan === 'max') return 'Plano Max'
+  if (plan === 'medium') return 'Plano Medium'
+  return 'Plano Starter'
+})
 
 // Password Reset
 const passwordResetRequests = ref([])
@@ -513,8 +647,19 @@ async function handleCreateUser() {
   if (result.success) {
     showCreateModal.value = false
     Object.assign(newUser, { username: '', email: '', fullName: '', password: '', role: 'user', department: '' })
+    // Refresh seat count
+    subscriptionStore.fetchSubscriptionStatus()
+  } else if (result.code === 'SEAT_LIMIT_REACHED') {
+    // ★ Show upsell modal instead of generic error
+    showCreateModal.value = false
+    showUpsellModal.value = true
   }
   loadingCreate.value = false
+}
+
+async function handleUpgrade() {
+  const plan = subscriptionStore.currentPlan || 'starter'
+  await subscriptionStore.createCheckout(plan, upgradeSeats.value)
 }
 
 async function handleUpdateUser() {
@@ -598,6 +743,7 @@ function handlePasswordResetRequest(event) {
 onMounted(async () => {
   await usersStore.fetchUsers()
   await usersStore.fetchStats(authStore.user?.companyId)
+  await subscriptionStore.fetchSubscriptionStatus()
   
   console.log('👤 Current user role:', authStore.user?.role)
   
