@@ -216,7 +216,9 @@ router.post('/create-portal-session', authMiddleware, async (ctx) => {
 // Smart upgrade: modifies existing subscription OR redirects to checkout
 router.post('/upgrade-seats', authMiddleware, async (ctx) => {
     try {
-        const { seats, planId } = ctx.request.body;
+        const { seats, planId: rawPlanId } = ctx.request.body;
+        // Normalize: trial/free → starter (they don't have Stripe prices)
+        const planId = (!rawPlanId || rawPlanId === 'trial' || rawPlanId === 'free') ? 'starter' : rawPlanId;
         const seatsNum = parseInt(seats, 10);
 
         if (!seatsNum || seatsNum < 1 || seatsNum > 500) {

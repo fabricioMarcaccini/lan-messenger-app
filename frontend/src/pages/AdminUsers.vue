@@ -558,7 +558,8 @@ const seatBarColor = computed(() => {
 })
 
 const upgradePlanLabel = computed(() => {
-  const plan = subscriptionStore.currentPlan
+  const rawPlan = subscriptionStore.currentPlan
+  const plan = (!rawPlan || rawPlan === 'trial' || rawPlan === 'free') ? 'starter' : rawPlan
   if (plan === 'max') return 'Plano Max'
   if (plan === 'medium') return 'Plano Medium'
   return 'Plano Starter'
@@ -671,7 +672,8 @@ async function handleUpgrade() {
   upgradeLoading.value = true
   upgradeSuccess.value = ''
   try {
-    const plan = subscriptionStore.currentPlan || 'starter'
+    const rawPlan = subscriptionStore.currentPlan
+    const plan = (!rawPlan || rawPlan === 'trial' || rawPlan === 'free') ? 'starter' : rawPlan
     const response = await api.post('/stripe/upgrade-seats', {
       seats: upgradeSeats.value,
       planId: plan,
