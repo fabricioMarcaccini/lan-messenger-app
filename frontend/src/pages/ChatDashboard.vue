@@ -57,25 +57,50 @@
                 <span class="material-symbols-outlined text-primary text-lg">radar</span>
                 <span class="text-gray-700 dark:text-slate-200 text-sm font-medium">{{ locale.t.nav.scanner }}</span>
               </div>
-              <span class="material-symbols-outlined text-gray-400 dark:text-slate-500 group-open:rotate-180 transition-transform text-lg">expand_more</span>
-            </summary>
-            <div class="px-3 pb-3 pt-1 flex flex-col gap-2">
-              <div 
-                v-for="device in recentDevices" 
-                :key="device.ip"
-                class="flex items-center justify-between text-xs p-2 rounded-lg bg-gray-100 dark:bg-black/20 hover:bg-gray-200 dark:hover:bg-black/40 cursor-pointer border border-transparent hover:border-primary/20"
-              >
-                <span class="font-mono text-gray-600 dark:text-slate-300">{{ device.ipAddress }}</span>
-                <span 
-                  :class="[
-                    'font-medium text-[10px] px-1.5 py-0.5 rounded',
-                    device.isOnline ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-400/10' : 'text-gray-500 dark:text-slate-500 bg-gray-100 dark:bg-slate-500/10'
-                  ]"
-                >
-                  {{ device.isOnline ? 'Active' : 'Idle' }}
+              <div class="flex items-center gap-2">
+                <!-- Mini counter -->
+                <span v-if="networkStore.devices.length > 0" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                  {{ networkStore.stats.onlineDevices }}/{{ networkStore.stats.totalDevices }}
                 </span>
+                <span class="material-symbols-outlined text-gray-400 dark:text-slate-500 group-open:rotate-180 transition-transform text-lg">expand_more</span>
               </div>
-              <router-link to="/network" class="text-xs text-primary hover:underline text-center mt-1">{{ locale.t.nav.viewAll }} →</router-link>
+            </summary>
+            <div class="px-3 pb-3 pt-1 flex flex-col gap-1.5">
+              <!-- Quick scan button -->
+              <button 
+                @click="handleQuickScan"
+                :disabled="networkStore.scanning"
+                class="flex items-center justify-center gap-1.5 w-full py-1.5 text-[11px] font-semibold bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors disabled:opacity-50 mb-1"
+              >
+                <span :class="['material-symbols-outlined text-sm', networkStore.scanning ? 'animate-spin' : '']">{{ networkStore.scanning ? 'progress_activity' : 'sync' }}</span>
+                {{ networkStore.scanning ? 'Escaneando...' : 'Escanear Rede' }}
+              </button>
+
+              <!-- Device list -->
+              <template v-if="recentDevices.length > 0">
+                <div 
+                  v-for="device in recentDevices" 
+                  :key="device.ipAddress"
+                  class="flex items-center gap-2 text-xs p-2 rounded-lg bg-gray-100 dark:bg-black/20 hover:bg-gray-200 dark:hover:bg-black/40 border border-transparent hover:border-primary/20 transition-colors"
+                >
+                  <span :class="['size-1.5 rounded-full shrink-0', device.isOnline ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]' : 'bg-gray-400 dark:bg-slate-600']"></span>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-700 dark:text-slate-200 truncate text-[11px]">{{ device.hostname || device.ipAddress }}</p>
+                    <p v-if="device.hostname" class="font-mono text-[10px] text-gray-400 dark:text-slate-500">{{ device.ipAddress }}</p>
+                  </div>
+                  <span class="font-mono text-[10px] text-gray-400 dark:text-slate-500 shrink-0">
+                    {{ device.isOnline && device.latencyMs ? `${device.latencyMs}ms` : '' }}
+                  </span>
+                </div>
+              </template>
+
+              <!-- Empty state -->
+              <div v-else-if="!networkStore.scanning" class="text-center py-3">
+                <span class="material-symbols-outlined text-gray-300 dark:text-slate-600 text-2xl mb-1">wifi_tethering_off</span>
+                <p class="text-[10px] text-gray-400 dark:text-slate-500">Nenhum dispositivo encontrado</p>
+              </div>
+
+              <router-link to="/network" class="text-[11px] text-primary hover:underline text-center mt-1 font-medium">{{ locale.t.nav.viewAll }} →</router-link>
             </div>
           </details>
         </div>
@@ -1786,9 +1811,11 @@ const filteredDirectMessages = computed(() => {
   )
 })
 
-const recentDevices = computed(() => 
-  networkStore.devices.slice(0, 3)
-)
+const recentDevices = computed(() => {
+  const devs = [...networkStore.devices]
+  devs.sort((a, b) => b.isOnline - a.isOnline || (a.latencyMs || 999) - (b.latencyMs || 999))
+  return devs.slice(0, 5)
+})
 
 const filteredUsers = computed(() => {
   if (!usersStore.users) return []
@@ -2446,6 +2473,11 @@ async function handleLogout() {
   webrtcStore.endCallLocally()
   await authStore.logout()
   router.push('/login')
+}
+
+async function handleQuickScan() {
+  await networkStore.scanNetwork()
+  await networkStore.fetchStats()
 }
 
 // ==== WEBRTC Logic ====
