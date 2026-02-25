@@ -4,10 +4,26 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Store connected sockets by userId
 const connectedUsers = new Map();
+
+// Rate limiter: { userId: { count, resetAt } }
+const messageRateLimits = new Map();
+const RATE_LIMIT_MAX = 10; // max messages
+const RATE_LIMIT_WINDOW = 5000; // per 5 seconds
+
+function isRateLimited(userId) {
+    const now = Date.now();
+    const entry = messageRateLimits.get(userId);
+    if (!entry || now > entry.resetAt) {
+        messageRateLimits.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+        return false;
+    }
+    entry.count++;
+    return entry.count > RATE_LIMIT_MAX;
+}
 
 export function setupSocketHandlers(io) {
     io.on('connection', (socket) => {
@@ -58,6 +74,11 @@ export function setupSocketHandlers(io) {
         socket.on('message:send', async (data) => {
             if (!socket.userId) {
                 socket.emit('error', { message: 'Not authenticated' });
+                return;
+            }
+
+            if (isRateLimited(socket.userId)) {
+                socket.emit('error', { message: 'Muitas mensagens. Aguarde alguns segundos.' });
                 return;
             }
 
@@ -333,7 +354,7 @@ export function setupSocketHandlers(io) {
 
             if (socket.userId) {
                 connectedUsers.delete(socket.userId);
-                await cache.setPresence(socket.userId, 'offline');
+                await cache.clearPresence(socket.userId);
 
                 // Auto-leave any group calls on disconnect
                 if (io._groupCalls) {

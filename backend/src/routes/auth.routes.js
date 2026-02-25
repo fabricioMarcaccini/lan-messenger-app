@@ -311,7 +311,7 @@ router.get('/me', async (ctx) => {
         // Import JWT at the top to use proper verification, replacing unsafe decode
         const jwt = await import('jsonwebtoken');
         // Usar a chave secreta correta como nos middlewares
-        const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
+        const JWT_SECRET = process.env.JWT_SECRET;
 
         // VERIFY SIGNATURE AND EXPIRATION!
         const decoded = jwt.default.verify(token, JWT_SECRET);

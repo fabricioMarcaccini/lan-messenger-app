@@ -92,6 +92,29 @@ app.use(cors({
     maxAge: 86400,
 }));
 
+// 🛡️ Global Error Handler — catches unhandled errors in all routes
+app.use(async (ctx, next) => {
+    try {
+        await next();
+    } catch (err) {
+        const status = err.status || err.statusCode || 500;
+        const message = status === 500 ? 'Erro interno do servidor' : err.message;
+
+        // Log full error for 500s
+        if (status >= 500) {
+            logger.error(`[${ctx.method}] ${ctx.url} → ${status}: ${err.message}`);
+            logger.error(err.stack);
+        }
+
+        ctx.status = status;
+        ctx.body = {
+            success: false,
+            message,
+            ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+        };
+    }
+});
+
 // Serve uploaded files as static
 app.use(mount('/uploads', serve(path.join(__dirname, '..', 'uploads'))));
 
@@ -245,7 +268,6 @@ httpServer.listen(PORT, async () => {
     const dbStatus = await checkDatabaseConnections();
     logger.info('Database connections:');
     logger.info(`  PostgreSQL: ${dbStatus.postgres ? '✅ Connected' : '❌ Failed'}`);
-    logger.info(`  MySQL:      ${dbStatus.mysql ? '✅ Connected' : '❌ Failed'}`);
     logger.info(`  Redis:      ${dbStatus.redis ? '✅ Connected' : '❌ Failed'}`);
 
     // 🔥 Auto-Migration to ensure new WebRTC / Chat feature columns exist in production database

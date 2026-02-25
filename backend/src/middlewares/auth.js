@@ -4,7 +4,11 @@ import { db } from '../config/database.js';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('❌ FATAL: JWT_SECRET não definido no .env. Encerrando.');
+    process.exit(1);
+}
 
 export const authMiddleware = async (ctx, next) => {
     // Browsers don't send Authorization headers on preflight OPTIONS requests
@@ -109,44 +113,114 @@ export const requirePlan = (...allowedPlans) => {
 };
 
 // Middleware: Check if company has available seats before creating user
+// Uses SELECT ... FOR UPDATE to acquire a row-level lock on the company row,
+// preventing race conditions where multiple concurrent requests could bypass the limit.
 export const requireMaxSeats = async (ctx, next) => {
     const companyId = ctx.state.user?.companyId || ctx.request.body?.companyId;
 
     if (!companyId) {
-        await next();
-        return;
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'company_id é obrigatório', code: 'NO_COMPANY' };
+        return; // BLOCK — nunca permitir criação sem empresa
     }
 
     try {
-        const companyResult = await db.write(
-            'SELECT max_seats FROM companies WHERE id = $1',
+        // Use a transaction with FOR UPDATE to lock the company row
+        // This prevents race conditions (TOCTOU) during concurrent user creation
+        const result = await db.transaction(async (client) => {
+            // 1. Lock the company row — any other concurrent transaction will WAIT here
+            const companyResult = await client.query(
+                'SELECT max_seats FROM companies WHERE id = $1 FOR UPDATE',
+                [companyId]
+            );
+
+            if (companyResult.rows.length === 0) {
+                throw Object.assign(new Error('Empresa não encontrada'), { status: 404, code: 'COMPANY_NOT_FOUND' });
+            }
+
+            const maxSeats = companyResult.rows[0].max_seats || 5;
+
+            // 2. Count current active users (within the locked transaction)
+            const usersResult = await client.query(
+                'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND is_active = true',
+                [companyId]
+            );
+            const activeUsers = parseInt(usersResult.rows[0].count, 10);
+
+            // 3. Block if limit reached
+            if (activeUsers >= maxSeats) {
+                throw Object.assign(
+                    new Error(`Limite de ${maxSeats} usuários atingido. Faça upgrade do plano para adicionar mais membros.`),
+                    { status: 403, code: 'SEAT_LIMIT_REACHED', maxSeats, activeUsers }
+                );
+            }
+
+            return { maxSeats, activeUsers, seatsAvailable: maxSeats - activeUsers };
+        });
+
+        // Pass seat info to the route handler
+        ctx.state.seatInfo = result;
+        await next();
+    } catch (error) {
+        // NEVER allow passthrough on error — this is a security boundary
+        const status = error.status || 500;
+        ctx.status = status;
+        ctx.body = {
+            success: false,
+            message: error.message,
+            code: error.code || 'SEAT_CHECK_FAILED',
+            ...(error.maxSeats && { maxSeats: error.maxSeats }),
+            ...(error.activeUsers !== undefined && { activeUsers: error.activeUsers }),
+        };
+        // DO NOT call next() — block user creation
+    }
+};
+
+// Helper: Create user within a seat-locked transaction (ACID-safe, race-condition proof)
+// Use this for any code path that creates a user to guarantee atomicity
+export const createUserWithSeatLock = async (companyId, userData) => {
+    return db.transaction(async (client) => {
+        // 1. Lock the company row
+        const companyResult = await client.query(
+            'SELECT max_seats FROM companies WHERE id = $1 FOR UPDATE',
             [companyId]
         );
-        const maxSeats = companyResult.rows[0]?.max_seats || 5;
 
-        const usersResult = await db.write(
+        if (companyResult.rows.length === 0) {
+            throw Object.assign(new Error('Empresa não encontrada'), { status: 404, code: 'COMPANY_NOT_FOUND' });
+        }
+
+        const maxSeats = companyResult.rows[0].max_seats || 5;
+
+        // 2. Count active users (locked)
+        const usersResult = await client.query(
             'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND is_active = true',
             [companyId]
         );
         const activeUsers = parseInt(usersResult.rows[0].count, 10);
 
+        // 3. Block if at capacity
         if (activeUsers >= maxSeats) {
-            ctx.status = 403;
-            ctx.body = {
-                success: false,
-                message: `Limite de ${maxSeats} usuários atingido. Adicione mais seats na sua assinatura para cadastrar novos membros.`,
-                code: 'SEAT_LIMIT_REACHED',
-                maxSeats,
-                activeUsers,
-            };
-            return;
+            throw Object.assign(
+                new Error(`Limite de ${maxSeats} usuários atingido (${activeUsers}/${maxSeats}). Faça upgrade do plano.`),
+                { status: 403, code: 'SEAT_LIMIT_REACHED', maxSeats, activeUsers }
+            );
         }
 
-        await next();
-    } catch (error) {
-        console.error('requireMaxSeats middleware error:', error.message);
-        await next(); // Don't block user creation on middleware error
-    }
+        // 4. INSERT user within the same transaction — atomically safe
+        const { username, email, passwordHash, fullName, role, department, position } = userData;
+        const insertResult = await client.query(
+            `INSERT INTO users (company_id, username, email, password_hash, full_name, role, department, position)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id, username, email, full_name, role`,
+            [companyId, username, email, passwordHash, fullName || username, role || 'user', department || null, position || null]
+        );
+
+        return {
+            user: insertResult.rows[0],
+            seatInfo: { maxSeats, activeUsers: activeUsers + 1, seatsRemaining: maxSeats - activeUsers - 1 }
+        };
+    });
 };
 
 export const generateTokens = (user) => {

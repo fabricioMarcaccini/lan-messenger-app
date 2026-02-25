@@ -7,3 +7,26 @@ dist-ssr/
 logs/
 *.log
 .DS_Store
+
+# Credentials - NEVER commit
+CREDENCIAIS*
+*.credentials
+*.secret
+
+# Test files
+test_*
+*.test.output
+*_output.txt
+
+# Audio/video test files
+*.mp3
+*.wav
+*.webm
+
+# IDE
+.vscode/
+.idea/
+
+# Vercel
+.vercel/
+vercel_*.txt

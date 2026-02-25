@@ -12,6 +12,8 @@ export const useChatStore = defineStore('chat', () => {
     const onlineUsers = ref({}) // Map userId -> 'online' | 'offline' | 'away'
     const searchResults = ref([]) // Message search results
     const isSearching = ref(false)
+    const hasMoreMessages = ref({}) // Map conversationId -> boolean
+    const loadingOlder = ref(false)
 
     // Computeds
     const activeConversation = computed(() =>
@@ -205,11 +207,42 @@ export const useChatStore = defineStore('chat', () => {
 
     async function fetchMessages(conversationId) {
         try {
-            const response = await api.get(`/messages/conversations/${conversationId}`)
+            const response = await api.get(`/messages/conversations/${conversationId}?limit=50`)
             messages.value[conversationId] = response.data.data || []
+            // If we got exactly 50 messages, there might be more
+            hasMoreMessages.value[conversationId] = (response.data.data || []).length >= 50
         } catch (err) {
             console.error('Failed to fetch messages:', err)
             messages.value[conversationId] = []
+            hasMoreMessages.value[conversationId] = false
+        }
+    }
+
+    async function fetchOlderMessages(conversationId) {
+        if (loadingOlder.value || !hasMoreMessages.value[conversationId]) return false
+
+        const existing = messages.value[conversationId] || []
+        if (existing.length === 0) return false
+
+        const oldestMessage = existing[0]
+        loadingOlder.value = true
+
+        try {
+            const response = await api.get(`/messages/conversations/${conversationId}?limit=50&cursor=${oldestMessage.createdAt}`)
+            const olderMsgs = response.data.data || []
+
+            if (olderMsgs.length > 0) {
+                // Prepend older messages (they come in ASC order from .reverse())
+                messages.value[conversationId] = [...olderMsgs, ...existing]
+            }
+
+            hasMoreMessages.value[conversationId] = olderMsgs.length >= 50
+            return olderMsgs.length > 0
+        } catch (err) {
+            console.error('Failed to fetch older messages:', err)
+            return false
+        } finally {
+            loadingOlder.value = false
         }
     }
 
@@ -405,6 +438,9 @@ export const useChatStore = defineStore('chat', () => {
         updatePresence,
         isUserOnline,
         searchMessages,
-        clearSearch
+        clearSearch,
+        fetchOlderMessages,
+        hasMoreMessages,
+        loadingOlder
     }
 })

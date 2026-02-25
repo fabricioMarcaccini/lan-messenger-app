@@ -1,7 +1,7 @@
 import Router from 'koa-router';
 import bcrypt from 'bcrypt';
 import { db } from '../config/database.js';
-import { authMiddleware, adminMiddleware } from '../middlewares/auth.js';
+import { authMiddleware, adminMiddleware, createUserWithSeatLock } from '../middlewares/auth.js';
 
 const router = new Router();
 
@@ -100,9 +100,16 @@ router.get('/:id', async (ctx) => {
     };
 });
 
-// POST /api/users - Create new user (Admin only)
+// POST /api/users - Create new user (Admin only, SEAT-LOCKED)
+// Uses createUserWithSeatLock: a single PostgreSQL transaction that:
+//   1. Locks the company row (FOR UPDATE)
+//   2. Counts active users
+//   3. Blocks if limit reached
+//   4. INSERTs the user
+// All within ONE atomic transaction — immune to race conditions.
 router.post('/', adminMiddleware, async (ctx) => {
     const { username, email, password, fullName, role = 'user', department, position } = ctx.request.body;
+    const companyId = ctx.state.user.companyId;
 
     if (!username || !email || !password) {
         ctx.status = 400;
@@ -110,7 +117,13 @@ router.post('/', adminMiddleware, async (ctx) => {
         return;
     }
 
-    // Check if user exists
+    if (!companyId) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Usuário admin não está vinculado a nenhuma empresa' };
+        return;
+    }
+
+    // Check if user exists (outside the transaction — this is just a UX shortcut)
     const existing = await db.write(
         'SELECT id FROM users WHERE username = $1 OR email = $2',
         [username, email]
@@ -125,19 +138,30 @@ router.post('/', adminMiddleware, async (ctx) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const result = await db.write(
-        `INSERT INTO users (company_id, username, email, password_hash, full_name, role, department, position)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING id, username, email, full_name, role`,
-        [ctx.state.user.companyId, username, email, passwordHash, fullName, role, department, position]
-    );
+    try {
+        // 🔒 ATOMIC: Lock + Check + Insert in ONE transaction
+        const result = await createUserWithSeatLock(companyId, {
+            username, email, passwordHash, fullName, role, department, position
+        });
 
-    ctx.status = 201;
-    ctx.body = {
-        success: true,
-        message: 'Usuário criado com sucesso',
-        data: result.rows[0],
-    };
+        ctx.status = 201;
+        ctx.body = {
+            success: true,
+            message: `Usuário criado com sucesso (${result.seatInfo.activeUsers}/${result.seatInfo.maxSeats} seats usados)`,
+            data: result.user,
+            seatInfo: result.seatInfo,
+        };
+    } catch (error) {
+        const status = error.status || 500;
+        ctx.status = status;
+        ctx.body = {
+            success: false,
+            message: error.message,
+            code: error.code || 'USER_CREATION_FAILED',
+            ...(error.maxSeats && { maxSeats: error.maxSeats }),
+            ...(error.activeUsers !== undefined && { activeUsers: error.activeUsers }),
+        };
+    }
 });
 
 // PUT /api/users/:id - Update user

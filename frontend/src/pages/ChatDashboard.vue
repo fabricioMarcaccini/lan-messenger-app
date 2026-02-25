@@ -121,6 +121,13 @@
             </h2>
           </div>
           <button 
+            @click="themeStore.toggleTheme()"
+            class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-amber-500/20 hover:text-amber-500 flex items-center justify-center transition-colors text-gray-600 dark:text-white"
+            :title="themeStore.isDark ? 'Modo Claro' : 'Modo Escuro'"
+          >
+            <span class="material-symbols-outlined text-lg">{{ themeStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
+          </button>
+          <button 
             id="tour-new-chat"
             @click="showNewChatModal = true"
             class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
@@ -422,12 +429,21 @@
           @dragover.prevent="isDraggingFile = true"
           @dragleave.prevent="isDraggingFile = false"
           @drop.prevent="handleFileDrop"
+          @scroll="handleMessagesScroll"
         >
           <!-- Drag & Drop Overlay -->
           <div v-if="isDraggingFile" class="absolute inset-0 z-50 bg-primary/10 dark:bg-primary/20 border-2 border-dashed border-primary rounded-xl flex flex-col items-center justify-center backdrop-blur-sm pointer-events-none">
             <span class="material-symbols-outlined text-6xl text-primary mb-3 animate-bounce">upload_file</span>
             <p class="text-primary font-bold text-lg">Solte o arquivo aqui</p>
             <p class="text-primary/60 text-sm">Imagens, vídeos, documentos...</p>
+          </div>
+          <!-- Load older messages indicator -->
+          <div v-if="chatStore.loadingOlder" class="flex justify-center py-2">
+            <span class="material-symbols-outlined text-primary animate-spin text-xl">progress_activity</span>
+            <span class="text-xs text-gray-400 ml-2">Carregando mensagens anteriores...</span>
+          </div>
+          <div v-else-if="chatStore.hasMoreMessages[chatStore.activeConversationId]" class="flex justify-center py-1">
+            <span class="text-[10px] text-gray-400 dark:text-slate-500">↑ Role para cima para ver mais</span>
           </div>
           <template v-for="msg in chatStore.activeMessages" :key="msg.id">
 
@@ -1427,6 +1443,7 @@ import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useGroupCallStore } from '@/stores/groupCall'
+import { useThemeStore } from '@/stores/theme'
 import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
@@ -1440,6 +1457,7 @@ const usersStore = useUsersStore()
 const locale = useLocaleStore()
 const webrtcStore = useWebRTCStore()
 const groupCallStore = useGroupCallStore()
+const themeStore = useThemeStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 
 // Group call grid layout
@@ -1491,6 +1509,21 @@ function jumpToSearchResult(result) {
       setTimeout(() => msgEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2500)
     }
   }, 500)
+}
+
+// ====== Infinite Scroll — Load Older Messages ======
+async function handleMessagesScroll(event) {
+  const el = event.target
+  // Trigger when scrolled near top (within 80px)
+  if (el.scrollTop < 80 && chatStore.activeConversationId) {
+    const prevHeight = el.scrollHeight
+    const loaded = await chatStore.fetchOlderMessages(chatStore.activeConversationId)
+    if (loaded) {
+      // Maintain scroll position after prepending messages
+      await nextTick()
+      el.scrollTop = el.scrollHeight - prevHeight
+    }
+  }
 }
 
 // ====== Drag & Drop ======
