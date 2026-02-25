@@ -212,6 +212,133 @@ router.post('/create-portal-session', authMiddleware, async (ctx) => {
     }
 });
 
+// ─── POST /upgrade-seats ────────────────────────────────────────────────────
+// Smart upgrade: modifies existing subscription OR redirects to checkout
+router.post('/upgrade-seats', authMiddleware, async (ctx) => {
+    try {
+        const { seats, planId } = ctx.request.body;
+        const seatsNum = parseInt(seats, 10);
+
+        if (!seatsNum || seatsNum < 1 || seatsNum > 500) {
+            ctx.status = 400;
+            ctx.body = { success: false, message: 'Quantidade de seats inválida (1-500).' };
+            return;
+        }
+
+        const user = ctx.state.user;
+        let companyId = user.companyId;
+        if (!companyId) {
+            const u = await db.write('SELECT company_id FROM users WHERE id = $1', [user.id]);
+            companyId = u.rows[0]?.company_id;
+        }
+
+        if (!companyId) {
+            ctx.status = 400;
+            ctx.body = { success: false, message: 'Usuário não pertence a nenhuma empresa.' };
+            return;
+        }
+
+        const companyResult = await db.write(
+            'SELECT stripe_subscription_id, stripe_customer_id, plan_id FROM companies WHERE id = $1',
+            [companyId]
+        );
+        const company = companyResult.rows[0];
+
+        // ═══ CASE 1: Has active subscription → update quantity directly ═══
+        if (company?.stripe_subscription_id) {
+            const subscription = await stripe.subscriptions.retrieve(company.stripe_subscription_id);
+
+            if (subscription.status === 'active' || subscription.status === 'trialing') {
+                const itemId = subscription.items.data[0]?.id;
+
+                if (!itemId) {
+                    ctx.status = 500;
+                    ctx.body = { success: false, message: 'Subscription item não encontrado.' };
+                    return;
+                }
+
+                // Determine the price: keep current or switch to new plan
+                const updateParams = {
+                    items: [{
+                        id: itemId,
+                        quantity: seatsNum,
+                    }],
+                    proration_behavior: 'create_prorations', // Charges the diff immediately
+                    metadata: {
+                        company_id: companyId,
+                        seats: String(seatsNum),
+                    },
+                };
+
+                // If changing plan too (e.g. starter → max)
+                if (planId && PRICE_MAP[planId] && planId !== company.plan_id) {
+                    updateParams.items[0].price = PRICE_MAP[planId];
+                }
+
+                await stripe.subscriptions.update(company.stripe_subscription_id, updateParams);
+
+                // Update DB immediately (webhook will also fire, but we update now for instant UX)
+                await db.write(
+                    `UPDATE companies SET max_seats = $1, plan_id = COALESCE($2, plan_id), updated_at = NOW() WHERE id = $3`,
+                    [seatsNum, planId || company.plan_id, companyId]
+                );
+
+                console.log(`🔼 Company ${companyId} upgraded seats: ${seatsNum} (via API direct update)`);
+
+                ctx.body = {
+                    success: true,
+                    method: 'direct_update',
+                    message: `Plano atualizado para ${seatsNum} seats!`,
+                    newMaxSeats: seatsNum,
+                };
+                return;
+            }
+        }
+
+        // ═══ CASE 2: No subscription → redirect to checkout ═══
+        const effectivePlan = planId || company?.plan_id || 'starter';
+        const priceId = PRICE_MAP[effectivePlan];
+
+        if (!priceId) {
+            ctx.status = 500;
+            ctx.body = { success: false, message: `Price ID não configurado para o plano "${effectivePlan}".` };
+            return;
+        }
+
+        let stripeCustomerId = company?.stripe_customer_id;
+        if (!stripeCustomerId) {
+            const customer = await stripe.customers.create({
+                email: user.email,
+                metadata: { company_id: companyId },
+            });
+            stripeCustomerId = customer.id;
+            await db.write('UPDATE companies SET stripe_customer_id = $1 WHERE id = $2', [stripeCustomerId, companyId]);
+        }
+
+        const session = await stripe.checkout.sessions.create({
+            mode: 'subscription',
+            customer: stripeCustomerId,
+            line_items: [{ price: priceId, quantity: seatsNum }],
+            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/users?checkout=success&seats=${seatsNum}`,
+            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/users?checkout=cancel`,
+            metadata: { company_id: companyId, plan_id: effectivePlan, seats: String(seatsNum) },
+            subscription_data: { metadata: { company_id: companyId, plan_id: effectivePlan, seats: String(seatsNum) } },
+            allow_promotion_codes: true,
+            locale: 'pt-BR',
+        });
+
+        ctx.body = {
+            success: true,
+            method: 'checkout',
+            url: session.url,
+        };
+    } catch (error) {
+        console.error('❌ Upgrade Seats Error:', error.message);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Erro ao atualizar assinatura.', detail: process.env.NODE_ENV !== 'production' ? error.message : undefined };
+    }
+});
+
 // ─── GET /subscription-status ───────────────────────────────────────────────
 // Returns current plan info for the authenticated user's company
 router.get('/subscription-status', authMiddleware, async (ctx) => {

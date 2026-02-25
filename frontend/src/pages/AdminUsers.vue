@@ -487,14 +487,21 @@
             </button>
           </div>
 
+          <!-- Success feedback -->
+          <div v-if="upgradeSuccess" class="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 rounded-xl border border-green-200 dark:border-green-500/20 mb-3 text-sm font-semibold">
+            <span class="material-symbols-outlined">check_circle</span>
+            {{ upgradeSuccess }}
+          </div>
+
           <button
+            v-if="!upgradeSuccess"
             @click="handleUpgrade"
-            :disabled="subscriptionStore.checkoutLoading"
+            :disabled="upgradeLoading"
             class="w-full py-3.5 bg-gradient-to-r from-primary to-blue-500 hover:from-primary/90 hover:to-blue-500/90 text-white font-bold rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 text-sm"
           >
-            <span v-if="subscriptionStore.checkoutLoading" class="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+            <span v-if="upgradeLoading" class="material-symbols-outlined animate-spin text-lg">progress_activity</span>
             <span v-else class="material-symbols-outlined text-lg">shopping_cart</span>
-            {{ subscriptionStore.checkoutLoading ? 'Redirecionando...' : `Contratar ${upgradeSeats} seats — ${upgradePlanLabel}` }}
+            {{ upgradeLoading ? 'Processando...' : `Contratar ${upgradeSeats} seats — ${upgradePlanLabel}` }}
           </button>
 
           <button @click="showUpsellModal = false" class="w-full mt-3 py-2.5 text-gray-500 dark:text-slate-400 hover:text-gray-700 text-sm font-medium transition-colors">
@@ -657,9 +664,40 @@ async function handleCreateUser() {
   loadingCreate.value = false
 }
 
+const upgradeLoading = ref(false)
+const upgradeSuccess = ref('')
+
 async function handleUpgrade() {
-  const plan = subscriptionStore.currentPlan || 'starter'
-  await subscriptionStore.createCheckout(plan, upgradeSeats.value)
+  upgradeLoading.value = true
+  upgradeSuccess.value = ''
+  try {
+    const plan = subscriptionStore.currentPlan || 'starter'
+    const response = await api.post('/stripe/upgrade-seats', {
+      seats: upgradeSeats.value,
+      planId: plan,
+    })
+
+    if (response.data.success) {
+      if (response.data.method === 'direct_update') {
+        // ★ Subscription updated directly — instant feedback
+        upgradeSuccess.value = response.data.message
+        await subscriptionStore.fetchSubscriptionStatus()
+        setTimeout(() => {
+          showUpsellModal.value = false
+          upgradeSuccess.value = ''
+        }, 2000)
+      } else if (response.data.method === 'checkout' && response.data.url) {
+        // ★ No subscription yet — redirect to Stripe Checkout
+        window.location.href = response.data.url
+      }
+    } else {
+      alert(response.data.message || 'Erro ao atualizar plano')
+    }
+  } catch (err) {
+    alert(err.response?.data?.message || 'Erro ao processar upgrade')
+  } finally {
+    upgradeLoading.value = false
+  }
 }
 
 async function handleUpdateUser() {
