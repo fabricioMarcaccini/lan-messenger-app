@@ -165,4 +165,29 @@ router.get('/stats', async (ctx) => {
     };
 });
 
+// GET /api/network/ping/:ip - Ping a specific device
+router.get('/ping/:ip', async (ctx) => {
+    const { ip } = ctx.params;
+
+    // Validate IP format
+    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Endereço IP inválido.' };
+        return;
+    }
+
+    try {
+        const { measureLatency } = await import('../services/network.service.js');
+        const result = await measureLatency(ip);
+
+        ctx.body = {
+            success: true,
+            data: result,
+        };
+    } catch (error) {
+        ctx.status = 500;
+        ctx.body = { success: false, message: error.message };
+    }
+});
+
 export default router;
