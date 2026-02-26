@@ -13,7 +13,7 @@ export const useSocketStore = defineStore('socket', () => {
 
         if (socket.value?.connected) return
 
-        const socketUrl = import.meta.env.PROD ? 'https://lanly-backend.onrender.com' : undefined;
+        const socketUrl = import.meta.env.PROD ? 'https://lan-messenger-backend.onrender.com' : undefined;
         socket.value = io(socketUrl, {
             transports: ['websocket', 'polling'],
         })

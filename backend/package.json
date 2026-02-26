@@ -10,8 +10,8 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:billing": "node test_billing_seats.js",
     "test:billing:full": "node test_billing_full.js",
-    "test:billing:prod": "node test_billing_seats.js https://lanly-backend.onrender.com",
-    "test:billing:full:prod": "node test_billing_full.js https://lanly-backend.onrender.com"
+    "test:billing:prod": "node test_billing_seats.js https://lan-messenger-backend.onrender.com",
+    "test:billing:full:prod": "node test_billing_full.js https://lan-messenger-backend.onrender.com"
   },
   "dependencies": {
     "@koa/cors": "^5.0.0",

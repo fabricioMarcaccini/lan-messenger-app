@@ -2355,7 +2355,7 @@ async function transcribeAudio(msg) {
 
 
 const API_BASE = import.meta.env.PROD 
-  ? 'https://lanly-backend.onrender.com' 
+  ? 'https://lan-messenger-backend.onrender.com' 
   : 'http://localhost:3000'
 
 function getApiUrl(filePath) {
