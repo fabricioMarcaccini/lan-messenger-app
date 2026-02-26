@@ -1,4 +1,4 @@
--- LAN Messenger Database Schema
+-- Lanly Database Schema
 -- PostgreSQL Primary Database
 
 -- Enable UUID extension

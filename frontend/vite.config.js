@@ -9,20 +9,20 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             manifest: {
-                name: 'LAN Messenger',
-                short_name: 'LANMsg',
-                description: 'Enterprise LAN Messenger Web App',
+                name: 'Lanly',
+                short_name: 'Lanly',
+                description: 'Enterprise Lanly Web App',
                 theme_color: '#0f2023',
                 background_color: '#ffffff',
                 display: 'standalone',
                 icons: [
                     {
-                        src: '/icon.svg',
+                        src: '/lanly-logo.png',
                         sizes: 'any',
                         type: 'image/svg+xml'
                     },
                     {
-                        src: '/icon.svg',
+                        src: '/lanly-logo.png',
                         sizes: '512x512',
                         type: 'image/svg+xml'
                     }

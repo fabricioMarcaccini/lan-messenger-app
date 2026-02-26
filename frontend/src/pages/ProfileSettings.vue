@@ -26,7 +26,7 @@
       <nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
         <div class="flex flex-col gap-1">
           <router-link to="/network" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-primary transition-colors">hub</span>
+            <img src="/lanly-logo.png" alt="Lanly Logo" class="h-6 w-6 object-contain filter grayscale group-hover:grayscale-0 transition-all" />
             <span class="text-sm font-medium">{{ locale.t.nav.network }}</span>
           </router-link>
           

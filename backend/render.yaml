@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lan-messenger-backend
+    name: lanly-backend
     env: node
     region: ohio
     plan: free

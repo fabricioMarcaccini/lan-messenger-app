@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: 'lan-messenger-api',
+            name: 'lanly-api',
             script: 'src/app.js',
             instances: 'max', // or a specific number of instances like 2
             exec_mode: 'cluster',

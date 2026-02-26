@@ -12,7 +12,7 @@ async function askOpenRouter(systemInstruction, prompt, apiKey) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
             'HTTP-Referer': 'https://lan-messenger.local', // Required by OpenRouter
-            'X-Title': 'LAN Messenger App' // Required by OpenRouter
+            'X-Title': 'Lanly App' // Required by OpenRouter
         },
         body: JSON.stringify({
             model: 'arcee-ai/trinity-large-preview:free',

@@ -6,10 +6,10 @@
         <div class="flex items-center gap-8">
           <router-link to="/" class="flex items-center gap-3">
             <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <span class="material-symbols-outlined text-3xl">hub</span>
+              <img src="/lanly-logo.png" alt="Lanly Logo" class="h-6 w-6 object-contain" />
             </div>
             <div>
-              <h2 class="text-xl font-bold leading-none tracking-tight text-gray-900 dark:text-white">LAN Messenger</h2>
+              <h2 class="text-xl font-bold leading-none tracking-tight text-gray-900 dark:text-white">Lanly</h2>
               <span class="text-xs font-medium text-primary/80 neon-text">ENTERPRISE</span>
             </div>
           </router-link>

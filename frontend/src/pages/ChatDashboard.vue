@@ -26,7 +26,7 @@
       <nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
         <div class="flex flex-col gap-1">
           <router-link to="/network" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-primary transition-colors">hub</span>
+            <img src="/lanly-logo.png" alt="Lanly Logo" class="h-6 w-6 object-contain filter grayscale group-hover:grayscale-0 transition-all" />
             <span class="text-sm font-medium">{{ locale.t.nav.network }}</span>
           </router-link>
           
@@ -2355,7 +2355,7 @@ async function transcribeAudio(msg) {
 
 
 const API_BASE = import.meta.env.PROD 
-  ? 'https://lan-messenger-backend.onrender.com' 
+  ? 'https://lanly-backend.onrender.com' 
   : 'http://localhost:3000'
 
 function getApiUrl(filePath) {
@@ -2786,7 +2786,7 @@ onMounted(async () => {
           doneBtnText: 'Pronto!',
           progressText: 'Passo {{current}} de {{total}}',
           steps: [
-            { element: '#tour-conversations', popover: { title: 'Bem-vindo ao LAN Messenger!', description: 'Sua plataforma de comunicação corporativa rápida e segura.', side: "bottom", align: 'start' }},
+            { element: '#tour-conversations', popover: { title: 'Bem-vindo ao Lanly!', description: 'Sua plataforma de comunicação corporativa rápida e segura.', side: "bottom", align: 'start' }},
             { element: '#tour-new-chat', popover: { title: 'Inicie ou Crie Canais', description: 'Clique aqui para buscar usuários, iniciar um chat ou criar grupos e canais abertos da empresa.', side: "bottom", align: 'end' }},
             { popover: { title: 'Área de Trabalho', description: 'Selecione uma conversa ou canal à esquerda para interagir. Use o painel central para ler mensagens antigas e enviar novas respostas.' }},
             { element: '#tour-network', popover: { title: 'Rede Local', description: 'Descubra rapidamente os dispositivos conectados na mesma rede local de sua sede.', side: "right", align: 'center' }}

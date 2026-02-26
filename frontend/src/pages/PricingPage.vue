@@ -13,7 +13,7 @@
           <div class="relative">
             <div class="absolute -inset-2 bg-primary/30 rounded-full blur-xl opacity-40"></div>
             <div class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-white dark:bg-[#13181b] border border-gray-200 dark:border-white/10 shadow-lg">
-              <span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1, 'wght' 600;">hub</span>
+              <img src="/lanly-logo.png" alt="Lanly Logo" class="h-8 w-8 object-contain" />
             </div>
           </div>
         </div>

@@ -11,7 +11,7 @@
         <div class="relative group mb-6">
           <div class="absolute -inset-2 bg-primary/30 rounded-full blur-xl opacity-40 group-hover:opacity-60 transition duration-500"></div>
           <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-[#13181b] border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-2xl">
-            <span class="material-symbols-outlined text-primary text-4xl group-hover:scale-110 transition-transform duration-300" style="font-variation-settings: 'FILL' 1, 'wght' 600;">hub</span>
+            <img src="/lanly-logo.png" alt="Lanly Logo" class="h-10 w-10 object-contain" />
           </div>
         </div>
         <h1 class="text-gray-900 dark:text-white tracking-tight text-3xl font-bold leading-tight text-center mb-2">{{ locale.t.login.title }}</h1>

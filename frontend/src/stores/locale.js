@@ -79,7 +79,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             login: {
                 title: 'Enterprise Connect',
-                subtitle: 'Secure LAN Messenger Access',
+                subtitle: 'Secure Lanly Access',
                 username: 'Employee ID / Username',
                 password: 'Password',
                 remember: 'Remember me',
@@ -115,7 +115,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             pricing: {
                 title: 'Choose your plan',
-                subtitle: 'Your trial has expired. Subscribe to continue using LAN Messenger with your team.',
+                subtitle: 'Your trial has expired. Subscribe to continue using Lanly with your team.',
                 trialExpired: 'Trial expired',
                 seatsLabel: 'How many users (seats) do you need?',
                 users: 'users',
@@ -269,7 +269,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             login: {
                 title: 'Enterprise Connect',
-                subtitle: 'Acesso Seguro LAN Messenger',
+                subtitle: 'Acesso Seguro Lanly',
                 username: 'ID Funcionário / Usuário',
                 password: 'Senha',
                 remember: 'Lembrar de mim',
@@ -305,7 +305,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             pricing: {
                 title: 'Escolha seu plano',
-                subtitle: 'Seu trial expirou. Assine para continuar usando o LAN Messenger com sua equipe.',
+                subtitle: 'Seu trial expirou. Assine para continuar usando o Lanly com sua equipe.',
                 trialExpired: 'Trial expirado',
                 seatsLabel: 'Quantos usuários (seats) você precisa?',
                 users: 'usuários',
@@ -393,6 +393,9 @@ export const useLocaleStore = defineStore('locale', () => {
                 admin: 'Admin',
                 scanner: 'Escáner',
                 scannerTools: 'Herramientas de Red',
+                name: 'Lanly',
+                short_name: 'Lanly',
+                description: 'Enterprise Lanly Web App',
                 viewAll: 'Ver todos los dispositivos'
             },
             chat: {
@@ -449,7 +452,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             login: {
                 title: 'Enterprise Connect',
-                subtitle: 'Acceso Seguro LAN Messenger',
+                subtitle: 'Acceso Seguro Lanly',
                 username: 'ID Empleado / Usuario',
                 password: 'Password',
                 remember: 'Recuérdame',
@@ -478,7 +481,7 @@ export const useLocaleStore = defineStore('locale', () => {
             },
             pricing: {
                 title: 'Elige tu plan',
-                subtitle: 'Tu prueba ha expirado. Suscríbete para seguir usando LAN Messenger.',
+                subtitle: 'Tu prueba ha expirado. Suscríbete para seguir usando Lanly.',
                 trialExpired: 'Prueba expirada',
                 seatsLabel: '¿Cuántos usuarios (seats) necesitas?',
                 users: 'usuarios',

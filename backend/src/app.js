@@ -254,7 +254,7 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, async () => {
     const startupStr = `
 ╔════════════════════════════════════════════════════════════╗
-║                   LAN MESSENGER SERVER                      ║
+║                   LANLY APP SERVER                          ║
 ╠════════════════════════════════════════════════════════════╣
 ║  🚀 Server running on http://localhost:${PORT}               ║
 ║  📡 Socket.IO enabled                                        ║

@@ -4,10 +4,13 @@
     <header class="glass-header sticky top-0 z-50 flex items-center justify-between whitespace-nowrap px-6 py-4 lg:px-10 bg-white dark:bg-transparent border-b border-gray-200 dark:border-white/10">
       <div class="flex items-center gap-8">
         <router-link to="/" class="flex items-center gap-3 text-gray-900 dark:text-white">
-          <div class="size-8 flex items-center justify-center text-primary drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]">
-            <span class="material-symbols-outlined text-3xl">hub</span>
+          <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <img src="/lanly-logo.png" alt="Lanly Logo" class="h-6 w-6 object-contain" />
           </div>
-          <h2 class="text-gray-900 dark:text-white text-xl font-bold leading-tight tracking-tight">LAN <span class="text-primary">Messenger</span></h2>
+          <div>
+            <h2 class="text-xl font-bold leading-none tracking-tight text-gray-900 dark:text-white">Lanly</h2>
+            <span class="text-xs font-medium text-primary/80 neon-text">ENTERPRISE</span>
+          </div>
         </router-link>
         
         <nav class="hidden md:flex items-center gap-6">
