@@ -43,7 +43,9 @@ const httpServer = createServer(app.callback());
 const allowedOrigins = [
     process.env.FRONTEND_URL,
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://app.lanly.com.br',
+    'https://lanly.com.br'
 ].filter(Boolean);
 
 const verifyOrigin = (ctx) => {
