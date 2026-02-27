@@ -32,23 +32,50 @@ const pgPool = new pg.Pool({
 });
 
 // Redis Client (Cache & Sessions fallback)
-const redisUrl = process.env.REDIS_URL;
-const redisConfig = redisUrl
-    ? redisUrl
-    : {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT) || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
+const shouldUseRedis = Boolean(
+    process.env.REDIS_URL ||
+    (process.env.REDIS_HOST && process.env.REDIS_HOST !== 'localhost')
+);
+
+let redis = null;
+if (shouldUseRedis) {
+    const redisUrl = process.env.REDIS_URL;
+    const redisConfig = redisUrl
+        ? redisUrl
+        : {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+            password: process.env.REDIS_PASSWORD || undefined,
+        };
+
+    const redisOptions = {
+        retryDelayOnFailover: 100,
+        maxRetriesPerRequest: 1,
     };
 
-const redis = new Redis(redisConfig, {
-    retryDelayOnFailover: 100,
-    maxRetriesPerRequest: 1,
-});
+    // Upstash requires TLS. Support explicit REDIS_TLS and auto-detect for upstash/rediss URLs.
+    const shouldUseTls = (
+        process.env.REDIS_TLS === 'true' ||
+        (typeof redisConfig === 'string' && (
+            redisConfig.startsWith('rediss://') ||
+            redisConfig.includes('upstash.io')
+        ))
+    );
+    if (shouldUseTls) {
+        redisOptions.tls = {};
+    }
+
+    redis = new Redis(redisConfig, redisOptions);
+
+    // Prevent unhandled error event crashes/noise in environments without Redis availability
+    redis.on('error', (err) => {
+        console.error('Redis client error:', err.message);
+    });
+}
 
 // Memory Cache Fallback for free-tier Render deployments
 const memoryCache = new Map();
-const fallbackEnabled = (!process.env.REDIS_URL && !process.env.REDIS_HOST) || process.env.REDIS_HOST === 'localhost';
+const fallbackEnabled = !shouldUseRedis;
 
 // Database utility functions
 export const db = {
@@ -104,6 +131,7 @@ export const cache = {
 
     async keys(pattern) {
         if (fallbackEnabled) return [];
+        if (!redis) return [];
         try { return await redis.keys(pattern); } catch (e) { return []; }
     },
 
@@ -150,11 +178,13 @@ export async function checkDatabaseConnections() {
         console.error('PostgreSQL connection failed:', e.message);
     }
 
-    try {
-        await redis.ping();
-        results.redis = true;
-    } catch (e) {
-        console.error('Redis connection failed:', e.message);
+    if (redis) {
+        try {
+            await redis.ping();
+            results.redis = true;
+        } catch (e) {
+            console.error('Redis connection failed:', e.message);
+        }
     }
 
     return results;

@@ -24,10 +24,10 @@ services:
         value: "3aqBVNegUSPLUxEKCjtAcVARGNNS4doT"
       - key: MYSQL_HOST
         value: "localhost" # Not strictly required if Supabase fallback is triggered
-      - key: REDIS_HOST
-        value: "localhost"
-      - key: REDIS_PORT
-        value: "6379"
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_TLS
+        value: "true"
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES
