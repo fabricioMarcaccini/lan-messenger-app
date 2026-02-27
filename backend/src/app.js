@@ -287,6 +287,7 @@ httpServer.listen(PORT, async () => {
         if (dbStatus.postgres) {
             console.log('🔄 Executando sincronização de esquema segura no PostgreSQL...');
             const { db } = await import('./config/database.js');
+            await db.write('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
             await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS group_admins UUID[] DEFAULT '{}'");
             await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS description TEXT");
             await db.write("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS creator_id UUID");
@@ -312,6 +313,7 @@ httpServer.listen(PORT, async () => {
             // Feature: Status personalizado
             await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status_emoji VARCHAR(10)');
             await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status_text VARCHAR(100)');
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status_expires_at TIMESTAMP');
             await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS ooo_until TIMESTAMP');
             await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS ooo_message VARCHAR(255)');
 
@@ -326,6 +328,11 @@ httpServer.listen(PORT, async () => {
                     UNIQUE(message_id, user_id, option_index)
                 )
             `);
+            await db.write('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES messages(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS option_index INTEGER');
+            await db.write('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_poll_votes_message ON poll_votes(message_id)');
 
             // Feature: Reuniões
             await db.write(`
@@ -342,6 +349,16 @@ httpServer.listen(PORT, async () => {
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES users(id) ON DELETE SET NULL');
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS title VARCHAR(255)');
+            await db.write("ALTER TABLE meetings ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''");
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS start_at TIMESTAMP');
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS end_at TIMESTAMP');
+            await db.write("ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_link TEXT DEFAULT ''");
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await db.write('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()');
             await db.write(`
                 CREATE TABLE IF NOT EXISTS meeting_rsvps (
                     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -352,6 +369,12 @@ httpServer.listen(PORT, async () => {
                     UNIQUE(meeting_id, user_id)
                 )
             `);
+            await db.write('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE');
+            await db.write("ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'");
+            await db.write('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_meetings_company_start ON meetings(company_id, start_at)');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_meeting_rsvps_meeting ON meeting_rsvps(meeting_id)');
 
             // Feature: Auditoria
             await db.write(`
@@ -366,6 +389,15 @@ httpServer.listen(PORT, async () => {
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_id UUID REFERENCES users(id) ON DELETE SET NULL');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(100)');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_type VARCHAR(50)');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_id UUID');
+            await db.write("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'");
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT');
+            await db.write('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
             await db.write('CREATE INDEX IF NOT EXISTS idx_audit_logs_company ON audit_logs(company_id)');
             await db.write('CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC)');
 
@@ -381,6 +413,12 @@ httpServer.listen(PORT, async () => {
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             `);
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES messages(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS mentioned_user_id UUID REFERENCES users(id) ON DELETE CASCADE');
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS mentioner_id UUID REFERENCES users(id) ON DELETE SET NULL');
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false');
+            await db.write('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()');
             await db.write('CREATE INDEX IF NOT EXISTS idx_mentions_user ON mentions(mentioned_user_id)');
 
             console.log('✅ Novas Funcionalidades (Bot, Fixar, Enquetes, Reuniões, Auditoria, Menções, Status) Sincronizadas!');

@@ -38,6 +38,10 @@ async function runMigration() {
                 UNIQUE(message_id, user_id, option_index)
             );
         `);
+        await client.query('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES messages(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS option_index INTEGER;');
+        await client.query('ALTER TABLE poll_votes ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
         await client.query('CREATE INDEX IF NOT EXISTS idx_poll_votes_message ON poll_votes(message_id);');
 
         console.log('-- Feature 4: Mentions --');
@@ -52,6 +56,12 @@ async function runMigration() {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS message_id UUID REFERENCES messages(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS mentioned_user_id UUID REFERENCES users(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS mentioner_id UUID REFERENCES users(id) ON DELETE SET NULL;');
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false;');
+        await client.query('ALTER TABLE mentions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
         await client.query('CREATE INDEX IF NOT EXISTS idx_mentions_user ON mentions(mentioned_user_id, is_read, created_at DESC);');
         await client.query('CREATE INDEX IF NOT EXISTS idx_mentions_conversation ON mentions(conversation_id);');
 
@@ -81,6 +91,16 @@ async function runMigration() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
         `);
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS creator_id UUID REFERENCES users(id) ON DELETE SET NULL;');
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS title VARCHAR(255);');
+        await client.query("ALTER TABLE meetings ADD COLUMN IF NOT EXISTS description TEXT;");
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS start_at TIMESTAMP;');
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS end_at TIMESTAMP;');
+        await client.query("ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_link TEXT DEFAULT '';");
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
+        await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();');
         await client.query(`
             CREATE TABLE IF NOT EXISTS meeting_rsvps (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -91,6 +111,10 @@ async function runMigration() {
                 UNIQUE(meeting_id, user_id)
             );
         `);
+        await client.query('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;');
+        await client.query("ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';");
+        await client.query('ALTER TABLE meeting_rsvps ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
         await client.query('CREATE INDEX IF NOT EXISTS idx_meetings_company_start ON meetings(company_id, start_at);');
         await client.query('CREATE INDEX IF NOT EXISTS idx_meeting_rsvps_meeting ON meeting_rsvps(meeting_id);');
 
@@ -109,6 +133,15 @@ async function runMigration() {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_id UUID REFERENCES users(id) ON DELETE SET NULL;');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(100);');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_type VARCHAR(50);');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_id UUID;');
+        await client.query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;");
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT;');
+        await client.query('ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
         await client.query('CREATE INDEX IF NOT EXISTS idx_audit_logs_company_created ON audit_logs(company_id, created_at DESC);');
         await client.query('CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id, created_at DESC);');
 
