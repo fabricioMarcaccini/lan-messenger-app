@@ -6,6 +6,44 @@ const router = new Router();
 
 router.use(authMiddleware);
 
+async function askLanlyBotReply(message, context = []) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) return null;
+
+    const history = context
+        .slice(-10)
+        .map((item) => `- ${(item.sender_username || item.sender_name || 'User')}: ${item.content || ''}`)
+        .join('\n');
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://lan-messenger.local',
+            'X-Title': 'Lanly Bot'
+        },
+        body: JSON.stringify({
+            model: 'arcee-ai/trinity-large-preview:free',
+            temperature: 0.3,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Você é o @lanly, um assistente corporativo. Responda em português-BR e de forma objetiva.'
+                },
+                {
+                    role: 'user',
+                    content: `Histórico:\n${history || '(sem histórico)'}\n\nMensagem:\n${message}\n\nResponda como @lanly em até 5 linhas.`
+                }
+            ]
+        })
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.choices?.[0]?.message?.content?.trim() || null;
+}
+
 // GET /api/messages/conversations
 router.get('/conversations', async (ctx) => {
     const userId = ctx.state.user.id;
@@ -23,7 +61,7 @@ router.get('/conversations', async (ctx) => {
 
     const conversations = await Promise.all(result.rows.map(async (conv) => {
         const participantResult = await db.write(
-            'SELECT id, username, full_name, avatar_url FROM users WHERE id = ANY($1)',
+            'SELECT id, username, full_name, avatar_url, custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message FROM users WHERE id = ANY($1)',
             [conv.participant_ids]
         );
         return {
@@ -222,6 +260,7 @@ router.get('/conversations/:id', async (ctx) => {
     let query = `
         SELECT m.id, m.sender_id, m.content, m.content_type, m.file_url, m.is_read, m.is_deleted,
                m.edited_at, m.created_at, m.reply_to, m.reactions, m.expires_at,
+               m.is_pinned, m.pinned_at, m.pinned_by,
                u.username as sender_username, u.full_name as sender_name, u.avatar_url as sender_avatar
         FROM messages m
         JOIN users u ON u.id = m.sender_id
@@ -238,10 +277,31 @@ router.get('/conversations/:id', async (ctx) => {
     params.push(parseInt(limit));
 
     const result = await db.write(query, params);
+    const rows = result.rows.reverse();
+
+    const pollMessageIds = rows.filter((m) => m.content_type === 'poll').map((m) => m.id);
+    const pollResultsMap = {};
+    if (pollMessageIds.length > 0) {
+        const votesResult = await db.write(
+            `SELECT message_id, option_index, array_agg(user_id) as users
+             FROM poll_votes
+             WHERE message_id = ANY($1::uuid[])
+             GROUP BY message_id, option_index`,
+            [pollMessageIds]
+        );
+
+        for (const voteRow of votesResult.rows) {
+            if (!pollResultsMap[voteRow.message_id]) pollResultsMap[voteRow.message_id] = [];
+            pollResultsMap[voteRow.message_id].push({
+                optionIndex: voteRow.option_index,
+                userIds: voteRow.users || []
+            });
+        }
+    }
 
     ctx.body = {
         success: true,
-        data: result.rows.reverse().map(m => ({
+        data: rows.map(m => ({
             id: m.id,
             senderId: m.sender_id,
             senderUsername: m.sender_username,
@@ -257,6 +317,10 @@ router.get('/conversations/:id', async (ctx) => {
             replyTo: m.reply_to,
             reactions: m.reactions || {},
             expiresAt: m.expires_at,
+            isPinned: m.is_pinned,
+            pinnedAt: m.pinned_at,
+            pinnedBy: m.pinned_by,
+            pollResults: pollResultsMap[m.id] || [],
         })).filter(m => !m.expiresAt || new Date(m.expiresAt) > new Date()),
     };
 });
@@ -266,6 +330,7 @@ router.post('/conversations/:id', async (ctx) => {
     const { id } = ctx.params;
     const { content, contentType = 'text', fileUrl, replyTo = null, expiresIn = null } = ctx.request.body;
     const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
 
     if (!content) {
         ctx.status = 400;
@@ -324,13 +389,88 @@ router.post('/conversations/:id', async (ctx) => {
         expiresAt
     };
 
+    // Feature: Menções (@username)
+    const mentionRegex = /@([a-zA-Z0-9_\.]+)/g;
+    const mentionedUsernames = typeof content === 'string'
+        ? [...new Set(Array.from(content.matchAll(mentionRegex), (m) => m[1]))]
+        : [];
     const io = ctx.app.context.io;
+
+    if (mentionedUsernames.length > 0) {
+        const usersResult = await db.write(
+            'SELECT id, username, full_name FROM users WHERE company_id = $1 AND username = ANY($2)',
+            [companyId, mentionedUsernames]
+        );
+        for (const u of usersResult.rows) {
+            // Apenas insere se o usuário mencionado estiver na conversa
+            if (convCheck.rows[0].participant_ids.includes(u.id)) {
+                await db.write(
+                    `INSERT INTO mentions (message_id, conversation_id, mentioned_user_id, mentioner_id)
+                     VALUES ($1, $2, $3, $4)`,
+                    [message.id, id, u.id, userId]
+                );
+                if (io) {
+                    io.to(`user:${u.id}`).emit('mention:new', {
+                        messageId: message.id,
+                        conversationId: id,
+                        mentionerUsername: sender.username,
+                        mentionerName: sender.full_name,
+                        content,
+                        createdAt: message.created_at
+                    });
+                }
+            }
+        }
+    }
+
     if (io) {
         convCheck.rows[0].participant_ids.forEach(participantId => {
             if (participantId !== userId) {
                 io.to(`user:${participantId}`).emit('message:new', messageData);
             }
         });
+
+        // Feature: Bot @lanly (via OpenRouter)
+        if (typeof content === 'string' && /(^|\s)@lanly\b/i.test(content)) {
+            try {
+                const contextRows = await db.write(`
+                    SELECT m.content, u.username as sender_username, u.full_name as sender_name
+                    FROM messages m
+                    JOIN users u ON u.id = m.sender_id
+                    WHERE m.conversation_id = $1
+                    ORDER BY m.created_at DESC
+                    LIMIT 10
+                `, [id]);
+
+                const botReply = await askLanlyBotReply(content, contextRows.rows.reverse());
+                if (botReply) {
+                    const botMessage = {
+                        id: `bot-${Date.now()}`,
+                        conversationId: id,
+                        senderId: 'lanly-bot',
+                        senderUsername: 'lanly',
+                        senderName: 'Lanly Bot',
+                        senderAvatar: null,
+                        content: botReply,
+                        contentType: 'text',
+                        isRead: false,
+                        isDeleted: false,
+                        editedAt: null,
+                        createdAt: new Date().toISOString(),
+                        replyTo: null,
+                        reactions: {},
+                        expiresAt: null
+                    };
+
+                    io.to(`conversation:${id}`).emit('bot:reply', botMessage);
+                    convCheck.rows[0].participant_ids.forEach((participantId) => {
+                        io.to(`user:${participantId}`).emit('bot:reply', botMessage);
+                    });
+                }
+            } catch (error) {
+                console.error('@lanly bot error:', error.message);
+            }
+        }
     }
 
     ctx.status = 201;
@@ -638,6 +778,287 @@ router.get('/online-users', async (ctx) => {
     }
 
     ctx.body = { success: true, data: onlineStatuses };
+});
+
+// ==========================================
+// FEATURE: ARQUIVOS INLINE
+// ==========================================
+// GET /api/messages/conversations/:id/files
+router.get('/conversations/:id/files', async (ctx) => {
+    const { id } = ctx.params;
+    const userId = ctx.state.user.id;
+
+    const convCheck = await db.write(
+        'SELECT id FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [id, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado' };
+        return;
+    }
+
+    const { limit = 20, offset = 0 } = ctx.query;
+
+    const result = await db.write(`
+        SELECT m.id, m.content, m.content_type, m.file_url, m.created_at,
+               u.full_name as sender_name
+        FROM messages m
+        JOIN users u ON u.id = m.sender_id
+        WHERE m.conversation_id = $1
+          AND m.is_deleted = false
+          AND m.content_type IN ('image', 'video', 'pdf', 'file')
+        ORDER BY m.created_at DESC
+        LIMIT $2 OFFSET $3
+    `, [id, parseInt(limit), parseInt(offset)]);
+
+    ctx.body = { success: true, data: result.rows };
+});
+
+// ==========================================
+// FEATURE: MENSAGENS FIXADAS
+// ==========================================
+// GET /api/messages/conversations/:id/pinned
+router.get('/conversations/:id/pinned', async (ctx) => {
+    const { id } = ctx.params;
+    const userId = ctx.state.user.id;
+
+    const convCheck = await db.write(
+        'SELECT id FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [id, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado' };
+        return;
+    }
+
+    const result = await db.write(`
+        SELECT m.id, m.content, m.content_type, m.created_at, m.pinned_at,
+               u.full_name as pinned_by_name
+        FROM messages m
+        LEFT JOIN users u ON u.id = m.pinned_by
+        WHERE m.conversation_id = $1 AND m.is_pinned = true AND m.is_deleted = false
+        ORDER BY m.pinned_at DESC LIMIT 1
+    `, [id]);
+
+    ctx.body = { success: true, data: result.rows[0] || null };
+});
+
+// PUT /api/messages/:id/pin
+router.put('/:id/pin', async (ctx) => {
+    const { id } = ctx.params;
+    const userId = ctx.state.user.id;
+
+    const msgCheck = await db.write(
+        'SELECT m.conversation_id, m.is_pinned, c.group_admins, c.is_group ' +
+        'FROM messages m JOIN conversations c ON c.id = m.conversation_id ' +
+        'WHERE m.id = $1 AND $2 = ANY(c.participant_ids)',
+        [id, userId]
+    );
+
+    if (msgCheck.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Mensagem não encontrada ou acesso negado' };
+        return;
+    }
+
+    const conv = msgCheck.rows[0];
+    if (conv.is_group && !(conv.group_admins || []).includes(userId)) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Apenas admins do grupo podem fixar mensagens' };
+        return;
+    }
+
+    const isPinned = !conv.is_pinned; // Toggle
+
+    if (isPinned) {
+        // Desfixar todas as anteriores deste chat (apenas 1 fixada por vez via app)
+        await db.write('UPDATE messages SET is_pinned = false WHERE conversation_id = $1', [conv.conversation_id]);
+    }
+
+    await db.write(
+        'UPDATE messages SET is_pinned = $1, pinned_by = $2, pinned_at = $3 WHERE id = $4',
+        [isPinned, isPinned ? userId : null, isPinned ? new Date() : null, id]
+    );
+
+    const io = ctx.app.context.io;
+    if (io) {
+        io.to(`conversation:${conv.conversation_id}`).emit('message:pinned', {
+            messageId: id,
+            conversationId: conv.conversation_id,
+            isPinned,
+            pinnedBy: isPinned ? userId : null
+        });
+    }
+
+    ctx.body = { success: true, message: isPinned ? 'Mensagem fixada' : 'Mensagem desfixada' };
+});
+
+// ==========================================
+// FEATURE: ENQUETES
+// ==========================================
+// POST /api/messages/conversations/:id/poll
+router.post('/conversations/:id/poll', async (ctx) => {
+    const { id } = ctx.params;
+    const { question, options, multiChoice = false, expiresIn = null } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    if (!question || !Array.isArray(options) || options.length < 2) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Pergunta e no mínimo 2 opções são obrigatórias' };
+        return;
+    }
+
+    const convCheck = await db.write(
+        'SELECT participant_ids FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [id, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado' };
+        return;
+    }
+
+    const pollData = {
+        question,
+        options: options.map(opt => ({ text: String(opt), votes: 0 })),
+        multiChoice
+    };
+
+    const content = JSON.stringify(pollData);
+
+    let expiresAt = null;
+    if (expiresIn) expiresAt = new Date(Date.now() + expiresIn * 1000);
+
+    const result = await db.write(
+        `INSERT INTO messages (conversation_id, sender_id, content, content_type, expires_at)
+         VALUES ($1, $2, $3, 'poll', $4) RETURNING id, created_at`,
+        [id, userId, content, expiresAt]
+    );
+
+    const message = result.rows[0];
+    await db.write(
+        'UPDATE conversations SET last_message_id = $2, last_message_at = $3 WHERE id = $1',
+        [id, message.id, message.created_at]
+    );
+
+    const senderResult = await db.write('SELECT username, full_name, avatar_url FROM users WHERE id = $1', [userId]);
+    const sender = senderResult.rows[0];
+
+    const messageData = {
+        id: message.id,
+        conversationId: id,
+        senderId: userId,
+        senderUsername: sender.username,
+        senderName: sender.full_name,
+        senderAvatar: sender.avatar_url,
+        content,
+        contentType: 'poll',
+        createdAt: message.created_at,
+        pollResults: [] // empty
+    };
+
+    const io = ctx.app.context.io;
+    if (io) {
+        (convCheck.rows[0]?.participant_ids || []).forEach(participantId => {
+            if (participantId !== userId) {
+                io.to(`user:${participantId}`).emit('message:new', messageData);
+            }
+        });
+    }
+
+    ctx.status = 201;
+    ctx.body = { success: true, data: messageData };
+});
+
+// POST /api/messages/:id/vote (Enquetes)
+router.post('/:id/vote', async (ctx) => {
+    const { id } = ctx.params;
+    const { optionIndex } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    if (optionIndex === undefined) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Índice da opção é obrigatório' };
+        return;
+    }
+
+    const msgCheck = await db.write('SELECT conversation_id, content, content_type, expires_at FROM messages WHERE id = $1', [id]);
+    if (msgCheck.rows.length === 0 || msgCheck.rows[0].content_type !== 'poll') {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Enquete não encontrada' };
+        return;
+    }
+
+    const msg = msgCheck.rows[0];
+    const accessCheck = await db.write(
+        'SELECT id FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [msg.conversation_id, userId]
+    );
+    if (accessCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado à enquete' };
+        return;
+    }
+
+    if (msg.expires_at && new Date() > new Date(msg.expires_at)) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'A enquete já expirou' };
+        return;
+    }
+
+    const pollData = JSON.parse(msg.content);
+    if (optionIndex < 0 || optionIndex >= pollData.options.length) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Opção inválida' };
+        return;
+    }
+
+    if (!pollData.multiChoice) {
+        // Remove previous vote for this user on this poll
+        await db.write('DELETE FROM poll_votes WHERE message_id = $1 AND user_id = $2', [id, userId]);
+    }
+
+    // Toggle vote logic
+    const existingVote = await db.write(
+        'SELECT id FROM poll_votes WHERE message_id = $1 AND user_id = $2 AND option_index = $3',
+        [id, userId, optionIndex]
+    );
+
+    if (existingVote.rows.length > 0) {
+        await db.write('DELETE FROM poll_votes WHERE id = $1', [existingVote.rows[0].id]);
+    } else {
+        await db.write(
+            'INSERT INTO poll_votes (message_id, user_id, option_index) VALUES ($1, $2, $3)',
+            [id, userId, optionIndex]
+        );
+    }
+
+    // Recalculate all votes
+    const votesResult = await db.write(
+        'SELECT option_index, array_agg(user_id) as users FROM poll_votes WHERE message_id = $1 GROUP BY option_index',
+        [id]
+    );
+
+    const pollResults = votesResult.rows.map(r => ({
+        optionIndex: r.option_index,
+        userIds: r.users
+    })).sort((a, b) => a.optionIndex - b.optionIndex);
+
+    const io = ctx.app.context.io;
+    if (io) {
+        io.to(`conversation:${msg.conversation_id}`).emit('poll:updated', {
+            messageId: id,
+            conversationId: msg.conversation_id,
+            pollResults
+        });
+    }
+
+    ctx.body = { success: true, data: pollResults };
 });
 
 export default router;

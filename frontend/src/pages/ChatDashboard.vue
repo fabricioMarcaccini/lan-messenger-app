@@ -14,6 +14,9 @@
               :style="{ backgroundImage: `url(${authStore.user?.avatarUrl || defaultAvatar})` }"
             ></div>
             <div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-white dark:border-background-dark"></div>
+            <div v-if="authStore.user?.customStatusEmoji" class="absolute -top-1 -right-1 size-5 rounded-full bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 flex items-center justify-center text-[11px]">
+              {{ authStore.user.customStatusEmoji }}
+            </div>
           </div>
           <div class="flex flex-col">
             <h1 class="text-gray-900 dark:text-white text-base font-bold leading-tight tracking-tight">{{ authStore.user?.fullName || authStore.user?.username }}</h1>
@@ -33,7 +36,12 @@
           <a class="flex items-center gap-3 px-3 py-3 rounded-xl bg-primary/10 text-gray-900 dark:text-white border border-primary/20 shadow-sm dark:shadow-neon" href="#">
             <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">chat</span>
             <span class="text-sm font-medium">{{ locale.t.nav.chat }}</span>
-            <span v-if="unreadCount > 0" class="ml-auto bg-primary text-white dark:text-background-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ unreadCount }}</span>
+            <div class="ml-auto flex items-center gap-1">
+              <span v-if="chatStore.unreadMentions > 0" class="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full" :title="`${chatStore.unreadMentions} menções não lidas`">
+                @{{ chatStore.unreadMentions }}
+              </span>
+              <span v-if="unreadCount > 0" class="bg-primary text-white dark:text-background-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ unreadCount }}</span>
+            </div>
           </a>
           
           <router-link to="/settings" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
@@ -355,6 +363,12 @@
             <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
               <span class="material-symbols-outlined text-[22px]">checklist</span>
             </button>
+            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 flex items-center justify-center transition-colors" title="Criar enquete">
+              <span class="material-symbols-outlined text-xl">poll</span>
+            </button>
+            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
+              <span class="material-symbols-outlined text-xl">event</span>
+            </button>
             
             <!-- P2P Call Buttons -->
             <button 
@@ -388,6 +402,12 @@
             </button>
             <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
               <span class="material-symbols-outlined text-[22px]">checklist</span>
+            </button>
+            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 flex items-center justify-center transition-colors" title="Criar enquete">
+              <span class="material-symbols-outlined text-xl">poll</span>
+            </button>
+            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
+              <span class="material-symbols-outlined text-xl">event</span>
             </button>
             
             <button 
@@ -446,6 +466,18 @@
               <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
             </button>
           </div>
+        </div>
+
+        <!-- Pinned message banner -->
+        <div v-if="chatStore.pinnedMessage" class="mx-4 mt-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center gap-3">
+          <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">keep</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-[11px] font-bold text-amber-700 dark:text-amber-400">Mensagem fixada</p>
+            <p class="text-xs text-amber-700/80 dark:text-amber-300 truncate">{{ chatStore.pinnedMessage.content }}</p>
+          </div>
+          <button @click="scrollToMessage(chatStore.pinnedMessage.id)" class="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors">
+            Ir
+          </button>
         </div>
 
         <!-- Messages -->
@@ -600,10 +632,51 @@
                         {{ msg.aiTranslation }}
                       </div>
                     </div>
+
+                    <!-- Poll Message -->
+                    <div v-else-if="msg.contentType === 'poll'" class="p-3 min-w-[260px] max-w-md">
+                      <div class="rounded-xl border border-violet-300/40 dark:border-violet-500/30 bg-violet-50/70 dark:bg-violet-500/10 p-3">
+                        <p class="text-[11px] font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wide mb-2">Enquete</p>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-100 mb-3">{{ parsePoll(msg.content).question }}</p>
+                        <div class="flex flex-col gap-2">
+                          <button
+                            v-for="(opt, optIdx) in parsePoll(msg.content).options"
+                            :key="`${msg.id}-${optIdx}`"
+                            @click="voteInPoll(msg, optIdx)"
+                            class="w-full text-left px-3 py-2 rounded-lg border transition-colors text-xs"
+                            :class="isOptionSelected(msg, optIdx) ? 'border-violet-500 bg-violet-500/20 text-violet-800 dark:text-violet-100' : 'border-violet-300/40 dark:border-violet-500/20 hover:bg-violet-500/10 text-gray-700 dark:text-slate-200'"
+                          >
+                            <div class="flex items-center justify-between gap-3">
+                              <span class="truncate">{{ opt.text }}</span>
+                              <span class="font-bold text-[10px]">{{ getPollVotesCount(msg, optIdx) }}</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Meeting Message -->
+                    <div v-else-if="msg.contentType === 'meeting'" class="p-3 min-w-[260px] max-w-md">
+                      <div class="rounded-xl border border-indigo-300/40 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-500/10 p-3">
+                        <p class="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide mb-2">Reunião agendada</p>
+                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">{{ parseMeeting(msg.content).title || 'Reunião' }}</p>
+                        <p class="text-xs text-gray-600 dark:text-slate-300 mt-1">{{ formatMeetingDate(parseMeeting(msg.content).startAt) }}</p>
+                        <p v-if="parseMeeting(msg.content).description" class="text-xs text-gray-600 dark:text-slate-300 mt-2 line-clamp-2">{{ parseMeeting(msg.content).description }}</p>
+                        <a
+                          v-if="parseMeeting(msg.content).meetingLink"
+                          :href="parseMeeting(msg.content).meetingLink"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="mt-3 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:underline"
+                        >
+                          Entrar no link <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                        </a>
+                      </div>
+                    </div>
                     
                     <!-- Image Message -->
                     <div v-else-if="msg.contentType === 'image'" class="p-1">
-                      <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImage(getApiUrl(msg.content))" />
+                      <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImageLightbox(getApiUrl(msg.content))" />
                     </div>
 
                     <!-- Audio Message -->
@@ -644,6 +717,9 @@
                 <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 transition-opacity">
                   <button v-if="(!msg.contentType || msg.contentType === 'text') && !msg.aiTranslation" @click="translateMessage(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500" title="Traduzir Mensagem (IA)"><span class="material-symbols-outlined text-[14px]" :class="msg.isTranslating ? 'animate-spin' : ''">{{ msg.isTranslating ? 'progress_activity' : 'translate' }}</span></button>
                   <button @click="startReply(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-cyan-500" title="Responder"><span class="material-symbols-outlined text-[14px]">reply</span></button>
+                  <button @click="togglePin(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-amber-500" title="Fixar/Desfixar">
+                    <span class="material-symbols-outlined text-[14px]">keep</span>
+                  </button>
                   <button v-if="msg.senderId === authStore.user?.id && (!msg.contentType || msg.contentType === 'text')" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
                   <button v-if="msg.senderId === authStore.user?.id" @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
                 </div>
@@ -1113,7 +1189,7 @@
            <div class="grid grid-cols-3 gap-2 mb-3">
               <template v-for="msg in chatStore.activeMessages">
                  <div v-if="msg.contentType === 'image'" :key="msg.id" class="aspect-square bg-gray-100 dark:bg-black/20 rounded-lg overflow-hidden cursor-pointer">
-                    <img :src="getApiUrl(msg.content)" class="w-full h-full object-cover" @click="openImage(getApiUrl(msg.content))">
+                    <img :src="getApiUrl(msg.content)" class="w-full h-full object-cover" @click="openImageLightbox(getApiUrl(msg.content))">
                  </div>
               </template>
            </div>
@@ -1144,20 +1220,20 @@
 
         <!-- FILES TAB: pdfs, docs, archives, etc -->
         <div v-if="infoTab === 'files'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
-           <template v-for="msg in chatStore.activeMessages">
-              <div v-if="msg.contentType && !['text','image','audio','video','call','deleted'].includes(msg.contentType)" :key="msg.id" class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20">
+           <template v-for="msg in chatStore.conversationFiles" :key="msg.id">
+              <div class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20">
                  <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span class="material-symbols-outlined text-primary" v-if="msg.contentType === 'pdf'">picture_as_pdf</span>
+                    <span class="material-symbols-outlined text-primary" v-if="msg.content_type === 'pdf'">picture_as_pdf</span>
                     <span class="material-symbols-outlined text-primary" v-else>description</span>
                  </div>
                  <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-xs font-medium text-gray-800 dark:text-slate-200 truncate">{{ getFileName(msg.content) }}</span>
-                    <span class="text-[10px] text-gray-400">{{ formatTime(msg.createdAt) }}</span>
+                    <span class="text-xs font-medium text-gray-800 dark:text-slate-200 truncate">{{ getFileName(msg.file_url || msg.content) }}</span>
+                    <span class="text-[10px] text-gray-400">{{ formatTime(msg.created_at || msg.createdAt) }}</span>
                  </div>
-                 <a :href="getApiUrl(msg.content)" target="_blank" download class="text-xs text-primary hover:underline flex-shrink-0">Baixar</a>
+                 <a :href="getApiUrl(msg.file_url || msg.content)" target="_blank" download class="text-xs text-primary hover:underline flex-shrink-0">Baixar</a>
               </div>
            </template>
-           <div v-if="chatStore.activeMessages.filter(m => m.contentType && !['text','image','audio','video','call','deleted'].includes(m.contentType)).length === 0" class="text-center text-xs text-gray-400 py-4">Nenhum arquivo compartilhado.</div>
+           <div v-if="chatStore.conversationFiles.length === 0" class="text-center text-xs text-gray-400 py-4">Nenhum arquivo compartilhado.</div>
         </div>
 
         <!-- CALLS TAB: call logs -->
@@ -1494,6 +1570,59 @@
       </div>
     </div>
 
+    <!-- Image Lightbox -->
+    <div v-if="lightboxImageUrl" class="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4" @click="lightboxImageUrl = ''">
+      <button class="absolute top-4 right-4 text-white/80 hover:text-white" @click.stop="lightboxImageUrl = ''">
+        <span class="material-symbols-outlined text-3xl">close</span>
+      </button>
+      <img :src="lightboxImageUrl" class="max-w-[95vw] max-h-[90vh] rounded-xl shadow-2xl" @click.stop />
+    </div>
+
+    <!-- Create Poll Modal -->
+    <div v-if="showPollModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click="showPollModal = false">
+      <div class="w-full max-w-lg bg-white dark:bg-[#10181c] rounded-2xl border border-gray-200 dark:border-white/10 p-6" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Nova enquete</h3>
+          <button @click="showPollModal = false" class="text-gray-400 hover:text-gray-700 dark:hover:text-white">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <input v-model="pollForm.question" type="text" placeholder="Pergunta da enquete" class="w-full mb-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <div class="space-y-2 mb-4">
+          <input v-for="(_, idx) in pollForm.options" :key="idx" v-model="pollForm.options[idx]" type="text" :placeholder="`Opção ${idx + 1}`" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        </div>
+        <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300 mb-4">
+          <input v-model="pollForm.multiChoice" type="checkbox" />
+          Permitir múltiplas escolhas
+        </label>
+        <button @click="createPollMessage" class="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm">
+          Criar enquete
+        </button>
+      </div>
+    </div>
+
+    <!-- Create Meeting Modal -->
+    <div v-if="showMeetingModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click="showMeetingModal = false">
+      <div class="w-full max-w-lg bg-white dark:bg-[#10181c] rounded-2xl border border-gray-200 dark:border-white/10 p-6" @click.stop>
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Agendar reunião</h3>
+          <button @click="showMeetingModal = false" class="text-gray-400 hover:text-gray-700 dark:hover:text-white">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <input v-model="meetingForm.title" type="text" placeholder="Título" class="w-full mb-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <textarea v-model="meetingForm.description" rows="2" placeholder="Descrição (opcional)" class="w-full mb-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white"></textarea>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <input v-model="meetingForm.startAt" type="datetime-local" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+          <input v-model="meetingForm.endAt" type="datetime-local" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        </div>
+        <input v-model="meetingForm.meetingLink" type="url" placeholder="Link da reunião (opcional)" class="w-full mb-4 px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <button @click="createMeetingMessage" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm">
+          Criar reunião
+        </button>
+      </div>
+    </div>
+
     <!-- AI Insights Modal -->
     <div v-if="showInsightsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity" @click="showInsightsModal = false">
       <div 
@@ -1757,6 +1886,21 @@ const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const showMobileSidebar = ref(false)
 const fileInput = ref(null)
+const lightboxImageUrl = ref('')
+const showPollModal = ref(false)
+const showMeetingModal = ref(false)
+const pollForm = ref({
+  question: '',
+  options: ['', ''],
+  multiChoice: false,
+})
+const meetingForm = ref({
+  title: '',
+  description: '',
+  startAt: '',
+  endAt: '',
+  meetingLink: '',
+})
 
 const showMagicMenu = ref(false)
 const isProcessingMagic = ref(false)
@@ -1788,6 +1932,56 @@ const unreadCount = computed(() =>
   chatStore.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
 )
 // ... computed properties ...
+
+const CACHE_DB_NAME = 'lanly-chat-cache'
+const CACHE_STORE_NAME = 'conversation_messages'
+
+function openCacheDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      resolve(null)
+      return
+    }
+
+    const request = window.indexedDB.open(CACHE_DB_NAME, 1)
+    request.onupgradeneeded = () => {
+      const db = request.result
+      if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
+        db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'conversationId' })
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function saveCachedMessages(conversationId, msgs) {
+  if (!conversationId || !Array.isArray(msgs)) return
+  const db = await openCacheDb()
+  if (!db) return
+
+  const tx = db.transaction(CACHE_STORE_NAME, 'readwrite')
+  const store = tx.objectStore(CACHE_STORE_NAME)
+  store.put({
+    conversationId,
+    messages: msgs.slice(-50),
+    updatedAt: Date.now(),
+  })
+}
+
+async function loadCachedMessages(conversationId) {
+  if (!conversationId) return []
+  const db = await openCacheDb()
+  if (!db) return []
+
+  return new Promise((resolve) => {
+    const tx = db.transaction(CACHE_STORE_NAME, 'readonly')
+    const store = tx.objectStore(CACHE_STORE_NAME)
+    const request = store.get(conversationId)
+    request.onsuccess = () => resolve(request.result?.messages || [])
+    request.onerror = () => resolve([])
+  })
+}
 
 const filteredChannels = computed(() => {
   if (!searchQuery.value) return chatStore.conversations.filter(c => c.isGroup)
@@ -1847,9 +2041,15 @@ async function joinChannel(channelId) {
   }
 }
 
-function selectConversation(id) {
+async function selectConversation(id) {
+  const cached = await loadCachedMessages(id)
+  if (cached.length > 0) {
+    chatStore.hydrateConversationMessages(id, cached)
+  }
   chatStore.setActiveConversation(id)
   socketStore.joinConversation(id)
+  await chatStore.fetchPinnedMessage(id)
+  await chatStore.fetchConversationFiles(id)
 }
 
 async function startConversation(userId) {
@@ -1889,6 +2089,8 @@ async function leaveGroup() {
 
 async function sendMessage() {
   if (!newMessage.value.trim() && !editingMessageId.value && !replyingToMessage.value && !chatStore.activeConversationId) return
+  const textToSend = newMessage.value.trim()
+  const mentionsLanly = /(^|\s)@lanly\b/i.test(textToSend)
   
   // Stop typing indicator immediately
   if (typingTimeout) clearTimeout(typingTimeout)
@@ -1901,11 +2103,16 @@ async function sendMessage() {
         await chatStore.editMessage(editingMessageId.value, newMessage.value)
     }
     editingMessageId.value = null
-  } else if (newMessage.value.trim()) {
-    await chatStore.sendMessage(chatStore.activeConversationId, newMessage.value, 'text', {
+  } else if (textToSend) {
+    await chatStore.sendMessage(chatStore.activeConversationId, textToSend, 'text', {
         replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
         expiresIn: messageExpiresIn.value
     })
+
+    // Fallback bot reply when socket is unavailable
+    if (mentionsLanly && !socketStore.connected) {
+      await requestLanlyReply(textToSend)
+    }
   }
   
   newMessage.value = ''
@@ -1918,6 +2125,38 @@ async function sendMessage() {
   // Reset textarea height
   const textarea = document.querySelector('textarea')
   if (textarea) textarea.style.height = 'auto'
+}
+
+async function requestLanlyReply(messageText) {
+  try {
+    const context = chatStore.activeMessages.slice(-10).map((m) => ({
+      senderUsername: m.senderUsername,
+      senderName: m.senderName,
+      content: m.content,
+    }))
+    const response = await api.post('/ai/bot-reply', {
+      message: messageText,
+      context,
+      conversationId: chatStore.activeConversationId,
+    })
+
+    if (response.data?.success && response.data?.data?.reply) {
+      chatStore.addMessage(chatStore.activeConversationId, {
+        id: `bot-local-${Date.now()}`,
+        conversationId: chatStore.activeConversationId,
+        senderId: 'lanly-bot',
+        senderUsername: 'lanly',
+        senderName: 'Lanly Bot',
+        senderAvatar: null,
+        content: response.data.data.reply,
+        contentType: 'text',
+        createdAt: response.data.data.createdAt || new Date().toISOString(),
+        reactions: {},
+      })
+    }
+  } catch (error) {
+    console.warn('Lanly fallback reply failed:', error.message)
+  }
 }
 
 function startEdit(msg) {
@@ -2353,6 +2592,120 @@ async function transcribeAudio(msg) {
   }
 }
 
+function parsePoll(content) {
+  try {
+    const parsed = JSON.parse(content || '{}')
+    return {
+      question: parsed.question || 'Enquete',
+      options: Array.isArray(parsed.options) ? parsed.options : [],
+      multiChoice: !!parsed.multiChoice,
+    }
+  } catch {
+    return { question: 'Enquete', options: [], multiChoice: false }
+  }
+}
+
+function getPollVotesCount(msg, optionIndex) {
+  const results = msg.pollResults || []
+  const found = results.find(r => Number(r.optionIndex) === Number(optionIndex))
+  return found?.userIds?.length || 0
+}
+
+function isOptionSelected(msg, optionIndex) {
+  const results = msg.pollResults || []
+  const found = results.find(r => Number(r.optionIndex) === Number(optionIndex))
+  return !!found?.userIds?.includes(authStore.user?.id)
+}
+
+async function voteInPoll(msg, optionIndex) {
+  try {
+    const pollResults = await chatStore.votePoll(msg.id, optionIndex)
+    chatStore.updatePollResults(msg.conversationId || chatStore.activeConversationId, msg.id, pollResults)
+  } catch (error) {
+    alert(error.response?.data?.message || 'Não foi possível registrar seu voto.')
+  }
+}
+
+async function createPollMessage() {
+  if (!chatStore.activeConversationId) return
+
+  const validOptions = pollForm.value.options.map(o => o.trim()).filter(Boolean)
+  if (!pollForm.value.question.trim() || validOptions.length < 2) {
+    alert('Informe uma pergunta e pelo menos 2 opções.')
+    return
+  }
+
+  try {
+    const created = await chatStore.createPoll(chatStore.activeConversationId, {
+      question: pollForm.value.question.trim(),
+      options: validOptions,
+      multiChoice: pollForm.value.multiChoice,
+    })
+    if (created) {
+      chatStore.addMessage(chatStore.activeConversationId, created)
+    }
+    showPollModal.value = false
+    pollForm.value = { question: '', options: ['', ''], multiChoice: false }
+    nextTick(scrollToBottom)
+  } catch (error) {
+    alert(error.response?.data?.message || 'Erro ao criar enquete.')
+  }
+}
+
+function parseMeeting(content) {
+  try {
+    const parsed = JSON.parse(content || '{}')
+    return {
+      meetingId: parsed.meetingId || null,
+      title: parsed.title || 'Reunião',
+      description: parsed.description || '',
+      startAt: parsed.startAt || null,
+      endAt: parsed.endAt || null,
+      meetingLink: parsed.meetingLink || '',
+    }
+  } catch {
+    return { meetingId: null, title: 'Reunião', description: '', startAt: null, endAt: null, meetingLink: '' }
+  }
+}
+
+function formatMeetingDate(dateStr) {
+  if (!dateStr) return 'Sem horário definido'
+  const dt = new Date(dateStr)
+  return dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+async function createMeetingMessage() {
+  if (!chatStore.activeConversationId) return
+  if (!meetingForm.value.title.trim() || !meetingForm.value.startAt) {
+    alert('Título e início da reunião são obrigatórios.')
+    return
+  }
+
+  try {
+    await api.post('/meetings', {
+      conversationId: chatStore.activeConversationId,
+      title: meetingForm.value.title.trim(),
+      description: meetingForm.value.description?.trim() || '',
+      startAt: new Date(meetingForm.value.startAt).toISOString(),
+      endAt: meetingForm.value.endAt ? new Date(meetingForm.value.endAt).toISOString() : null,
+      meetingLink: meetingForm.value.meetingLink?.trim() || '',
+    })
+
+    showMeetingModal.value = false
+    meetingForm.value = { title: '', description: '', startAt: '', endAt: '', meetingLink: '' }
+  } catch (error) {
+    alert(error.response?.data?.message || 'Erro ao criar reunião.')
+  }
+}
+
+async function togglePin(messageId) {
+  try {
+    await chatStore.pinMessage(messageId)
+  } catch (error) {
+    alert(error.response?.data?.message || 'Não foi possível fixar/desfixar a mensagem.')
+  }
+}
+
 
 const API_BASE = import.meta.env.PROD 
   ? 'https://lan-messenger-backend.onrender.com' 
@@ -2377,8 +2730,8 @@ function getFileName(path) {
   return path.split('/').pop().split('-').slice(1).join('-') || path.split('/').pop()
 }
 
-function openImage(url) {
-  window.open(url, '_blank')
+function openImageLightbox(url) {
+  lightboxImageUrl.value = url
 }
 
 function scrollToBottom(force) {
@@ -2446,6 +2799,15 @@ watch(() => chatStore.activeMessages.length, () => {
   nextTick(scrollToBottom)
 })
 
+watch(() => chatStore.activeConversationId, async (conversationId) => {
+  if (!conversationId) {
+    chatStore.pinnedMessage = null
+    return
+  }
+  await chatStore.fetchPinnedMessage(conversationId)
+  await chatStore.fetchConversationFiles(conversationId)
+})
+
 // Process read receipts when active conversation changes or new messages arrive
 watch(() => chatStore.activeMessages, (messages) => {
   if (!messages || messages.length === 0) return;
@@ -2467,6 +2829,16 @@ watch(() => chatStore.activeMessages, (messages) => {
     if (conv) conv.unreadCount = 0
   }
 }, { deep: true })
+
+watch(
+  () => [chatStore.activeConversationId, chatStore.activeMessages.length],
+  () => {
+    if (chatStore.activeConversationId) {
+      saveCachedMessages(chatStore.activeConversationId, chatStore.activeMessages)
+    }
+  },
+  { deep: false }
+)
 
 async function handleLogout() {
   socketStore.disconnect()
@@ -2703,6 +3075,62 @@ function handleMessageRead(event) {
   }
 }
 
+function handleMessagePinned(event) {
+  const data = event.detail
+  if (!data?.conversationId) return
+
+  if (data.conversationId === chatStore.activeConversationId) {
+    chatStore.fetchPinnedMessage(data.conversationId)
+  }
+  chatStore.setPinnedMessage(data)
+}
+
+function handlePollUpdated(event) {
+  const data = event.detail
+  if (data?.conversationId && data?.messageId) {
+    chatStore.updatePollResults(data.conversationId, data.messageId, data.pollResults || [])
+  }
+}
+
+function handleMentionNew(event) {
+  const data = event.detail || {}
+  chatStore.unreadMentions += 1
+
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Você foi mencionado', {
+      body: `${data.mentionerName || data.mentionerUsername || 'Alguém'}: ${data.content || ''}`,
+      icon: '/lanly-logo.png'
+    })
+  }
+}
+
+function handleBotReply(event) {
+  const message = event.detail
+  if (!message?.conversationId) return
+  chatStore.addMessage(message.conversationId, message)
+  if (message.conversationId === chatStore.activeConversationId) {
+    nextTick(scrollToBottom)
+  }
+}
+
+function handleUserStatusChanged(event) {
+  const data = event.detail || {}
+  const { userId } = data
+  if (!userId) return
+
+  chatStore.conversations.forEach((conv) => {
+    conv.participants?.forEach((p) => {
+      if (p.id === userId) {
+        p.custom_status_text = data.customStatusText || null
+        p.custom_status_emoji = data.customStatusEmoji || null
+        p.custom_status_expires_at = data.customStatusExpiresAt || null
+        p.ooo_until = data.oooUntil || null
+        p.ooo_message = data.oooMessage || null
+      }
+    })
+  })
+}
+
 // Handle WebRTC Call Signaling
 function handleCallOffer(event) {
   const data = event.detail
@@ -2735,6 +3163,7 @@ onMounted(async () => {
   await networkStore.fetchDevices()
   await usersStore.fetchUsers(1, '')
   await chatStore.fetchOnlineUsers()
+  await chatStore.fetchMentions()
   
   // Refresh online status periodically (every 30s)
   const presenceInterval = setInterval(() => chatStore.fetchOnlineUsers(), 30000)
@@ -2747,6 +3176,11 @@ onMounted(async () => {
   window.addEventListener('socket:message:deleted', handleMessageDeleted)
   window.addEventListener('socket:message:reaction', handleMessageReaction)
   window.addEventListener('socket:message:read', handleMessageRead)
+  window.addEventListener('socket:message:pinned', handleMessagePinned)
+  window.addEventListener('socket:poll:updated', handlePollUpdated)
+  window.addEventListener('socket:mention:new', handleMentionNew)
+  window.addEventListener('socket:bot:reply', handleBotReply)
+  window.addEventListener('socket:user:status-changed', handleUserStatusChanged)
   
   window.addEventListener('socket:call:offer', handleCallOffer)
   window.addEventListener('socket:call:answer', handleCallAnswer)
@@ -2809,6 +3243,11 @@ onUnmounted(() => {
   window.removeEventListener('socket:message:deleted', handleMessageDeleted)
   window.removeEventListener('socket:message:reaction', handleMessageReaction)
   window.removeEventListener('socket:message:read', handleMessageRead)
+  window.removeEventListener('socket:message:pinned', handleMessagePinned)
+  window.removeEventListener('socket:poll:updated', handlePollUpdated)
+  window.removeEventListener('socket:mention:new', handleMentionNew)
+  window.removeEventListener('socket:bot:reply', handleBotReply)
+  window.removeEventListener('socket:user:status-changed', handleUserStatusChanged)
   
   window.removeEventListener('socket:call:offer', handleCallOffer)
   window.removeEventListener('socket:call:answer', handleCallAnswer)

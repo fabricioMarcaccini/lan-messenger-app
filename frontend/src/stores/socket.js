@@ -67,6 +67,22 @@ export const useSocketStore = defineStore('socket', () => {
             window.dispatchEvent(new CustomEvent('socket:message:read', { detail: data }))
         })
 
+        socket.value.on('message:pinned', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:message:pinned', { detail: data }))
+        })
+
+        socket.value.on('poll:updated', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:poll:updated', { detail: data }))
+        })
+
+        socket.value.on('mention:new', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:mention:new', { detail: data }))
+        })
+
+        socket.value.on('bot:reply', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:bot:reply', { detail: data }))
+        })
+
         socket.value.on('call:offer', (data) => {
             window.dispatchEvent(new CustomEvent('socket:call:offer', { detail: data }))
         })
@@ -131,6 +147,10 @@ export const useSocketStore = defineStore('socket', () => {
 
         socket.value.on('presence:change', (data) => {
             window.dispatchEvent(new CustomEvent('socket:presence', { detail: data }))
+        })
+
+        socket.value.on('user:status-changed', (data) => {
+            window.dispatchEvent(new CustomEvent('socket:user:status-changed', { detail: data }))
         })
     }
 

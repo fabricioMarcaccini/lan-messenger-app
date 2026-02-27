@@ -16,6 +16,7 @@
         <nav class="hidden md:flex items-center gap-6">
           <router-link to="/" class="text-gray-500 dark:text-slate-400 hover:text-primary transition-colors text-sm font-medium">Dashboard</router-link>
           <a class="text-gray-900 dark:text-white text-sm font-medium" href="#">{{ locale.t.admin?.title || 'Users' }}</a>
+          <router-link to="/admin/analytics" class="text-gray-500 dark:text-slate-400 hover:text-primary transition-colors text-sm font-medium">Analytics</router-link>
           <router-link to="/settings" class="text-gray-500 dark:text-slate-400 hover:text-primary transition-colors text-sm font-medium">{{ locale.t.nav.settings }}</router-link>
         </nav>
       </div>
@@ -194,10 +195,18 @@
               :placeholder="locale.t.admin?.searchUsers || 'Search users by name, email or role...'"
             />
           </div>
+          <div class="flex items-center gap-2">
+            <button @click="activeAdminTab = 'users'" :class="['px-3 py-2 rounded-lg text-xs font-bold transition-colors', activeAdminTab === 'users' ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400']">
+              Usuários
+            </button>
+            <button @click="switchToAuditTab" :class="['px-3 py-2 rounded-lg text-xs font-bold transition-colors', activeAdminTab === 'audit' ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400']">
+              Audit Log
+            </button>
+          </div>
         </div>
         
         <!-- Data Table -->
-        <div class="bg-white dark:bg-glass-surface rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-white/5">
+        <div v-if="activeAdminTab === 'users'" class="bg-white dark:bg-glass-surface rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-white/5">
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -291,6 +300,40 @@
               >
                 <span class="material-symbols-outlined text-[20px]">chevron_right</span>
               </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="bg-white dark:bg-glass-surface rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-white/5">
+          <div class="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+            <p class="text-sm font-semibold text-gray-800 dark:text-white">Registros de auditoria</p>
+            <button @click="fetchAuditLogs" class="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-bold">
+              Atualizar
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-50 dark:bg-black/20 border-b border-gray-200 dark:border-white/5 text-xs uppercase tracking-wider text-gray-500 dark:text-slate-400 font-semibold">
+                  <th class="px-4 py-3">Data</th>
+                  <th class="px-4 py-3">Ator</th>
+                  <th class="px-4 py-3">Ação</th>
+                  <th class="px-4 py-3">Alvo</th>
+                  <th class="px-4 py-3">Detalhes</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-white/5 text-sm">
+                <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                  <td class="px-4 py-3 text-xs text-gray-500 dark:text-slate-400">{{ formatAuditDate(log.created_at) }}</td>
+                  <td class="px-4 py-3 text-gray-800 dark:text-slate-200">{{ log.actor_name || log.actor_username || 'Sistema' }}</td>
+                  <td class="px-4 py-3 text-primary font-semibold">{{ log.action }}</td>
+                  <td class="px-4 py-3 text-gray-600 dark:text-slate-300">{{ log.target_type || '-' }}</td>
+                  <td class="px-4 py-3 text-xs text-gray-500 dark:text-slate-400">{{ toAuditSummary(log.metadata) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="auditLogs.length === 0" class="py-8 text-center text-sm text-gray-400">
+              Nenhum log de auditoria encontrado.
             </div>
           </div>
         </div>
@@ -537,6 +580,8 @@ const searchQuery = ref('')
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showUpsellModal = ref(false)
+const activeAdminTab = ref('users')
+const auditLogs = ref([])
 const upgradeSeats = ref(25)
 const loadingCreate = ref(false)
 const loadingEdit = ref(false)
@@ -625,6 +670,32 @@ function formatResetDate(dateStr) {
 function formatNumber(num) {
   if (num >= 1000) return `${(num / 1000).toFixed(1)}k`
   return num
+}
+
+function formatAuditDate(dateStr) {
+  if (!dateStr) return '-'
+  return new Date(dateStr).toLocaleString('pt-BR')
+}
+
+function toAuditSummary(metadata) {
+  if (!metadata) return '-'
+  const text = JSON.stringify(metadata)
+  return text.length > 90 ? `${text.slice(0, 90)}...` : text
+}
+
+async function fetchAuditLogs() {
+  try {
+    const response = await api.get('/audit', { params: { limit: 100 } })
+    auditLogs.value = response.data?.data || []
+  } catch (error) {
+    console.error('Failed to fetch audit logs:', error)
+    auditLogs.value = []
+  }
+}
+
+async function switchToAuditTab() {
+  activeAdminTab.value = 'audit'
+  await fetchAuditLogs()
 }
 
 function handleSearch() {

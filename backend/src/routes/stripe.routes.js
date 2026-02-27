@@ -2,6 +2,7 @@ import Router from 'koa-router';
 import Stripe from 'stripe';
 import { db } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
+import { writeAuditLog } from '../middlewares/audit.middleware.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -285,6 +286,22 @@ router.post('/upgrade-seats', authMiddleware, async (ctx) => {
                     [seatsNum, planId || company.plan_id, companyId]
                 );
 
+                await writeAuditLog({
+                    companyId,
+                    actorId: user.id,
+                    action: 'billing.plan_or_seats.updated',
+                    targetType: 'company',
+                    targetId: companyId,
+                    metadata: {
+                        fromPlan: company.plan_id,
+                        toPlan: planId || company.plan_id,
+                        seats: seatsNum,
+                        source: 'api_upgrade_seats',
+                    },
+                    ipAddress: ctx.ip,
+                    userAgent: ctx.get('user-agent') || null,
+                });
+
                 console.log(`🔼 Company ${companyId} upgraded seats: ${seatsNum} (via API direct update)`);
 
                 ctx.body = {
@@ -487,6 +504,20 @@ async function handleCheckoutCompleted(session) {
         [planId, stripeCustomerId, subscriptionId, seats, companyId]
     );
 
+    await writeAuditLog({
+        companyId,
+        actorId: null,
+        action: 'billing.checkout.completed',
+        targetType: 'company',
+        targetId: companyId,
+        metadata: {
+            planId,
+            seats,
+            subscriptionId,
+            affiliateRef: affiliateRef || null,
+        },
+    });
+
     console.log(`🎉 Company ${companyId} upgraded to "${planId}" with ${seats} seats (affiliate: ${affiliateRef || 'none'})`);
 }
 
@@ -557,6 +588,20 @@ async function updateCompanyFromSubscription(companyId, subscription) {
         params
     );
 
+    await writeAuditLog({
+        companyId,
+        actorId: null,
+        action: 'billing.subscription.updated',
+        targetType: 'company',
+        targetId: companyId,
+        metadata: {
+            stripeStatus: subscription.status,
+            mappedStatus: subscriptionStatus,
+            seats: newQuantity,
+            planId: planId || null,
+        },
+    });
+
     console.log(`🔄 Company ${companyId} subscription updated: status=${subscriptionStatus}, seats=${newQuantity}, plan=${planId || 'unchanged'}`);
 }
 
@@ -591,6 +636,18 @@ async function handleSubscriptionDeleted(subscription) {
          WHERE id = $1`,
         [targetId]
     );
+
+    await writeAuditLog({
+        companyId: targetId,
+        actorId: null,
+        action: 'billing.subscription.deleted',
+        targetType: 'company',
+        targetId,
+        metadata: {
+            subscriptionId: subscription.id,
+            previousStatus: subscription.status,
+        },
+    });
 
     console.log(`⬇️ Company ${targetId} downgraded to free plan (subscription cancelled)`);
 }

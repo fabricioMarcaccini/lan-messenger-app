@@ -14,6 +14,40 @@ const messageRateLimits = new Map();
 const RATE_LIMIT_MAX = 10; // max messages
 const RATE_LIMIT_WINDOW = 5000; // per 5 seconds
 
+async function askLanlyBot(prompt, apiKey) {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://lan-messenger.local',
+            'X-Title': 'Lanly Socket Bot'
+        },
+        body: JSON.stringify({
+            model: 'arcee-ai/trinity-large-preview:free',
+            temperature: 0.3,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Você é o @lanly, um assistente corporativo objetivo e amigável. Responda em português-BR.'
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]
+        })
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`OpenRouter socket bot failed: ${response.status} ${err}`);
+    }
+
+    const data = await response.json();
+    return data?.choices?.[0]?.message?.content?.trim() || 'Não consegui responder agora.';
+}
+
 function isRateLimited(userId) {
     const now = Date.now();
     const entry = messageRateLimits.get(userId);
@@ -93,6 +127,28 @@ export function setupSocketHandlers(io) {
                 contentType,
                 createdAt: new Date().toISOString(),
             });
+
+            // Feature: Bot @lanly via socket
+            if (typeof content === 'string' && /(^|\s)@lanly\b/i.test(content)) {
+                const apiKey = process.env.OPENROUTER_API_KEY;
+                if (!apiKey) return;
+
+                try {
+                    const reply = await askLanlyBot(content, apiKey);
+                    io.to(`conversation:${conversationId}`).emit('bot:reply', {
+                        conversationId,
+                        senderId: 'lanly-bot',
+                        senderUsername: 'lanly',
+                        senderName: 'Lanly Bot',
+                        senderAvatar: null,
+                        content: reply,
+                        contentType: 'text',
+                        createdAt: new Date().toISOString(),
+                    });
+                } catch (error) {
+                    console.error('Socket @lanly error:', error.message);
+                }
+            }
         });
 
         // Join conversation room

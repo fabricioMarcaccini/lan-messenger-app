@@ -34,6 +34,58 @@ async function askOpenRouter(systemInstruction, prompt, apiKey) {
     return data.choices[0].message.content.trim();
 }
 
+// Endpoint para resposta do bot @lanly
+router.post('/bot-reply', authMiddleware, async (ctx) => {
+    const { message, context = [] } = ctx.request.body || {};
+
+    if (!message || typeof message !== 'string') {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'message é obrigatório' };
+        return;
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'OPENROUTER_API_KEY não configurada' };
+        return;
+    }
+
+    const safeContext = Array.isArray(context) ? context.slice(-12) : [];
+    const history = safeContext
+        .map((item) => `- ${(item.senderName || item.senderUsername || 'User')}: ${item.content || ''}`)
+        .join('\n');
+
+    const systemInstruction =
+        'Você é o bot corporativo Lanly. Responda em português-BR, de forma direta, útil e segura. ' +
+        'Evite inventar dados. Se faltar contexto, faça uma sugestão objetiva.';
+
+    const prompt =
+        `Histórico recente da conversa:\n${history || '(sem histórico)'}\n\n` +
+        `Mensagem atual com menção ao bot:\n${message}\n\n` +
+        'Responda como @lanly em até 5 linhas.';
+
+    try {
+        const reply = await askOpenRouter(systemInstruction, prompt, apiKey);
+        ctx.body = {
+            success: true,
+            data: {
+                reply,
+                bot: {
+                    id: 'lanly-bot',
+                    username: 'lanly',
+                    fullName: 'Lanly Bot',
+                },
+                createdAt: new Date().toISOString(),
+            },
+        };
+    } catch (error) {
+        console.error('Bot Reply Error:', error);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Erro ao gerar resposta do bot' };
+    }
+});
+
 // Endpoint para Respostas Rápidas (Smart Replies)
 router.post('/smart-replies', authMiddleware, async (ctx) => {
     const { contextText } = ctx.request.body;

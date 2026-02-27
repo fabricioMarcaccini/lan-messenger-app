@@ -8,6 +8,160 @@ const router = new Router();
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
+// GET /api/users/me/mentions - List mentions for current user
+router.get('/me/mentions', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const { limit = 50, offset = 0, unreadOnly = 'false', markAsRead = 'false' } = ctx.query;
+
+    const params = [userId];
+    let idx = 2;
+    let unreadFilter = '';
+
+    if (String(unreadOnly).toLowerCase() === 'true') {
+        unreadFilter = ` AND mn.is_read = false`;
+    }
+
+    const result = await db.write(`
+        SELECT mn.id, mn.message_id, mn.conversation_id, mn.is_read, mn.created_at,
+               m.content, m.content_type, m.created_at as message_created_at,
+               c.name as conversation_name, c.is_group,
+               u.id as mentioner_id, u.username as mentioner_username, u.full_name as mentioner_name, u.avatar_url as mentioner_avatar
+        FROM mentions mn
+        JOIN messages m ON m.id = mn.message_id
+        JOIN conversations c ON c.id = mn.conversation_id
+        LEFT JOIN users u ON u.id = mn.mentioner_id
+        WHERE mn.mentioned_user_id = $1
+        ${unreadFilter}
+        ORDER BY mn.created_at DESC
+        LIMIT $${idx++} OFFSET $${idx++}
+    `, [userId, parseInt(limit, 10), parseInt(offset, 10)]);
+
+    if (String(markAsRead).toLowerCase() === 'true' && result.rows.length > 0) {
+        const mentionIds = result.rows.map((row) => row.id);
+        await db.write(
+            'UPDATE mentions SET is_read = true WHERE id = ANY($1::uuid[]) AND mentioned_user_id = $2',
+            [mentionIds, userId]
+        );
+    }
+
+    const unreadCountResult = await db.write(
+        'SELECT COUNT(*) as count FROM mentions WHERE mentioned_user_id = $1 AND is_read = false',
+        [userId]
+    );
+
+    ctx.body = {
+        success: true,
+        data: result.rows.map((row) => ({
+            id: row.id,
+            messageId: row.message_id,
+            conversationId: row.conversation_id,
+            conversationName: row.conversation_name,
+            isGroup: row.is_group,
+            isRead: row.is_read,
+            mentionedAt: row.created_at,
+            content: row.content,
+            contentType: row.content_type,
+            messageCreatedAt: row.message_created_at,
+            mentioner: {
+                id: row.mentioner_id,
+                username: row.mentioner_username,
+                fullName: row.mentioner_name,
+                avatarUrl: row.mentioner_avatar,
+            },
+        })),
+        unreadCount: parseInt(unreadCountResult.rows[0]?.count || '0', 10),
+    };
+});
+
+// PUT /api/users/me/custom-status - Custom status + OOO
+router.put('/me/custom-status', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const companyId = ctx.state.user.companyId;
+    const {
+        text = null,
+        emoji = null,
+        expiresAt = null,
+        oooUntil = null,
+        oooMessage = null,
+    } = ctx.request.body || {};
+
+    if (text && String(text).length > 100) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Texto de status excede 100 caracteres' };
+        return;
+    }
+
+    if (oooMessage && String(oooMessage).length > 255) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Mensagem OOO excede 255 caracteres' };
+        return;
+    }
+
+    const result = await db.write(
+        `UPDATE users
+         SET custom_status_text = $2,
+             custom_status_emoji = $3,
+             custom_status_expires_at = $4,
+             ooo_until = $5,
+             ooo_message = $6,
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message`,
+        [
+            userId,
+            text ? String(text).trim() : null,
+            emoji ? String(emoji).trim() : null,
+            expiresAt ? new Date(expiresAt) : null,
+            oooUntil ? new Date(oooUntil) : null,
+            oooMessage ? String(oooMessage).trim() : null,
+        ]
+    );
+
+    const updated = result.rows[0];
+    if (!updated) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Usuário não encontrado' };
+        return;
+    }
+
+    const io = ctx.app.context.io;
+    if (io && companyId) {
+        io.to(`company:${companyId}`).emit('user:status-changed', {
+            userId,
+            customStatusText: updated.custom_status_text,
+            customStatusEmoji: updated.custom_status_emoji,
+            customStatusExpiresAt: updated.custom_status_expires_at,
+            oooUntil: updated.ooo_until,
+            oooMessage: updated.ooo_message,
+        });
+    }
+
+    if (ctx.audit) {
+        await ctx.audit({
+            action: 'user.custom_status.updated',
+            targetType: 'user',
+            targetId: userId,
+            metadata: {
+                hasText: !!updated.custom_status_text,
+                hasEmoji: !!updated.custom_status_emoji,
+                hasOoo: !!updated.ooo_until,
+            },
+        });
+    }
+
+    ctx.body = {
+        success: true,
+        message: 'Status atualizado',
+        data: {
+            customStatusText: updated.custom_status_text,
+            customStatusEmoji: updated.custom_status_emoji,
+            customStatusExpiresAt: updated.custom_status_expires_at,
+            oooUntil: updated.ooo_until,
+            oooMessage: updated.ooo_message,
+        },
+    };
+});
+
 // GET /api/users - List all users
 router.get('/', async (ctx) => {
     const { page = 1, limit = 20, search = '' } = ctx.query;
@@ -15,7 +169,8 @@ router.get('/', async (ctx) => {
 
     let query = `
         SELECT id, username, email, full_name, avatar_url, role, department, 
-               position, status_message, is_active, last_seen_at, created_at
+               position, status_message, is_active, last_seen_at, created_at,
+               custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message
         FROM users
         WHERE company_id = $1
     `;
@@ -53,6 +208,11 @@ router.get('/', async (ctx) => {
                 isActive: u.is_active,
                 lastSeenAt: u.last_seen_at,
                 createdAt: u.created_at,
+                customStatusText: u.custom_status_text,
+                customStatusEmoji: u.custom_status_emoji,
+                customStatusExpiresAt: u.custom_status_expires_at,
+                oooUntil: u.ooo_until,
+                oooMessage: u.ooo_message,
             })),
             pagination: {
                 page: parseInt(page),
@@ -69,7 +229,8 @@ router.get('/:id', async (ctx) => {
 
     const result = await db.write(
         `SELECT id, username, email, full_name, avatar_url, role, department, 
-                position, status_message, is_active, last_seen_at, created_at
+                position, status_message, is_active, last_seen_at, created_at,
+                custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message
          FROM users WHERE id = $1`,
         [id]
     );
@@ -96,6 +257,11 @@ router.get('/:id', async (ctx) => {
             isActive: user.is_active,
             lastSeenAt: user.last_seen_at,
             createdAt: user.created_at,
+            customStatusText: user.custom_status_text,
+            customStatusEmoji: user.custom_status_emoji,
+            customStatusExpiresAt: user.custom_status_expires_at,
+            oooUntil: user.ooo_until,
+            oooMessage: user.ooo_message,
         },
     };
 });
@@ -143,6 +309,19 @@ router.post('/', adminMiddleware, async (ctx) => {
         const result = await createUserWithSeatLock(companyId, {
             username, email, passwordHash, fullName, role, department, position
         });
+
+        if (ctx.audit) {
+            await ctx.audit({
+                action: 'user.created',
+                targetType: 'user',
+                targetId: result.user.id,
+                metadata: {
+                    username: result.user.username,
+                    role: result.user.role,
+                    department: department || null,
+                },
+            });
+        }
 
         ctx.status = 201;
         ctx.body = {

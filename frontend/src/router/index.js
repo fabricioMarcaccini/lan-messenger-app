@@ -33,6 +33,12 @@ const routes = [
         meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
+        path: '/admin/analytics',
+        name: 'AdminAnalytics',
+        component: () => import('@/pages/AdminAnalytics.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
         path: '/settings',
         name: 'Settings',
         component: () => import('@/pages/ProfileSettings.vue'),

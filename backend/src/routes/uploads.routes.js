@@ -101,6 +101,20 @@ router.post('/', async (ctx) => {
             [fileId, ctx.state.user.id, originalName, `${fileId}${ext}`, `/api/uploads/${fileId}/file`, mimeType, fileBuffer.length, contentType, base64Data]
         );
 
+        if (ctx.audit) {
+            await ctx.audit({
+                action: 'upload.created',
+                targetType: 'file_upload',
+                metadata: {
+                    fileId,
+                    originalName,
+                    mimeType,
+                    fileSize: fileBuffer.length,
+                    contentType,
+                },
+            });
+        }
+
         console.log('✅ File uploaded to DB:', originalName, fileBuffer.length, 'bytes');
 
         ctx.status = 201;

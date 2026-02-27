@@ -100,12 +100,21 @@
                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
                   <span class="material-symbols-outlined text-white text-3xl">edit</span>
                 </div>
+                <div v-if="statusForm.emoji" class="absolute -bottom-1 -right-1 size-8 rounded-full bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 flex items-center justify-center text-lg">
+                  {{ statusForm.emoji }}
+                </div>
               </div>
               <button 
                 @click="openAvatarModal"
                 class="text-sm text-primary hover:text-primary-hover font-medium hover:underline"
               >
                 {{ locale.t.profile.change }}
+              </button>
+              <button
+                @click="showStatusModal = true"
+                class="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
+              >
+                Status personalizado
               </button>
             </div>
 
@@ -474,6 +483,32 @@
     </main>
   </div>
 
+  <!-- Custom Status Modal -->
+  <div v-if="showStatusModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click="showStatusModal = false">
+    <div class="bg-white dark:bg-[#131c1e] w-full max-w-md rounded-2xl p-6 border border-gray-200 dark:border-white/10 shadow-xl" @click.stop>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Status personalizado</h3>
+        <button @click="showStatusModal = false" class="text-gray-400 hover:text-gray-800 dark:hover:text-white">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="space-y-3">
+        <input v-model="statusForm.emoji" type="text" maxlength="4" placeholder="Emoji (ex: 🧠)" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <input v-model="statusForm.text" type="text" maxlength="100" placeholder="Mensagem de status" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <label class="text-xs text-gray-500 dark:text-slate-400">Expira em</label>
+        <input v-model="statusForm.expiresAt" type="datetime-local" class="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+        <div class="pt-2 border-t border-gray-100 dark:border-white/10">
+          <label class="text-xs font-semibold text-gray-600 dark:text-slate-300">Out of Office (OOO)</label>
+          <input v-model="statusForm.oooUntil" type="datetime-local" class="mt-2 w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white" />
+          <textarea v-model="statusForm.oooMessage" rows="2" placeholder="Mensagem OOO (opcional)" class="mt-2 w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-black/30 border border-gray-200 dark:border-white/10 text-sm text-gray-800 dark:text-white"></textarea>
+        </div>
+      </div>
+      <button @click="saveCustomStatus" class="mt-4 w-full py-2.5 rounded-xl bg-primary hover:bg-cyan-400 text-white font-bold text-sm">
+        Salvar status
+      </button>
+    </div>
+  </div>
+
 <!-- Avatar Selection Modal -->
 <div v-if="showAvatarModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
   <div class="bg-white dark:bg-[#131c1e] w-full max-w-2xl rounded-2xl p-6 relative border border-gray-200 dark:border-white/10 shadow-xl flex flex-col max-h-[90vh]">
@@ -576,6 +611,7 @@ const loading = ref(false)
 const showMobileSidebar = ref(false)
 const selectedSeats = ref(5)
 const showCheckoutSuccess = ref(false)
+const showStatusModal = ref(false)
 
 const formData = ref({
   fullName: '',
@@ -583,6 +619,14 @@ const formData = ref({
   email: '',
   status: 'online',
   avatarUrl: ''
+})
+
+const statusForm = ref({
+  emoji: '',
+  text: '',
+  expiresAt: '',
+  oooUntil: '',
+  oooMessage: '',
 })
 
 // Avatar Selection
@@ -695,6 +739,14 @@ onMounted(() => {
       status: authStore.user.status || 'online',
       avatarUrl: authStore.user.avatarUrl || ''
     }
+
+    statusForm.value = {
+      emoji: authStore.user.customStatusEmoji || '',
+      text: authStore.user.customStatusText || '',
+      expiresAt: authStore.user.customStatusExpiresAt ? new Date(authStore.user.customStatusExpiresAt).toISOString().slice(0, 16) : '',
+      oooUntil: authStore.user.oooUntil ? new Date(authStore.user.oooUntil).toISOString().slice(0, 16) : '',
+      oooMessage: authStore.user.oooMessage || '',
+    }
   }
 
   // Fetch subscription status
@@ -723,6 +775,33 @@ async function saveProfile() {
     console.error('Failed to update profile:', error)
   } finally {
     loading.value = false
+  }
+}
+
+async function saveCustomStatus() {
+  try {
+    const payload = {
+      emoji: statusForm.value.emoji || null,
+      text: statusForm.value.text || null,
+      expiresAt: statusForm.value.expiresAt ? new Date(statusForm.value.expiresAt).toISOString() : null,
+      oooUntil: statusForm.value.oooUntil ? new Date(statusForm.value.oooUntil).toISOString() : null,
+      oooMessage: statusForm.value.oooMessage || null,
+    }
+
+    const response = await api.put('/users/me/custom-status', payload)
+    if (response.data?.success) {
+      authStore.user = {
+        ...authStore.user,
+        customStatusEmoji: response.data.data.customStatusEmoji,
+        customStatusText: response.data.data.customStatusText,
+        customStatusExpiresAt: response.data.data.customStatusExpiresAt,
+        oooUntil: response.data.data.oooUntil,
+        oooMessage: response.data.data.oooMessage,
+      }
+      showStatusModal.value = false
+    }
+  } catch (error) {
+    alert(error.response?.data?.message || 'Erro ao salvar status personalizado')
   }
 }
 

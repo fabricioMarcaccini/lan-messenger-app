@@ -8,26 +8,45 @@ export default defineConfig({
         vue(),
         VitePWA({
             registerType: 'autoUpdate',
+            includeAssets: ['lanly-logo.png', 'manifest.json'],
             manifest: {
                 name: 'Lanly',
                 short_name: 'Lanly',
                 description: 'Enterprise Lanly Web App',
                 theme_color: '#0f2023',
                 background_color: '#ffffff',
+                start_url: '/',
+                scope: '/',
                 display: 'standalone',
                 icons: [
                     {
                         src: '/lanly-logo.png',
-                        sizes: 'any',
-                        type: 'image/svg+xml'
+                        sizes: '192x192',
+                        type: 'image/png'
                     },
                     {
                         src: '/lanly-logo.png',
                         sizes: '512x512',
-                        type: 'image/svg+xml'
+                        type: 'image/png'
                     }
                 ]
-            }
+            },
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,png,svg,ico,json,woff2}'],
+                runtimeCaching: [
+                    {
+                        urlPattern: /\/api\/messages\/conversations\/.*$/i,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'lanly-messages-api',
+                            expiration: {
+                                maxEntries: 100,
+                                maxAgeSeconds: 60 * 60 * 24,
+                            },
+                        },
+                    },
+                ],
+            },
         })
     ],
     resolve: {

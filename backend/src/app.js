@@ -29,7 +29,11 @@ import permissionsRoutes from './routes/permissions.routes.js';
 import uploadsRoutes from './routes/uploads.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import stripeRoutes from './routes/stripe.routes.js';
+import meetingsRoutes from './routes/meetings.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
+import auditRoutes from './routes/audit.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
+import { auditMiddleware } from './middlewares/audit.middleware.js';
 
 dotenv.config();
 
@@ -198,6 +202,9 @@ app.use(async (ctx, next) => {
     }
 });
 
+// Inject audit helper into every request context
+app.use(auditMiddleware);
+
 // Health check route
 router.get('/health', async (ctx) => {
     const dbStatus = await checkDatabaseConnections();
@@ -219,6 +226,9 @@ router.use('/api/permissions', permissionsRoutes.routes());
 router.use('/api/uploads', uploadsRoutes.routes());
 router.use('/api/ai', aiRoutes.routes());
 router.use('/api/stripe', stripeRoutes.routes());
+router.use('/api/meetings', meetingsRoutes.routes());
+router.use('/api/analytics', analyticsRoutes.routes());
+router.use('/api/audit', auditRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -291,9 +301,89 @@ httpServer.listen(PORT, async () => {
             await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP');
 
             try { await db.write("ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check"); } catch (e) { }
-            await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted', 'call'))");
+            await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted', 'call', 'poll', 'meeting'))");
 
-            console.log('✅ Novas Funcionalidades (Edição/WebRTC) Sincronizadas no Banco!');
+            // Feature: Mensagens fixadas
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT false');
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_by UUID');
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMP');
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS read_at TIMESTAMP');
+
+            // Feature: Status personalizado
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status_emoji VARCHAR(10)');
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_status_text VARCHAR(100)');
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS ooo_until TIMESTAMP');
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS ooo_message VARCHAR(255)');
+
+            // Feature: Enquetes
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS poll_votes (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    option_index INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(message_id, user_id, option_index)
+                )
+            `);
+
+            // Feature: Reuniões
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS meetings (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+                    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                    creator_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT DEFAULT '',
+                    start_at TIMESTAMP NOT NULL,
+                    end_at TIMESTAMP,
+                    meeting_link TEXT DEFAULT '',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS meeting_rsvps (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(meeting_id, user_id)
+                )
+            `);
+
+            // Feature: Auditoria
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+                    actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    action VARCHAR(100) NOT NULL,
+                    target_type VARCHAR(50),
+                    target_id UUID,
+                    metadata JSONB DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_audit_logs_company ON audit_logs(company_id)');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC)');
+
+            // Feature: Menções
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS mentions (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+                    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                    mentioned_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    mentioner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    is_read BOOLEAN DEFAULT false,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_mentions_user ON mentions(mentioned_user_id)');
+
+            console.log('✅ Novas Funcionalidades (Bot, Fixar, Enquetes, Reuniões, Auditoria, Menções, Status) Sincronizadas!');
 
             // Ensure file_uploads table has the file_data column for DB-based file storage
             await db.write('ALTER TABLE file_uploads ADD COLUMN IF NOT EXISTS file_data TEXT');

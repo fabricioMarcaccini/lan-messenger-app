@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import ratelimit from 'koa-ratelimit';
 import { db, cache } from '../config/database.js';
 import { generateTokens, verifyRefreshToken } from '../middlewares/auth.js';
+import { writeAuditLog } from '../middlewares/audit.middleware.js';
 
 const router = new Router();
 
@@ -220,6 +221,11 @@ router.post('/login', loginRateLimit, async (ctx) => {
                     role: user.role,
                     department: user.department,
                     companyId: user.company_id,
+                    customStatusText: user.custom_status_text,
+                    customStatusEmoji: user.custom_status_emoji,
+                    customStatusExpiresAt: user.custom_status_expires_at,
+                    oooUntil: user.ooo_until,
+                    oooMessage: user.ooo_message,
                     planId,
                     subscriptionStatus,
                     trialEndsAt,
@@ -227,6 +233,17 @@ router.post('/login', loginRateLimit, async (ctx) => {
                 ...tokens,
             },
         };
+
+        await writeAuditLog({
+            companyId: user.company_id,
+            actorId: user.id,
+            action: 'auth.login',
+            targetType: 'user',
+            targetId: user.id,
+            metadata: { username: user.username },
+            ipAddress: ctx.ip,
+            userAgent: ctx.get('user-agent') || null,
+        });
     } catch (error) {
         console.error('❌ Login error:', error.message);
         ctx.status = 500;
@@ -317,7 +334,9 @@ router.get('/me', async (ctx) => {
         const decoded = jwt.default.verify(token, JWT_SECRET);
 
         const result = await db.write(
-            'SELECT id, username, email, full_name, avatar_url, role, department, company_id FROM users WHERE id = $1',
+            `SELECT id, username, email, full_name, avatar_url, role, department, company_id,
+                    custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message
+             FROM users WHERE id = $1`,
             [decoded.id]
         );
 
@@ -356,6 +375,11 @@ router.get('/me', async (ctx) => {
                 role: user.role,
                 department: user.department,
                 companyId: user.company_id,
+                customStatusText: user.custom_status_text,
+                customStatusEmoji: user.custom_status_emoji,
+                customStatusExpiresAt: user.custom_status_expires_at,
+                oooUntil: user.ooo_until,
+                oooMessage: user.ooo_message,
                 planId,
                 subscriptionStatus,
                 trialEndsAt,

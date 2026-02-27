@@ -14,6 +14,10 @@ export const useChatStore = defineStore('chat', () => {
     const isSearching = ref(false)
     const hasMoreMessages = ref({}) // Map conversationId -> boolean
     const loadingOlder = ref(false)
+    const pinnedMessage = ref(null)
+    const conversationFiles = ref([])
+    const mentions = ref([])
+    const unreadMentions = ref(0)
 
     // Computeds
     const activeConversation = computed(() =>
@@ -246,6 +250,78 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    async function fetchPinnedMessage(conversationId) {
+        if (!conversationId) return null
+        try {
+            const response = await api.get(`/messages/conversations/${conversationId}/pinned`)
+            pinnedMessage.value = response.data.data || null
+            return pinnedMessage.value
+        } catch (err) {
+            console.error('Failed to fetch pinned message:', err)
+            pinnedMessage.value = null
+            return null
+        }
+    }
+
+    async function pinMessage(messageId) {
+        try {
+            const response = await api.put(`/messages/${messageId}/pin`)
+            if (activeConversationId.value) {
+                await fetchPinnedMessage(activeConversationId.value)
+            }
+            return response.data
+        } catch (err) {
+            console.error('Failed to pin/unpin message:', err)
+            throw err
+        }
+    }
+
+    async function createPoll(conversationId, payload) {
+        try {
+            const response = await api.post(`/messages/conversations/${conversationId}/poll`, payload)
+            return response.data.data
+        } catch (err) {
+            console.error('Failed to create poll:', err)
+            throw err
+        }
+    }
+
+    async function votePoll(messageId, optionIndex) {
+        try {
+            const response = await api.post(`/messages/${messageId}/vote`, { optionIndex })
+            return response.data.data || []
+        } catch (err) {
+            console.error('Failed to vote in poll:', err)
+            throw err
+        }
+    }
+
+    async function fetchConversationFiles(conversationId) {
+        try {
+            const response = await api.get(`/messages/conversations/${conversationId}/files`)
+            conversationFiles.value = response.data.data || []
+            return conversationFiles.value
+        } catch (err) {
+            console.error('Failed to fetch conversation files:', err)
+            conversationFiles.value = []
+            return []
+        }
+    }
+
+    async function fetchMentions({ unreadOnly = false, markAsRead = false } = {}) {
+        try {
+            const response = await api.get('/users/me/mentions', {
+                params: { unreadOnly, markAsRead }
+            })
+            mentions.value = response.data.data || []
+            unreadMentions.value = response.data.unreadCount || 0
+            return mentions.value
+        } catch (err) {
+            console.error('Failed to fetch mentions:', err)
+            return []
+        }
+    }
+
     function addMessage(conversationId, message) {
         if (!messages.value[conversationId]) {
             messages.value[conversationId] = []
@@ -332,6 +408,40 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    function hydrateConversationMessages(conversationId, cachedMessages = []) {
+        if (!conversationId || !Array.isArray(cachedMessages) || cachedMessages.length === 0) return
+        if (!messages.value[conversationId] || messages.value[conversationId].length === 0) {
+            messages.value[conversationId] = cachedMessages.slice(-50)
+        }
+    }
+
+    function updatePollResults(conversationId, messageId, pollResults) {
+        if (!messages.value[conversationId]) return
+        const msg = messages.value[conversationId].find(m => m.id === messageId)
+        if (msg) {
+            msg.pollResults = pollResults || []
+        }
+    }
+
+    function setPinnedMessage(payload) {
+        if (!payload || payload.conversationId !== activeConversationId.value) return
+        if (payload.isPinned === false) {
+            pinnedMessage.value = null
+            return
+        }
+
+        const msg = (messages.value[payload.conversationId] || []).find(m => m.id === payload.messageId)
+        if (msg) {
+            pinnedMessage.value = {
+                id: msg.id,
+                content: msg.content,
+                content_type: msg.contentType || 'text',
+                pinned_by_name: payload.pinnedByName || 'Membro',
+                pinned_at: payload.pinnedAt || new Date().toISOString(),
+            }
+        }
+    }
+
     async function saveCallLog(conversationId, callType, duration, status, isGroup = false) {
         try {
             const response = await api.post(`/messages/conversations/${conversationId}/call-log`, {
@@ -407,6 +517,7 @@ export const useChatStore = defineStore('chat', () => {
     return {
         conversations,
         activeConversationId,
+        messages,
         activeConversation,
         activeMessages,
         activeTypingUsers,
@@ -414,6 +525,10 @@ export const useChatStore = defineStore('chat', () => {
         onlineUsers,
         searchResults,
         isSearching,
+        pinnedMessage,
+        conversationFiles,
+        mentions,
+        unreadMentions,
         setActiveConversation,
         fetchConversations,
         fetchPublicChannels,
@@ -422,7 +537,14 @@ export const useChatStore = defineStore('chat', () => {
         manageGroupParticipants,
         sendMessage,
         fetchMessages,
+        fetchPinnedMessage,
+        pinMessage,
+        createPoll,
+        votePoll,
+        fetchConversationFiles,
+        fetchMentions,
         addMessage,
+        hydrateConversationMessages,
         uploadFile,
         editMessage,
         deleteMessage,
@@ -432,6 +554,8 @@ export const useChatStore = defineStore('chat', () => {
         updateMessageRead,
         toggleReaction,
         updateMessageReaction,
+        updatePollResults,
+        setPinnedMessage,
         saveCallLog,
         setTyping,
         fetchOnlineUsers,
