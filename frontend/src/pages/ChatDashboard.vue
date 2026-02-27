@@ -53,6 +53,16 @@
             <span class="material-symbols-outlined group-hover:text-purple-400 transition-colors">admin_panel_settings</span>
             <span class="text-sm font-medium">{{ locale.t.nav.admin }}</span>
           </router-link>
+          
+          <router-link v-if="authStore.isAdmin" to="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
+            <span class="material-symbols-outlined group-hover:text-blue-400 transition-colors">insights</span>
+            <span class="text-sm font-medium">Analytics</span>
+          </router-link>
+
+          <router-link v-if="authStore.isAdmin" to="/admin/audit" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
+            <span class="material-symbols-outlined group-hover:text-rose-400 transition-colors">local_police</span>
+            <span class="text-sm font-medium">Auditoria</span>
+          </router-link>
         </div>
         
         <!-- Network Scanner Section -->
