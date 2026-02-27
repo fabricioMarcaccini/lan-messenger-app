@@ -102,6 +102,43 @@ async function runMigration() {
         await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();');
         await client.query('ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();');
         await client.query(`
+            CREATE OR REPLACE FUNCTION sync_meetings_time_columns()
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $$
+            BEGIN
+                IF NEW.start_at IS NULL AND NEW.start_time IS NOT NULL THEN
+                    NEW.start_at := NEW.start_time;
+                END IF;
+
+                IF NEW.start_time IS NULL AND NEW.start_at IS NOT NULL THEN
+                    NEW.start_time := NEW.start_at;
+                END IF;
+
+                IF NEW.end_at IS NULL AND NEW.end_time IS NOT NULL THEN
+                    NEW.end_at := NEW.end_time;
+                END IF;
+
+                IF NEW.end_time IS NULL THEN
+                    NEW.end_time := COALESCE(NEW.end_at, NEW.start_time, NEW.start_at);
+                END IF;
+
+                IF NEW.end_at IS NULL THEN
+                    NEW.end_at := NEW.end_time;
+                END IF;
+
+                RETURN NEW;
+            END;
+            $$;
+        `);
+        await client.query('DROP TRIGGER IF EXISTS trg_sync_meetings_time_columns ON meetings;');
+        await client.query(`
+            CREATE TRIGGER trg_sync_meetings_time_columns
+            BEFORE INSERT OR UPDATE ON meetings
+            FOR EACH ROW
+            EXECUTE FUNCTION sync_meetings_time_columns();
+        `);
+        await client.query(`
             CREATE TABLE IF NOT EXISTS meeting_rsvps (
                 id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                 meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE,
