@@ -736,10 +736,10 @@ router.get('/search', async (ctx) => {
         )
         AND m.is_deleted = false
         AND m.content_type IN ('text', 'call')
-        AND m.content ILIKE $2
-        ORDER BY m.created_at DESC
+        AND m.search_vector @@ plainto_tsquery('portuguese', $2)
+        ORDER BY ts_rank(m.search_vector, plainto_tsquery('portuguese', $2)) DESC, m.created_at DESC
         LIMIT $3
-    `, [userId, `%${q.trim()}%`, parseInt(limit)]);
+    `, [userId, q.trim(), parseInt(limit)]);
 
     ctx.body = {
         success: true,
@@ -1061,5 +1061,59 @@ router.post('/:id/vote', async (ctx) => {
     ctx.body = { success: true, data: pollResults };
 });
 
-export default router;
+// GET /api/messages/preview-link - Fetch OpenGraph meta tags for Link Preview feature (Rich Links)
+router.get('/preview-link', async (ctx) => {
+    const { url } = ctx.query;
+    if (!url) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Falta o parâmetro url' };
+        return;
+    }
 
+    try {
+        const response = await fetch(url.trim(), {
+            headers: {
+                'User-Agent': 'LanlyBot/1.0 (+https://lanly.com.br)'
+            },
+            signal: AbortSignal.timeout(3000)
+        });
+
+        const html = await response.text();
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["'][^>]*>/i) ||
+            html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+        const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
+
+        let title = titleMatch ? titleMatch[1] : null;
+        let description = descMatch ? descMatch[1] : null;
+        let image = imageMatch ? imageMatch[1] : null;
+
+        if (title) title = title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+        if (description) description = description.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+
+        if (image && image.startsWith('/')) {
+            const urlObj = new URL(url);
+            image = `${urlObj.protocol}//${urlObj.hostname}${image}`;
+        }
+
+        ctx.body = {
+            success: true,
+            data: {
+                title: title,
+                description: description,
+                image: image,
+                url: url
+            }
+        };
+    } catch (error) {
+        console.error('Erro na preview de link:', url, error.message);
+        ctx.body = {
+            success: true,
+            data: { title: null, description: null, image: null, url: url }
+        };
+    }
+});
+
+export default router;

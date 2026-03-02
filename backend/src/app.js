@@ -301,6 +301,24 @@ httpServer.listen(PORT, async () => {
             await db.write("ALTER TABLE messages ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'");
             await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP');
 
+            // Feature: Full-Text Search
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS search_vector tsvector');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_messages_search_vector ON messages USING gin(search_vector)');
+            await db.write(`
+                CREATE OR REPLACE FUNCTION messages_search_vector_update() RETURNS trigger AS $$
+                BEGIN
+                    NEW.search_vector := to_tsvector('portuguese', COALESCE(NEW.content, ''));
+                    RETURN NEW;
+                END
+                $$ LANGUAGE plpgsql;
+            `);
+            await db.write('DROP TRIGGER IF EXISTS messages_search_vector_update_trigger ON messages');
+            await db.write(`
+                CREATE TRIGGER messages_search_vector_update_trigger
+                BEFORE INSERT OR UPDATE ON messages
+                FOR EACH ROW EXECUTE FUNCTION messages_search_vector_update()
+            `);
+
             try { await db.write("ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check"); } catch (e) { }
             await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted', 'call', 'poll', 'meeting'))");
 

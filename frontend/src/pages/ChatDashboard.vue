@@ -624,17 +624,7 @@
                       <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''"><span v-html="renderMessageContent(msg.content)"></span></p>
                       <!-- Link Preview Cards -->
                       <div v-if="hasLinks(msg.content)" class="px-3 pb-2 flex flex-col gap-1.5">
-                        <a v-for="url in extractUrls(msg.content)" :key="url" :href="url" target="_blank" rel="noopener noreferrer" 
-                          class="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-primary/30 transition-all group/link max-w-sm shadow-sm">
-                          <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover/link:bg-primary/20 transition-colors">
-                            <span class="material-symbols-outlined text-primary text-lg">link</span>
-                          </div>
-                          <div class="flex flex-col min-w-0 flex-1">
-                            <span class="text-xs font-semibold text-gray-700 dark:text-slate-200 truncate">{{ new URL(url).hostname }}</span>
-                            <span class="text-[10px] text-gray-400 dark:text-slate-500 truncate">{{ url.length > 50 ? url.substring(0, 50) + '...' : url }}</span>
-                          </div>
-                          <span class="material-symbols-outlined text-gray-300 dark:text-slate-600 text-sm group-hover/link:text-primary transition-colors flex-shrink-0">open_in_new</span>
-                        </a>
+                        <LinkPreview v-for="url in extractUrls(msg.content)" :key="url" :url="url" />
                       </div>
                       <!-- Translation display -->
                       <div v-if="msg.aiTranslation" class="mx-3 mb-3 mt-0 p-2.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs leading-relaxed text-gray-800 dark:text-gray-300 relative shadow-inner">
@@ -1684,6 +1674,7 @@ import { useThemeStore } from '@/stores/theme'
 import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import LinkPreview from '@/components/LinkPreview.vue';
 
 const router = useRouter()
 const authStore = useAuthStore()
