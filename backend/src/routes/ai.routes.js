@@ -63,6 +63,36 @@ async function checkAndDeductAICredits(userId) {
     return { allowed: false, error: 'Erro de validação ou Empresa não encontrada' };
 }
 
+// Helper para obter a chave de API de AUDIO (BYOK Groq ou Fallback Server)
+async function checkAndDeductAIAudioCredits(userId) {
+    try {
+        const uRes = await db.write('SELECT company_id FROM users WHERE id = $1', [userId]);
+        const companyId = uRes.rows[0]?.company_id;
+
+        if (companyId) {
+            const cRes = await db.write('SELECT groq_api_key, ai_credits_balance FROM companies WHERE id = $1', [companyId]);
+            const { groq_api_key, ai_credits_balance } = cRes.rows[0] || {};
+
+            // If user has their own Groq key, they don't consume credits.
+            if (groq_api_key && groq_api_key.length > 10) {
+                return { allowed: true, apiKey: groq_api_key };
+            }
+
+            // Otherwise, they need credits
+            if (ai_credits_balance > 0) {
+                await db.write('UPDATE companies SET ai_credits_balance = ai_credits_balance - 1 WHERE id = $1', [companyId]);
+                const fallbackKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+                return { allowed: true, apiKey: fallbackKey };
+            } else {
+                return { allowed: false, error: 'Créditos de IA esgotados. Configure sua Chave do Groq LPU no menu de Ajustes da Conta para transcrições ilimitadas.' };
+            }
+        }
+    } catch (e) {
+        console.error('Erro ao processar creditos de audio', e);
+    }
+    return { allowed: false, error: 'Erro de validação ou Empresa não encontrada' };
+}
+
 // Endpoint para resposta do bot @lanly
 router.post('/bot-reply', authMiddleware, async (ctx) => {
     const { message, context = [] } = ctx.request.body || {};
@@ -266,10 +296,14 @@ router.post('/transcribe-audio', authMiddleware, requirePlan('max'), async (ctx)
         ctx.status = 400; ctx.body = { success: false, message: 'ID do arquivo obrigatório' }; return;
     }
 
-    // Acessar por Groq (gratuito) ou OpenAI (pago) - Fallback
-    const groqKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+    // Verificar chave Groq do usuário e deduzir crédito
+    const authIA = await checkAndDeductAIAudioCredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const groqKey = authIA.apiKey;
     if (!groqKey) {
-        ctx.status = 500; ctx.body = { success: false, message: 'Chave GROQ_API_KEY não configurada no .env do backend para transcrição.' }; return;
+        ctx.status = 500; ctx.body = { success: false, message: 'Chave GROQ_API_KEY não configurada. Traga sua própria chave em Ajustes.' }; return;
     }
 
     try {
@@ -292,11 +326,12 @@ router.post('/transcribe-audio', authMiddleware, requirePlan('max'), async (ctx)
         const fileObj = new File([audioBuffer], filename, { type: mime });
         const formData = new FormData();
         formData.append('file', fileObj);
-        formData.append('model', process.env.GROQ_API_KEY ? 'whisper-large-v3' : 'whisper-1');
+        // Se a chave fornecida começar com gsk_, é Groq, senão é OpenAI Fallback
+        const isGroq = groqKey.startsWith('gsk_') || process.env.GROQ_API_KEY;
+        formData.append('model', isGroq ? 'whisper-large-v3' : 'whisper-1');
         formData.append('response_format', 'json');
-        // formData.append('language', 'pt'); // Desativado para permitir que a IA detecte audios em ingles, japones ou outros idiomas livremente
 
-        const apiUrl = process.env.GROQ_API_KEY
+        const apiUrl = isGroq
             ? 'https://api.groq.com/openai/v1/audio/transcriptions'
             : 'https://api.openai.com/v1/audio/transcriptions';
 

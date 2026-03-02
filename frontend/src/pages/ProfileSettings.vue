@@ -407,38 +407,77 @@
              Crie sua conta gratuita no <a href="https://openrouter.ai" target="_blank" class="text-primary hover:underline font-medium">OpenRouter.ai</a> e cole sua chave API abaixo! Liberaremos no seu Painel todo o nosso robusto serviço de Inteligência Artificial para uso ilimitado e <strong>sem custo extra</strong>. Sua chave será perfeitamente roteada para os maiores motores do mercado como <span class="font-medium text-gray-800 dark:text-gray-200">Meta Llama 3, Google Gemini Flash, DeepSeek-R1</span> e a veloz arquitetura <span class="font-medium text-gray-800 dark:text-gray-200">Groq LPU (Whisper V3)</span> para as transcrições de áudio!
             </p>
             
-            <div class="flex flex-col gap-3">
-              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">OpenRouter API Key</label>
-              
-               <div v-if="aiSettingsForm.hasCustomKey" class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-xl mb-2">
-                  <div class="flex items-center gap-3">
-                    <div class="size-8 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-green-600 dark:text-green-300">
-                      <span class="material-symbols-outlined text-sm">check_circle</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Text Engine (OpenRouter) -->
+              <div class="flex flex-col gap-3">
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Motor de Textos (OpenRouter API Key)</label>
+                
+                 <div v-if="aiSettingsForm.hasCustomKey" class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-xl mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="size-6 shrink-0 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-green-600 dark:text-green-300">
+                        <span class="material-symbols-outlined text-xs">check_circle</span>
+                      </div>
+                      <div>
+                        <p class="text-xs font-bold text-green-800 dark:text-green-300">Configurada</p>
+                        <p class="text-[10px] text-green-600 dark:text-green-400 font-mono mt-0.5">{{ aiSettingsForm.maskedKey }}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p class="text-sm font-bold text-green-800 dark:text-green-300">Chave configurada e ativa</p>
-                      <p class="text-xs text-green-600 dark:text-green-400 font-mono mt-0.5">{{ aiSettingsForm.maskedKey }}</p>
-                    </div>
-                  </div>
-                  <button @click="removeAiKey" class="text-xs px-3 py-1.5 bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded-lg transition-colors">Remover</button>
-               </div>
+                    <button @click="removeAiKey('openrouter')" class="text-[10px] px-2 py-1 bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded transition-colors">Remover</button>
+                 </div>
 
-              <div class="flex flex-col sm:flex-row gap-3 relative z-10">
-                <input 
-                  v-model="aiSettingsForm.openrouterApiKey"
-                  type="password" 
-                  placeholder="sk-or-v1-..."
-                  class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
-                />
-                <button 
-                  @click="saveAiSettings"
-                  :disabled="savingAiSettings || !aiSettingsForm.openrouterApiKey"
-                  class="sm:w-auto w-full px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span v-if="savingAiSettings" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                  <span v-else class="material-symbols-outlined text-[18px]">save</span>
-                  {{ locale.t.profile.saveChanges || 'Salvar' }}
-                </button>
+                <div class="flex flex-col sm:flex-row gap-2 relative z-10 w-full">
+                  <input 
+                    v-model="aiSettingsForm.openrouterApiKey"
+                    type="password" 
+                    placeholder="sk-or-v1-..."
+                    class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
+                  />
+                  <button 
+                    @click="saveAiSettings('openrouter')"
+                    :disabled="savingAiSettings || !aiSettingsForm.openrouterApiKey"
+                    class="shrink-0 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <span v-if="savingAiSettings" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <span v-else class="material-symbols-outlined text-sm">save</span>
+                    Salvar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Audio Engine (Groq) -->
+              <div class="flex flex-col gap-3">
+                <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">Motor de Áudio (GroqLPU API Key)</label>
+                
+                 <div v-if="aiSettingsForm.hasCustomGroqKey" class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-xl mb-2">
+                    <div class="flex items-center gap-2">
+                      <div class="size-6 shrink-0 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-green-600 dark:text-green-300">
+                        <span class="material-symbols-outlined text-xs">check_circle</span>
+                      </div>
+                      <div>
+                        <p class="text-xs font-bold text-green-800 dark:text-green-300">Configurada</p>
+                        <p class="text-[10px] text-green-600 dark:text-green-400 font-mono mt-0.5">{{ aiSettingsForm.maskedGroqKey }}</p>
+                      </div>
+                    </div>
+                    <button @click="removeAiKey('groq')" class="text-[10px] px-2 py-1 bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded transition-colors">Remover</button>
+                 </div>
+
+                <div class="flex flex-col sm:flex-row gap-2 relative z-10 w-full">
+                  <input 
+                    v-model="aiSettingsForm.groqApiKey"
+                    type="password" 
+                    placeholder="gsk_..."
+                    class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
+                  />
+                  <button 
+                    @click="saveAiSettings('groq')"
+                    :disabled="savingAiSettings || !aiSettingsForm.groqApiKey"
+                    class="shrink-0 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <span v-if="savingAiSettings" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                    <span v-else class="material-symbols-outlined text-sm">save</span>
+                    Salvar
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -793,8 +832,11 @@ const passwordSuccess = ref('')
 // AI Settings Forms and Logic
 const aiSettingsForm = reactive({
   openrouterApiKey: '',
+  groqApiKey: '',
   hasCustomKey: false,
   maskedKey: '',
+  hasCustomGroqKey: false,
+  maskedGroqKey: '',
   aiCreditsBalance: 0
 })
 const savingAiSettings = ref(false)
@@ -806,6 +848,8 @@ async function loadAiSettings() {
     if (res.data?.success) {
       aiSettingsForm.hasCustomKey = res.data.data.hasCustomKey
       aiSettingsForm.maskedKey = res.data.data.maskedKey
+      aiSettingsForm.hasCustomGroqKey = res.data.data.hasCustomGroqKey
+      aiSettingsForm.maskedGroqKey = res.data.data.maskedGroqKey
       aiSettingsForm.aiCreditsBalance = res.data.data.aiCreditsBalance
     }
   } catch (error) {
@@ -813,15 +857,24 @@ async function loadAiSettings() {
   }
 }
 
-async function saveAiSettings() {
-  if (!aiSettingsForm.openrouterApiKey) return;
+async function saveAiSettings(provider) {
+  let keyToSave = '';
+  let payload = {};
+  if (provider === 'openrouter') {
+      keyToSave = aiSettingsForm.openrouterApiKey;
+      payload = { openrouterApiKey: keyToSave };
+  } else if (provider === 'groq') {
+      keyToSave = aiSettingsForm.groqApiKey;
+      payload = { groqApiKey: keyToSave };
+  }
+
+  if (!keyToSave) return;
   savingAiSettings.value = true;
   try {
-    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, {
-      openrouterApiKey: aiSettingsForm.openrouterApiKey
-    });
+    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, payload);
     if (response.data?.success) {
-      aiSettingsForm.openrouterApiKey = '';
+      if (provider === 'openrouter') aiSettingsForm.openrouterApiKey = '';
+      if (provider === 'groq') aiSettingsForm.groqApiKey = '';
       await loadAiSettings();
       // Mostra toast genérico
       const msg = showCheckoutSuccess.value;
@@ -835,13 +888,16 @@ async function saveAiSettings() {
   }
 }
 
-async function removeAiKey() {
-  if (!confirm('Deseja realmente remover sua chave de IA customizada? O uso voltará a consumir créditos locais.')) return;
+async function removeAiKey(provider) {
+  if (!confirm(`Deseja realmente remover sua chave de IA customizada do ${provider}? O uso voltará a consumir créditos locais.`)) return;
   savingAiSettings.value = true;
+  
+  let payload = {};
+  if (provider === 'openrouter') payload = { openrouterApiKey: '' };
+  if (provider === 'groq') payload = { groqApiKey: '' };
+
   try {
-    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, {
-      openrouterApiKey: ''
-    });
+    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, payload);
     if (response.data?.success) {
       await loadAiSettings();
     }

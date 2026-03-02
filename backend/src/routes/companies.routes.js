@@ -86,7 +86,7 @@ router.get('/:id/stats', async (ctx) => {
 router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
     const result = await db.write(
-        'SELECT openrouter_api_key, ai_credits_balance FROM companies WHERE id = $1',
+        'SELECT openrouter_api_key, groq_api_key, ai_credits_balance FROM companies WHERE id = $1',
         [id]
     );
 
@@ -94,12 +94,16 @@ router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
         ctx.status = 404; ctx.body = { success: false, message: 'Empresa não encontrada' }; return;
     }
 
-    const { openrouter_api_key, ai_credits_balance } = result.rows[0];
+    const { openrouter_api_key, groq_api_key, ai_credits_balance } = result.rows[0];
 
     // Devolver chave mascarada (se existir)
     let maskedKey = null;
+    let maskedGroqKey = null;
     if (openrouter_api_key && openrouter_api_key.length > 10) {
         maskedKey = openrouter_api_key.substring(0, 10) + '...' + openrouter_api_key.substring(openrouter_api_key.length - 4);
+    }
+    if (groq_api_key && groq_api_key.length > 10) {
+        maskedGroqKey = groq_api_key.substring(0, 10) + '...' + groq_api_key.substring(groq_api_key.length - 4);
     }
 
     ctx.body = {
@@ -107,6 +111,8 @@ router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
         data: {
             hasCustomKey: openrouter_api_key !== null && openrouter_api_key.trim().length > 0,
             maskedKey,
+            hasCustomGroqKey: groq_api_key !== null && groq_api_key.trim().length > 0,
+            maskedGroqKey,
             aiCreditsBalance: ai_credits_balance
         }
     };
@@ -115,15 +121,35 @@ router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
 // PUT /api/companies/:id/ai-settings - Update company AI key (Admin only)
 router.put('/:id/ai-settings', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
-    const { openrouterApiKey } = ctx.request.body;
+    const { openrouterApiKey, groqApiKey } = ctx.request.body;
 
     // Remove whitespace and check if removing key
     const cleanedKey = openrouterApiKey === '' ? null : (openrouterApiKey ? openrouterApiKey.trim() : null);
+    const cleanedGroqKey = groqApiKey === '' ? null : (groqApiKey ? groqApiKey.trim() : null);
 
-    await db.write(
-        `UPDATE companies SET openrouter_api_key = $2, updated_at = NOW() WHERE id = $1`,
-        [id, cleanedKey]
-    );
+    // If both are undefined, do not update (wait, we want to allow updating one without affecting the other if needed, but the current UI sends the explicit fields)
+    // To handle partial updates:
+    let updateQuery = 'UPDATE companies SET updated_at = NOW()';
+    let params = [id];
+    let paramIndex = 2;
+
+    if (openrouterApiKey !== undefined) {
+        updateQuery += `, openrouter_api_key = $${paramIndex}`;
+        params.push(cleanedKey);
+        paramIndex++;
+    }
+
+    if (groqApiKey !== undefined) {
+        updateQuery += `, groq_api_key = $${paramIndex}`;
+        params.push(cleanedGroqKey);
+        paramIndex++;
+    }
+
+    updateQuery += ` WHERE id = $1`;
+
+    if (params.length > 1) {
+        await db.write(updateQuery, params);
+    }
 
     ctx.body = {
         success: true,

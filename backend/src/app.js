@@ -493,8 +493,9 @@ httpServer.listen(PORT, async () => {
 
             // 🔵 BYOK IA: Chave Própria OpenRouter e Créditos
             await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS openrouter_api_key VARCHAR(255)");
+            await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS groq_api_key VARCHAR(255)");
             await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS ai_credits_balance INTEGER DEFAULT 50"); // 50 credits free to start
-            console.log('✅ Colunas OpenRouter BYOK e Créditos de IA sincronizados!');
+            console.log('✅ Colunas BYOK (OpenRouter/Groq) e Créditos de IA sincronizados!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);
