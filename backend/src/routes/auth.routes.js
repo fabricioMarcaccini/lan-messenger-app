@@ -2,7 +2,7 @@ import Router from 'koa-router';
 import bcrypt from 'bcrypt';
 import ratelimit from 'koa-ratelimit';
 import { db, cache } from '../config/database.js';
-import { generateTokens, verifyRefreshToken } from '../middlewares/auth.js';
+import { generateTokens, verifyRefreshToken, authMiddleware } from '../middlewares/auth.js';
 import { writeAuditLog } from '../middlewares/audit.middleware.js';
 
 const router = new Router();
