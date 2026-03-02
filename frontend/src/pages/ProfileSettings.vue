@@ -404,7 +404,7 @@
             </div>
             <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Traga Sua Própria Chave (Bring Your Own Key)</h3>
             <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 max-w-2xl leading-relaxed">
-              O Lanly permite que você utilize todos os recursos avançados de IA (Análise de Chats, Resumo de Conferências e Respostas Mágicas)  <strong>gratuitamente</strong>. Para não consumir seus créditos globais da plataforma, basta criar uma conta no <a href="https://openrouter.ai" target="_blank" class="text-primary hover:underline font-medium">OpenRouter.ai</a>, gerar uma chave API e inseri-la abaixo. Continuaremos roteando para modelos gratuitos de altíssima performance.
+             Crie sua conta gratuita no <a href="https://openrouter.ai" target="_blank" class="text-primary hover:underline font-medium">OpenRouter.ai</a> e cole sua chave API abaixo! Liberaremos no seu Painel todo o nosso robusto serviço de Inteligência Artificial para uso ilimitado e <strong>sem custo extra</strong>. Sua chave será perfeitamente roteada para os maiores motores do mercado como <span class="font-medium text-gray-800 dark:text-gray-200">Meta Llama 3, Google Gemini Flash, DeepSeek-R1</span> e a veloz arquitetura <span class="font-medium text-gray-800 dark:text-gray-200">Groq LPU (Whisper V3)</span> para as transcrições de áudio!
             </p>
             
             <div class="flex flex-col gap-3">
