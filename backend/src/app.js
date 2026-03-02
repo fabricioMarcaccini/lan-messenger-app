@@ -490,6 +490,11 @@ httpServer.listen(PORT, async () => {
             await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_seats INTEGER DEFAULT 5');
             await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP');
             console.log('✅ Colunas de Stripe Billing sincronizadas na tabela companies!');
+
+            // 🔵 BYOK IA: Chave Própria OpenRouter e Créditos
+            await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS openrouter_api_key VARCHAR(255)");
+            await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS ai_credits_balance INTEGER DEFAULT 50"); // 50 credits free to start
+            console.log('✅ Colunas OpenRouter BYOK e Créditos de IA sincronizados!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);

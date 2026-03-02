@@ -34,6 +34,35 @@ async function askOpenRouter(systemInstruction, prompt, apiKey) {
     return data.choices[0].message.content.trim();
 }
 
+// Helper para obter a chave de API (BYOK ou Fallback Server)
+async function checkAndDeductAICredits(userId) {
+    try {
+        const uRes = await db.write('SELECT company_id FROM users WHERE id = $1', [userId]);
+        const companyId = uRes.rows[0]?.company_id;
+
+        if (companyId) {
+            const cRes = await db.write('SELECT openrouter_api_key, ai_credits_balance FROM companies WHERE id = $1', [companyId]);
+            const { openrouter_api_key, ai_credits_balance } = cRes.rows[0] || {};
+
+            // If user has their own key, they don't consume credits, so we always approve.
+            if (openrouter_api_key && openrouter_api_key.length > 10) {
+                return { allowed: true, apiKey: openrouter_api_key };
+            }
+
+            // Otherwise, they need credits
+            if (ai_credits_balance > 0) {
+                await db.write('UPDATE companies SET ai_credits_balance = ai_credits_balance - 1 WHERE id = $1', [companyId]);
+                return { allowed: true, apiKey: process.env.OPENROUTER_API_KEY };
+            } else {
+                return { allowed: false, error: 'Créditos de IA esgotados. Configure sua API Key no menu de Ajustes da Conta para usar modelos gratuitos de forma ilimitada.' };
+            }
+        }
+    } catch (e) {
+        console.error('Erro ao processar creditos', e);
+    }
+    return { allowed: false, error: 'Erro de validação ou Empresa não encontrada' };
+}
+
 // Endpoint para resposta do bot @lanly
 router.post('/bot-reply', authMiddleware, async (ctx) => {
     const { message, context = [] } = ctx.request.body || {};
@@ -44,11 +73,13 @@ router.post('/bot-reply', authMiddleware, async (ctx) => {
         return;
     }
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const apiKey = authIA.apiKey;
     if (!apiKey) {
-        ctx.status = 500;
-        ctx.body = { success: false, message: 'OPENROUTER_API_KEY não configurada' };
-        return;
+        ctx.status = 500; ctx.body = { success: false, message: 'API Key do sistema não configurada' }; return;
     }
 
     const safeContext = Array.isArray(context) ? context.slice(-12) : [];
@@ -92,7 +123,11 @@ router.post('/smart-replies', authMiddleware, async (ctx) => {
     if (!contextText) {
         ctx.status = 400; ctx.body = { success: false }; return;
     }
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const apiKey = authIA.apiKey;
     if (!apiKey) {
         ctx.status = 500; ctx.body = { success: false, message: 'API Key não configurada' }; return;
     }
@@ -120,7 +155,11 @@ router.post('/analyze-chat', authMiddleware, async (ctx) => {
     if (!textLog) {
         ctx.status = 400; ctx.body = { success: false }; return;
     }
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const apiKey = authIA.apiKey;
     if (!apiKey) {
         ctx.status = 500; ctx.body = { success: false, message: 'API Key não configurada' }; return;
     }
@@ -151,7 +190,11 @@ router.post('/magic-text', authMiddleware, requirePlan('max'), async (ctx) => {
     if (!text) {
         ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
     }
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const apiKey = authIA.apiKey;
     if (!apiKey) {
         ctx.status = 500; ctx.body = { success: false, message: 'API Key não configurada.' }; return;
     }
@@ -195,7 +238,11 @@ router.post('/translate-message', authMiddleware, async (ctx) => {
     if (!text) {
         ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
     }
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+    if (!authIA.allowed) {
+        ctx.status = 403; ctx.body = { success: false, message: authIA.error }; return;
+    }
+    const apiKey = authIA.apiKey;
     if (!apiKey) {
         ctx.status = 500; ctx.body = { success: false, message: 'API Key não configurada.' }; return;
     }
@@ -272,7 +319,8 @@ router.post('/transcribe-audio', authMiddleware, requirePlan('max'), async (ctx)
         // Se o aúdio form muito grande, usamos a OpenRouter para resumir "📋 Resumo do áudio: ..."
         let summaryText;
         if (fullTranscript.length > 50) {
-            const openRouterKey = process.env.OPENROUTER_API_KEY;
+            const authIA = await checkAndDeductAICredits(ctx.state.user.id);
+            const openRouterKey = authIA.allowed ? authIA.apiKey : null;
             if (openRouterKey) {
                 const sys = 'Você é um assistente cirúrgico focado em resumos.';
                 const prmpt = `Faça um resumo de no máximo 2 linhas do texto abaixo. Foque apenas no que importa. NÃO adicione saudações, não invente exemplos. Se não conseguir entender o texto, retorne o próprio texto.\n\nTexto a resumir:\n"${fullTranscript}"\n\nResumo direto:`;

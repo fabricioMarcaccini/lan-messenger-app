@@ -385,6 +385,66 @@
           </div>
         </section>
 
+        <!-- AI Settings Section (Admin Only) -->
+        <section v-if="authStore.isAdmin" class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">smart_toy</span>
+              Inteligência Artificial (BYOK)
+            </h2>
+            <div class="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+              <span class="material-symbols-outlined text-primary text-sm">stars</span>
+              <span class="text-sm font-bold text-gray-900 dark:text-white">Créditos: {{ aiSettingsForm.aiCreditsBalance }}</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10 mb-6 relative overflow-hidden">
+            <div class="absolute -right-10 -top-10 opacity-5 pointer-events-none">
+              <span class="material-symbols-outlined text-[150px]">hub</span>
+            </div>
+            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Traga Sua Própria Chave (Bring Your Own Key)</h3>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 max-w-2xl leading-relaxed">
+              O Lanly permite que você utilize todos os recursos avançados de IA (Análise de Chats, Resumo de Conferências e Respostas Mágicas)  <strong>gratuitamente</strong>. Para não consumir seus créditos globais da plataforma, basta criar uma conta no <a href="https://openrouter.ai" target="_blank" class="text-primary hover:underline font-medium">OpenRouter.ai</a>, gerar uma chave API e inseri-la abaixo. Continuaremos roteando para modelos gratuitos de altíssima performance.
+            </p>
+            
+            <div class="flex flex-col gap-3">
+              <label class="block text-sm font-medium text-gray-700 dark:text-slate-300">OpenRouter API Key</label>
+              
+               <div v-if="aiSettingsForm.hasCustomKey" class="flex items-center justify-between bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 rounded-xl mb-2">
+                  <div class="flex items-center gap-3">
+                    <div class="size-8 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center text-green-600 dark:text-green-300">
+                      <span class="material-symbols-outlined text-sm">check_circle</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-bold text-green-800 dark:text-green-300">Chave configurada e ativa</p>
+                      <p class="text-xs text-green-600 dark:text-green-400 font-mono mt-0.5">{{ aiSettingsForm.maskedKey }}</p>
+                    </div>
+                  </div>
+                  <button @click="removeAiKey" class="text-xs px-3 py-1.5 bg-red-100 text-red-600 hover:bg-red-200 font-semibold rounded-lg transition-colors">Remover</button>
+               </div>
+
+              <div class="flex flex-col sm:flex-row gap-3 relative z-10">
+                <input 
+                  v-model="aiSettingsForm.openrouterApiKey"
+                  type="password" 
+                  placeholder="sk-or-v1-..."
+                  class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm"
+                />
+                <button 
+                  @click="saveAiSettings"
+                  :disabled="savingAiSettings || !aiSettingsForm.openrouterApiKey"
+                  class="sm:w-auto w-full px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="savingAiSettings" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-[18px]">save</span>
+                  {{ locale.t.profile.saveChanges || 'Salvar' }}
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        </section>
+
         <!-- Security Section - Change Password -->
         <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -730,6 +790,68 @@ const changingPassword = ref(false)
 const passwordError = ref('')
 const passwordSuccess = ref('')
 
+// AI Settings Forms and Logic
+const aiSettingsForm = reactive({
+  openrouterApiKey: '',
+  hasCustomKey: false,
+  maskedKey: '',
+  aiCreditsBalance: 0
+})
+const savingAiSettings = ref(false)
+
+async function loadAiSettings() {
+  if (!authStore.isAdmin || !authStore.user?.companyId) return
+  try {
+    const res = await api.get(`/companies/${authStore.user.companyId}/ai-settings`)
+    if (res.data?.success) {
+      aiSettingsForm.hasCustomKey = res.data.data.hasCustomKey
+      aiSettingsForm.maskedKey = res.data.data.maskedKey
+      aiSettingsForm.aiCreditsBalance = res.data.data.aiCreditsBalance
+    }
+  } catch (error) {
+    console.warn('Could not load AI settings', error)
+  }
+}
+
+async function saveAiSettings() {
+  if (!aiSettingsForm.openrouterApiKey) return;
+  savingAiSettings.value = true;
+  try {
+    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, {
+      openrouterApiKey: aiSettingsForm.openrouterApiKey
+    });
+    if (response.data?.success) {
+      aiSettingsForm.openrouterApiKey = '';
+      await loadAiSettings();
+      // Mostra toast genérico
+      const msg = showCheckoutSuccess.value;
+      showCheckoutSuccess.value = true;
+      setTimeout(() => { showCheckoutSuccess.value = false; }, 3000);
+    }
+  } catch (e) {
+    console.error('Save AI Settings error:', e);
+  } finally {
+    savingAiSettings.value = false;
+  }
+}
+
+async function removeAiKey() {
+  if (!confirm('Deseja realmente remover sua chave de IA customizada? O uso voltará a consumir créditos locais.')) return;
+  savingAiSettings.value = true;
+  try {
+    const response = await api.put(`/companies/${authStore.user.companyId}/ai-settings`, {
+      openrouterApiKey: ''
+    });
+    if (response.data?.success) {
+      await loadAiSettings();
+    }
+  } catch (e) {
+    console.error('Remove AI Key error:', e);
+  } finally {
+    savingAiSettings.value = false;
+  }
+}
+
 onMounted(() => {
   if (authStore.user) {
     formData.value = {
@@ -751,6 +873,7 @@ onMounted(() => {
 
   // Fetch subscription status
   subStore.fetchSubscriptionStatus()
+  loadAiSettings()
 
   // Check for checkout success/cancel query params
   const checkoutParam = new URLSearchParams(window.location.search).get('checkout')

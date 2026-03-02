@@ -82,4 +82,53 @@ router.get('/:id/stats', async (ctx) => {
     };
 });
 
+// GET /api/companies/:id/ai-settings - Get company AI settings (Admin only)
+router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
+    const { id } = ctx.params;
+    const result = await db.write(
+        'SELECT openrouter_api_key, ai_credits_balance FROM companies WHERE id = $1',
+        [id]
+    );
+
+    if (result.rows.length === 0) {
+        ctx.status = 404; ctx.body = { success: false, message: 'Empresa não encontrada' }; return;
+    }
+
+    const { openrouter_api_key, ai_credits_balance } = result.rows[0];
+
+    // Devolver chave mascarada (se existir)
+    let maskedKey = null;
+    if (openrouter_api_key && openrouter_api_key.length > 10) {
+        maskedKey = openrouter_api_key.substring(0, 10) + '...' + openrouter_api_key.substring(openrouter_api_key.length - 4);
+    }
+
+    ctx.body = {
+        success: true,
+        data: {
+            hasCustomKey: openrouter_api_key !== null && openrouter_api_key.trim().length > 0,
+            maskedKey,
+            aiCreditsBalance: ai_credits_balance
+        }
+    };
+});
+
+// PUT /api/companies/:id/ai-settings - Update company AI key (Admin only)
+router.put('/:id/ai-settings', adminMiddleware, async (ctx) => {
+    const { id } = ctx.params;
+    const { openrouterApiKey } = ctx.request.body;
+
+    // Remove whitespace and check if removing key
+    const cleanedKey = openrouterApiKey === '' ? null : (openrouterApiKey ? openrouterApiKey.trim() : null);
+
+    await db.write(
+        `UPDATE companies SET openrouter_api_key = $2, updated_at = NOW() WHERE id = $1`,
+        [id, cleanedKey]
+    );
+
+    ctx.body = {
+        success: true,
+        message: 'Configurações de IA salvas com sucesso!'
+    };
+});
+
 export default router;
