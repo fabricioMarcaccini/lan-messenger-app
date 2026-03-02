@@ -319,6 +319,16 @@ httpServer.listen(PORT, async () => {
                 FOR EACH ROW EXECUTE FUNCTION messages_search_vector_update()
             `);
 
+            // 🚀 FEATURE: Enterprise 2FA (Two-Factor Authentication)
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret VARCHAR(255)');
+            await db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_two_factor_enabled BOOLEAN DEFAULT false');
+            await db.write('ALTER TABLE companies ADD COLUMN IF NOT EXISTS enforce_two_factor BOOLEAN DEFAULT false');
+
+            // 🚀 FEATURE: Threading (Tópicos Isolados)
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS thread_id UUID REFERENCES messages(id)');
+            await db.write('ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_count INT DEFAULT 0');
+            await db.write('CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id)');
+
             try { await db.write("ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check"); } catch (e) { }
             await db.write("ALTER TABLE messages ADD CONSTRAINT messages_content_type_check CHECK (content_type IN ('text', 'file', 'image', 'video', 'audio', 'pdf', 'deleted', 'call', 'poll', 'meeting'))");
 

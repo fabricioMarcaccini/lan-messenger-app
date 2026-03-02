@@ -174,6 +174,28 @@ router.post('/login', loginRateLimit, async (ctx) => {
             return;
         }
 
+        // Check if 2FA is enabled
+        if (user.is_two_factor_enabled) {
+            console.log('🔒 2FA required for user:', user.username);
+            // Return a temporary token just for 2FA validation
+            const tempToken = jwt.sign(
+                { id: user.id, is2FA: true },
+                process.env.JWT_SECRET || 'fallback_secret',
+                { expiresIn: '5m' }
+            );
+
+            ctx.body = {
+                success: true,
+                message: '2FA necessário',
+                data: {
+                    requires2FA: true,
+                    tempToken,
+                    userId: user.id
+                }
+            };
+            return;
+        }
+
         // Update last seen
         await db.write(
             'UPDATE users SET last_seen_at = NOW() WHERE id = $1',
@@ -269,6 +291,83 @@ router.post('/logout', async (ctx) => {
     }
 
     ctx.body = { success: true, message: 'Logout realizado com sucesso' };
+});
+
+// POST /api/auth/verify-login
+router.post('/verify-login', async (ctx) => {
+    const { tempToken, token } = ctx.request.body;
+
+    if (!tempToken || !token) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Parâmetros inválidos' };
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(tempToken, process.env.JWT_SECRET || 'fallback_secret');
+        if (!decoded.is2FA) throw new Error('Invalid token type');
+
+        const { authenticator } = await import('otplib');
+        const userId = decoded.id;
+
+        const result = await db.write('SELECT * FROM users WHERE id = $1', [userId]);
+        const user = result.rows[0];
+
+        if (!user || (!user.is_two_factor_enabled && !user.two_factor_secret)) {
+            ctx.status = 400;
+            ctx.body = { success: false, message: 'Usuário inválido ou 2FA não configurado' };
+            return;
+        }
+
+        const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+
+        if (!isValid) {
+            ctx.status = 401;
+            ctx.body = { success: false, message: 'Código 2FA inválido' };
+            return;
+        }
+
+        // --- SUCCESSFUL LOGIN PROCESS (Same as normal login) ---
+        await db.write('UPDATE users SET last_seen_at = NOW() WHERE id = $1', [user.id]);
+        const tokens = generateTokens(user);
+
+        await cache.set(`session:${user.id}`, { userId: user.id, loginAt: Date.now() }, 86400 * 7);
+        await cache.setPresence(user.id, 'online');
+
+        let planId = 'free';
+        let subscriptionStatus = 'inactive';
+        let trialEndsAt = null;
+        if (user.company_id) {
+            const companyResult = await db.write('SELECT plan_id, subscription_status, trial_ends_at FROM companies WHERE id = $1', [user.company_id]);
+            if (companyResult.rows[0]) {
+                planId = companyResult.rows[0].plan_id || 'free';
+                subscriptionStatus = companyResult.rows[0].subscription_status || 'inactive';
+                trialEndsAt = companyResult.rows[0].trial_ends_at || null;
+            }
+        }
+
+        ctx.body = {
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    fullName: user.full_name,
+                    avatarUrl: user.avatar_url,
+                    role: user.role,
+                    companyId: user.company_id,
+                    planId,
+                    subscriptionStatus,
+                },
+                ...tokens,
+            },
+        };
+    } catch (error) {
+        console.error('❌ 2FA Login Verify Error:', error.message);
+        ctx.status = 401;
+        ctx.body = { success: false, message: 'Sessão 2FA expirada ou token inválido' };
+    }
 });
 
 // POST /api/auth/refresh
@@ -548,6 +647,92 @@ router.put('/admin-reset-password', async (ctx) => {
         ctx.status = 500;
         ctx.body = { success: false, message: 'Erro ao resetar senha' };
     }
+});
+
+// ─────────────── ENTERPRISE 2FA ROUTES ───────────────
+
+router.get('/2fa/generate', authMiddleware, async (ctx) => {
+    const { authenticator } = await import('otplib');
+    const QRCode = await import('qrcode');
+    const userId = ctx.state.user.id;
+    const email = ctx.state.user.email;
+
+    try {
+        const secret = authenticator.generateSecret();
+        const otpauthContent = authenticator.keyuri(email, 'Lanly Enterprise', secret);
+        const qrCodeUrl = await QRCode.toDataURL(otpauthContent);
+
+        // Store secret temporarily (or update the user but keep is_two_factor_enabled false until verified)
+        await db.write(
+            'UPDATE users SET two_factor_secret = $2 WHERE id = $1',
+            [userId, secret]
+        );
+
+        ctx.body = {
+            success: true,
+            data: { secret, qrCodeUrl }
+        };
+    } catch (error) {
+        console.error('2FA Generate Error:', error);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Erro ao gerar 2FA' };
+    }
+});
+
+router.post('/2fa/verify', authMiddleware, async (ctx) => {
+    const { authenticator } = await import('otplib');
+    const { token } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    const result = await db.write('SELECT two_factor_secret, is_two_factor_enabled FROM users WHERE id = $1', [userId]);
+    const user = result.rows[0];
+
+    if (!user || !user.two_factor_secret) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: '2FA não configurado' };
+        return;
+    }
+
+    const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+
+    if (!isValid) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Código inválido' };
+        return;
+    }
+
+    if (!user.is_two_factor_enabled) {
+        await db.write('UPDATE users SET is_two_factor_enabled = true WHERE id = $1', [userId]);
+    }
+
+    ctx.body = { success: true, message: '2FA ativado com sucesso' };
+});
+
+router.post('/2fa/disable', authMiddleware, async (ctx) => {
+    const { authenticator } = await import('otplib');
+    const { token } = ctx.request.body;
+    const userId = ctx.state.user.id;
+
+    const result = await db.write('SELECT two_factor_secret FROM users WHERE id = $1', [userId]);
+    const user = result.rows[0];
+
+    if (!user || !user.two_factor_secret) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: '2FA não está ativo' };
+        return;
+    }
+
+    const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+
+    if (!isValid) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Código inválido' };
+        return;
+    }
+
+    await db.write('UPDATE users SET is_two_factor_enabled = false, two_factor_secret = NULL WHERE id = $1', [userId]);
+
+    ctx.body = { success: true, message: '2FA desativado' };
 });
 
 export default router;
