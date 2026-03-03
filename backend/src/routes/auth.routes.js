@@ -307,7 +307,7 @@ router.post('/verify-login', async (ctx) => {
         const decoded = jwt.verify(tempToken, process.env.JWT_SECRET || 'fallback_secret');
         if (!decoded.is2FA) throw new Error('Invalid token type');
 
-        const { authenticator } = await import('otplib');
+        const { verifySync } = await import('otplib');
         const userId = decoded.id;
 
         const result = await db.write('SELECT * FROM users WHERE id = $1', [userId]);
@@ -319,7 +319,8 @@ router.post('/verify-login', async (ctx) => {
             return;
         }
 
-        const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+        const verification = verifySync({ token, secret: user.two_factor_secret, type: 'totp' });
+        const isValid = verification?.valid;
 
         if (!isValid) {
             ctx.status = 401;
@@ -652,14 +653,14 @@ router.put('/admin-reset-password', async (ctx) => {
 // ─────────────── ENTERPRISE 2FA ROUTES ───────────────
 
 router.get('/2fa/generate', authMiddleware, async (ctx) => {
-    const { authenticator } = await import('otplib');
+    const { generateSecret, generateURI } = await import('otplib');
     const QRCode = await import('qrcode');
     const userId = ctx.state.user.id;
     const email = ctx.state.user.email;
 
     try {
-        const secret = authenticator.generateSecret();
-        const otpauthContent = authenticator.keyuri(email, 'Lanly Enterprise', secret);
+        const secret = generateSecret();
+        const otpauthContent = generateURI({ secret, label: 'Lanly Enterprise', issuer: 'Lanly', accountName: email, type: 'totp' });
         const qrCodeUrl = await QRCode.toDataURL(otpauthContent);
 
         // Store secret temporarily (or update the user but keep is_two_factor_enabled false until verified)
@@ -680,7 +681,7 @@ router.get('/2fa/generate', authMiddleware, async (ctx) => {
 });
 
 router.post('/2fa/verify', authMiddleware, async (ctx) => {
-    const { authenticator } = await import('otplib');
+    const { verifySync } = await import('otplib');
     const { token } = ctx.request.body;
     const userId = ctx.state.user.id;
 
@@ -693,7 +694,8 @@ router.post('/2fa/verify', authMiddleware, async (ctx) => {
         return;
     }
 
-    const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+    const verification = verifySync({ token, secret: user.two_factor_secret, type: 'totp' });
+    const isValid = verification?.valid;
 
     if (!isValid) {
         ctx.status = 400;
@@ -709,7 +711,7 @@ router.post('/2fa/verify', authMiddleware, async (ctx) => {
 });
 
 router.post('/2fa/disable', authMiddleware, async (ctx) => {
-    const { authenticator } = await import('otplib');
+    const { verifySync } = await import('otplib');
     const { token } = ctx.request.body;
     const userId = ctx.state.user.id;
 
@@ -722,7 +724,8 @@ router.post('/2fa/disable', authMiddleware, async (ctx) => {
         return;
     }
 
-    const isValid = authenticator.verify({ token, secret: user.two_factor_secret });
+    const verification = verifySync({ token, secret: user.two_factor_secret, type: 'totp' });
+    const isValid = verification?.valid;
 
     if (!isValid) {
         ctx.status = 400;
