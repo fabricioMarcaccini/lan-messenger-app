@@ -141,6 +141,10 @@ export const useAuthStore = defineStore('auth', () => {
             const response = await api.post('/auth/login', { username, password })
             const { data } = response.data
 
+            if (data.requires2FA) {
+                return { success: true, requires2FA: true, tempToken: data.tempToken }
+            }
+
             user.value = data.user
             accessToken.value = data.accessToken
             refreshToken.value = data.refreshToken
@@ -151,6 +155,29 @@ export const useAuthStore = defineStore('auth', () => {
             return { success: true }
         } catch (err) {
             error.value = err.response?.data?.message || 'Erro ao fazer login'
+            return { success: false, message: error.value }
+        } finally {
+            loading.value = false
+        }
+    }
+
+    async function verify2FA(tempToken, token) {
+        loading.value = true
+        error.value = null
+        try {
+            const response = await api.post('/auth/verify-login', { tempToken, token })
+            const { data } = response.data
+
+            user.value = data.user
+            accessToken.value = data.accessToken
+            refreshToken.value = data.refreshToken
+
+            localStorage.setItem('accessToken', data.accessToken)
+            localStorage.setItem('refreshToken', data.refreshToken)
+
+            return { success: true }
+        } catch (err) {
+            error.value = err.response?.data?.message || 'Código 2FA Inválido'
             return { success: false, message: error.value }
         } finally {
             loading.value = false
@@ -261,6 +288,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         isAdmin,
         login,
+        verify2FA,
         register,
         logout,
         checkAuth,

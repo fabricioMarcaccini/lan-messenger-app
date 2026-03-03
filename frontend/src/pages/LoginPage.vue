@@ -274,6 +274,46 @@
         </div>
       </div>
     </Transition>
+
+    <!-- 2FA Verification Modal -->
+    <Transition name="fade">
+      <div v-if="show2FAModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="show2FAModal = false">
+        <div class="w-full max-w-sm bg-white dark:bg-[#13181b] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden animate-float">
+          <div class="p-6 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+            <div class="p-2 rounded-xl bg-blue-500/10">
+              <span class="material-symbols-outlined text-blue-500 text-2xl">verified_user</span>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white">Autenticação 2FA</h3>
+              <p class="text-sm text-gray-500 dark:text-slate-400">Insira o código do seu app</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="relative mb-4">
+              <input 
+                v-model="token2FA"
+                type="text" 
+                maxlength="6"
+                placeholder="000000"
+                class="w-full text-center tracking-[0.5em] text-2xl font-mono bg-gray-50 dark:bg-black/20 text-gray-900 dark:text-white border border-gray-300 dark:border-white/20 focus:border-primary rounded-xl py-3"
+                :disabled="loading"
+              />
+            </div>
+            <div v-if="error2FA" class="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 py-2 rounded-lg mb-4">
+              {{ error2FA }}
+            </div>
+            <button 
+              @click="handle2FAVerify" 
+              :disabled="loading || token2FA.length !== 6"
+              class="w-full bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <span v-if="loading" class="material-symbols-outlined animate-spin">progress_activity</span>
+              <span v-else>Verificar Código</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -316,6 +356,12 @@ const forgotLoading = ref(false)
 const forgotError = ref('')
 const forgotSuccess = ref('')
 
+// 2FA Verification
+const show2FAModal = ref(false)
+const token2FA = ref('')
+const error2FA = ref('')
+const tempToken2FA = ref('')
+
 // Load saved username and initialize
 onMounted(() => {
     // Load remembered username
@@ -350,6 +396,13 @@ async function handleLogin() {
   const result = await authStore.login(form.username, form.password)
   
   if (result.success) {
+    if (result.requires2FA) {
+      tempToken2FA.value = result.tempToken
+      show2FAModal.value = true
+      loading.value = false
+      return
+    }
+
     // Handle Remember Me
     if (form.remember) {
       localStorage.setItem('rememberedUsername', form.username)
@@ -363,6 +416,29 @@ async function handleLogin() {
     error.value = result.message
   }
   
+  loading.value = false
+}
+
+async function handle2FAVerify() {
+  if (!token2FA.value || token2FA.value.length !== 6) return
+  
+  loading.value = true
+  error2FA.value = ''
+
+  const result = await authStore.verify2FA(tempToken2FA.value, token2FA.value)
+  
+  if (result.success) {
+    // Handle Remember Me
+    if (form.remember) {
+      localStorage.setItem('rememberedUsername', form.username)
+    }
+    
+    show2FAModal.value = false
+    socketStore.connect()
+    router.push('/')
+  } else {
+    error2FA.value = result.message
+  }
   loading.value = false
 }
 

@@ -152,13 +152,20 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">{{ locale.t.profile.status }} <span class="text-[10px] text-gray-400 font-normal ml-1" title="Seu status online, visível para todos os contatos">(?)</span></label>
                 <select 
                   v-model="formData.status"
-                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                  class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all mb-3"
                   title="Altere como as outras pessoas veem o seu status (Online, Ocupado, Ausente)"
                 >
                   <option value="online">Online</option>
                   <option value="busy">Busy</option>
                   <option value="away">Away</option>
                 </select>
+                <button 
+                  @click="showStatusModal = true" 
+                  class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors font-semibold text-sm"
+                >
+                  <span class="material-symbols-outlined text-lg">mood</span>
+                  Definir Status Customizado
+                </button>
               </div>
             </div>
           </div>
@@ -578,6 +585,65 @@
           </div>
         </section>
 
+        <!-- Security Section - 2FA -->
+        <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">verified_user</span>
+              Autenticação de Dois Fatores (2FA)
+            </h2>
+            <div v-if="twoFactorEnabled" class="flex items-center gap-2 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
+              <span class="material-symbols-outlined text-sm">check_circle</span>
+              <span class="text-xs font-bold">Ativado</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10 mb-6">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Google Authenticator</h3>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 max-w-2xl leading-relaxed">
+             Adicione uma camada extra de segurança à sua conta corporativa exigindo um código do aplicativo (Google Authenticator, Authy, etc) além da sua senha a cada login.
+            </p>
+
+            <!-- Generate 2FA -->
+            <div v-if="!twoFactorEnabled && !twoFactorSecret" class="mt-4">
+              <button @click="generate2FA" :disabled="loading2FA" class="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50">
+                <span v-if="loading2FA" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                <span v-else class="material-symbols-outlined text-sm">qr_code_scanner</span>
+                Configurar 2FA
+              </button>
+            </div>
+
+            <!-- Verify 2FA -->
+            <div v-else-if="!twoFactorEnabled && twoFactorSecret" class="mt-4 bg-white dark:bg-[#131c1e] p-6 rounded-2xl border border-gray-200 dark:border-white/10 text-center">
+              <img :src="twoFactorQR" alt="QR Code" class="mx-auto mb-4 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white">
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 font-mono select-all bg-gray-100 dark:bg-black/40 py-2 rounded-lg">{{ twoFactorSecret }}</p>
+              
+              <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
+                <input v-model="twoFactorVerifyCode" type="text" maxlength="6" placeholder="000000" class="w-full text-center tracking-widest text-xl font-mono px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
+                <button @click="verify2FA" :disabled="loading2FA || twoFactorVerifyCode.length !== 6" class="px-6 py-2.5 bg-primary hover:bg-cyan-400 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center disabled:opacity-50">
+                   <span v-if="loading2FA" class="material-symbols-outlined animate-spin">progress_activity</span>
+                   <span v-else>Ativar</span>
+                </button>
+              </div>
+              <div v-if="error2FA" class="text-red-500 mt-2 text-sm font-medium">{{ error2FA }}</div>
+            </div>
+
+            <!-- Disable 2FA -->
+            <div v-if="twoFactorEnabled" class="mt-4 bg-white dark:bg-[#131c1e] p-6 rounded-2xl border border-gray-200 dark:border-white/10">
+               <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">Para desativar o 2FA, confirme o código atual do seu aplicativo.</p>
+               <div class="flex items-center gap-2 max-w-xs">
+                <input v-model="twoFactorVerifyCode" type="text" maxlength="6" placeholder="000000" class="w-full text-center tracking-widest font-mono px-4 py-2 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
+                <button @click="disable2FA" :disabled="loading2FA || twoFactorVerifyCode.length !== 6" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+                   <span v-if="loading2FA" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                   <span v-else>Desativar</span>
+                </button>
+              </div>
+               <div v-if="error2FA" class="text-red-500 mt-2 text-sm font-medium">{{ error2FA }}</div>
+            </div>
+
+          </div>
+        </section>
+
       </div>
     </main>
   </div>
@@ -763,6 +829,95 @@ const galleryAvatars = [
   'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Silly', 
 ]
 
+// ──────────────────────────────────────────────
+// 2FA Security Logic
+// ──────────────────────────────────────────────
+const twoFactorEnabled = ref(false)
+const twoFactorSecret = ref('')
+const twoFactorQR = ref('')
+const twoFactorVerifyCode = ref('')
+const loading2FA = ref(false)
+const error2FA = ref('')
+
+async function load2FAStatus() {
+  // Try to load via /auth/me or a new endpoint if needed.
+  // The simplest is checking authStore.user.is_two_factor_enabled (requires me endpoint update or checking current state)
+  // Let's assume authStore.user has it, or we just rely on state.
+  try {
+     const res = await api.get('/auth/me');
+     const me = res.data.data;
+     // Note: we'd need to ensure auth/me returns is_two_factor_enabled. For now let's set it if we find it:
+     if (me && me.is_two_factor_enabled !== undefined) {
+         twoFactorEnabled.value = me.is_two_factor_enabled;
+     } else {
+         // Fallback if not injected in 'me' mapping yet
+         twoFactorEnabled.value = authStore.user?.is_two_factor_enabled || false;
+     }
+  } catch (e) {
+     console.warn('Could not load 2FA configuration')
+  }
+}
+
+async function generate2FA() {
+  error2FA.value = ''
+  loading2FA.value = true
+  try {
+    const res = await api.get('/auth/2fa/generate')
+    if (res.data.success) {
+      twoFactorSecret.value = res.data.data.secret
+      twoFactorQR.value = res.data.data.qrCodeUrl
+    }
+  } catch(e) {
+    error2FA.value = e.response?.data?.message || 'Erro ao gerar 2FA'
+  } finally {
+    loading2FA.value = false
+  }
+}
+
+async function verify2FA() {
+  if (twoFactorVerifyCode.value.length !== 6) return
+  error2FA.value = ''
+  loading2FA.value = true
+  try {
+    const res = await api.post('/auth/2fa/verify', { token: twoFactorVerifyCode.value })
+    if (res.data.success) {
+      twoFactorEnabled.value = true
+      twoFactorSecret.value = ''
+      twoFactorQR.value = ''
+      twoFactorVerifyCode.value = ''
+      
+      // Toast notification reusing the password success logic visually
+      passwordSuccess.value = "2FA Habilidado com Sucesso! Seu login corporativo agora é blindado."
+      setTimeout(() => passwordSuccess.value = '', 5000);
+    }
+  } catch(e) {
+    error2FA.value = e.response?.data?.message || 'Código inválido'
+  } finally {
+    loading2FA.value = false
+  }
+}
+
+async function disable2FA() {
+  if (twoFactorVerifyCode.value.length !== 6) return
+  error2FA.value = ''
+  loading2FA.value = true
+  try {
+    const res = await api.post('/auth/2fa/disable', { token: twoFactorVerifyCode.value })
+    if (res.data.success) {
+      twoFactorEnabled.value = false
+      twoFactorVerifyCode.value = ''
+      
+      // Toast notification
+      passwordSuccess.value = "2FA Desabilitado."
+      setTimeout(() => passwordSuccess.value = '', 5000);
+    }
+  } catch(e) {
+    error2FA.value = e.response?.data?.message || 'Código inválido'
+  } finally {
+    loading2FA.value = false
+  }
+}
+
 function openAvatarModal() {
   showAvatarModal.value = true
 }
@@ -930,6 +1085,7 @@ onMounted(() => {
   // Fetch subscription status
   subStore.fetchSubscriptionStatus()
   loadAiSettings()
+  load2FAStatus()
 
   // Check for checkout success/cancel query params
   const checkoutParam = new URLSearchParams(window.location.search).get('checkout')

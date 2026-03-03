@@ -261,12 +261,20 @@ router.get('/conversations/:id', async (ctx) => {
         SELECT m.id, m.sender_id, m.content, m.content_type, m.file_url, m.is_read, m.is_deleted,
                m.edited_at, m.created_at, m.reply_to, m.reactions, m.expires_at,
                m.is_pinned, m.pinned_at, m.pinned_by,
+               m.thread_id, m.reply_count,
                u.username as sender_username, u.full_name as sender_name, u.avatar_url as sender_avatar
         FROM messages m
         JOIN users u ON u.id = m.sender_id
         WHERE m.conversation_id = $1
     `;
     const params = [id];
+
+    if (ctx.query.threadId) {
+        query += ` AND m.thread_id = $${params.length + 1}`;
+        params.push(ctx.query.threadId);
+    } else {
+        query += ` AND m.thread_id IS NULL`;
+    }
 
     if (cursor) {
         query += ` AND m.created_at < $2`;
@@ -320,6 +328,8 @@ router.get('/conversations/:id', async (ctx) => {
             isPinned: m.is_pinned,
             pinnedAt: m.pinned_at,
             pinnedBy: m.pinned_by,
+            threadId: m.thread_id,
+            replyCount: m.reply_count || 0,
             pollResults: pollResultsMap[m.id] || [],
         })).filter(m => !m.expiresAt || new Date(m.expiresAt) > new Date()),
     };
@@ -328,7 +338,7 @@ router.get('/conversations/:id', async (ctx) => {
 // POST /api/messages/conversations/:id - Send message
 router.post('/conversations/:id', async (ctx) => {
     const { id } = ctx.params;
-    const { content, contentType = 'text', fileUrl, replyTo = null, expiresIn = null } = ctx.request.body;
+    const { content, contentType = 'text', fileUrl, replyTo = null, threadId = null, expiresIn = null } = ctx.request.body;
     const userId = ctx.state.user.id;
     const companyId = ctx.state.user.companyId;
 
@@ -355,17 +365,23 @@ router.post('/conversations/:id', async (ctx) => {
     }
 
     const result = await db.write(
-        `INSERT INTO messages (conversation_id, sender_id, content, content_type, file_url, reply_to, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO messages (conversation_id, sender_id, content, content_type, file_url, reply_to, thread_id, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING id, created_at`,
-        [id, userId, content, contentType, fileUrl, replyTo, expiresAt]
+        [id, userId, content, contentType, fileUrl, replyTo, threadId, expiresAt]
     );
 
     const message = result.rows[0];
-    await db.write(
-        'UPDATE conversations SET last_message_id = $2, last_message_at = $3 WHERE id = $1',
-        [id, message.id, message.created_at]
-    );
+
+    // Se a mensagem for parte de uma thread, incrementa o contador do pai
+    if (threadId) {
+        await db.write('UPDATE messages SET reply_count = reply_count + 1 WHERE id = $1', [threadId]);
+    } else {
+        await db.write(
+            'UPDATE conversations SET last_message_id = $2, last_message_at = $3 WHERE id = $1',
+            [id, message.id, message.created_at]
+        );
+    }
 
     const senderResult = await db.write('SELECT username, full_name, avatar_url FROM users WHERE id = $1', [userId]);
     const sender = senderResult.rows[0];
@@ -385,6 +401,8 @@ router.post('/conversations/:id', async (ctx) => {
         editedAt: null,
         createdAt: message.created_at,
         replyTo,
+        threadId,
+        replyCount: 0,
         reactions: {},
         expiresAt
     };

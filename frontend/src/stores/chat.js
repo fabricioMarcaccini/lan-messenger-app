@@ -18,6 +18,8 @@ export const useChatStore = defineStore('chat', () => {
     const conversationFiles = ref([])
     const mentions = ref([])
     const unreadMentions = ref(0)
+    const activeThreadId = ref(null) // ID of current thread parent message
+    const threadMessages = ref({}) // map of threadId -> messages arr
 
     // Computeds
     const activeConversation = computed(() =>
@@ -59,6 +61,14 @@ export const useChatStore = defineStore('chat', () => {
         // Fetch messages for this conversation if not already loaded
         if (id && !messages.value[id]) {
             fetchMessages(id)
+        }
+        activeThreadId.value = null
+    }
+
+    function setActiveThread(threadId) {
+        activeThreadId.value = threadId
+        if (threadId && !threadMessages.value[threadId]) {
+            fetchThreadMessages(activeConversationId.value, threadId)
         }
     }
 
@@ -128,11 +138,12 @@ export const useChatStore = defineStore('chat', () => {
 
     async function sendMessage(conversationId, content, type = 'text', options = {}) {
         try {
-            const { replyTo = null, expiresIn = null } = options;
+            const { replyTo = null, threadId = null, expiresIn = null } = options;
             const response = await api.post(`/messages/conversations/${conversationId}`, {
                 content,
                 contentType: type,
                 replyTo,
+                threadId,
                 expiresIn
             })
             const newMessage = response.data.data
@@ -219,6 +230,22 @@ export const useChatStore = defineStore('chat', () => {
             console.error('Failed to fetch messages:', err)
             messages.value[conversationId] = []
             hasMoreMessages.value[conversationId] = false
+        }
+    }
+
+    async function fetchThreadMessages(conversationId, threadId) {
+        try {
+            const response = await api.get(`/messages/conversations/${conversationId}?limit=500&threadId=${threadId}`)
+            const threadData = response.data.data || []
+            // Add the parent message manually to the beginning if available
+            const parentMsg = messages.value[conversationId]?.find(m => m.id === threadId)
+            if (parentMsg && !threadData.find(m => m.id === threadId)) {
+                threadData.unshift(parentMsg)
+            }
+            threadMessages.value[threadId] = threadData
+        } catch (err) {
+            console.error('Failed to fetch thread messages:', err)
+            threadMessages.value[threadId] = []
         }
     }
 
@@ -526,10 +553,14 @@ export const useChatStore = defineStore('chat', () => {
         searchResults,
         isSearching,
         pinnedMessage,
+        pinnedMessage,
         conversationFiles,
         mentions,
         unreadMentions,
+        activeThreadId,
+        threadMessages,
         setActiveConversation,
+        setActiveThread,
         fetchConversations,
         fetchPublicChannels,
         joinPublicChannel,
@@ -537,6 +568,7 @@ export const useChatStore = defineStore('chat', () => {
         manageGroupParticipants,
         sendMessage,
         fetchMessages,
+        fetchThreadMessages,
         fetchPinnedMessage,
         pinMessage,
         createPoll,

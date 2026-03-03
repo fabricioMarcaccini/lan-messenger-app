@@ -357,6 +357,7 @@
               <div class="flex items-center gap-2 text-xs" v-if="!chatStore.activeConversation.isGroup">
                 <span :class="['flex size-2 rounded-full', getOtherUserOnline(chatStore.activeConversation) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-400']" ></span>
                 <span :class="getOtherUserOnline(chatStore.activeConversation) ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-400 dark:text-slate-500 font-medium'">{{ getOtherUserOnline(chatStore.activeConversation) ? locale.t.chat.online : 'Offline' }}</span>
+                <span v-if="chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.ooo_until" class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 text-[10px] font-bold">OOO / Fora do Escritório</span>
               </div>
               <div class="flex items-center gap-2 text-xs" v-else>
                 <span class="flex size-2 bg-green-500 rounded-full"></span>
@@ -726,6 +727,16 @@
               </div>
 
               <div class="flex items-center gap-1 mt-0.5 px-1 truncate max-w-full justify-end flex-wrap">
+                <!-- Thread Info -->
+                <button 
+                  v-if="msg.replyCount > 0" 
+                  @click="startReply(msg)" 
+                  class="mr-2 text-[11px] font-bold text-primary hover:underline hover:text-cyan-500 transition-colors flex items-center gap-1"
+                >
+                  <span class="material-symbols-outlined text-[14px]">forum</span>
+                  {{ msg.replyCount }} {{ msg.replyCount > 1 ? 'respostas' : 'resposta' }}
+                </button>
+              
                 <!-- Reactions -->
                 <div v-if="msg.reactions && Object.keys(msg.reactions).length > 0" class="flex gap-1 mr-2 bg-gray-100 dark:bg-black/30 rounded-full px-1.5 py-0.5 border border-gray-200 dark:border-white/10">
                    <div v-for="(users, emoji) in msg.reactions" :key="emoji" @click="toggleReaction(msg.id, emoji)" class="flex items-center gap-1 cursor-pointer text-[10px] hover:scale-110 transition-transform" :class="users.includes(authStore.user?.id) ? 'text-primary' : ''">
@@ -1016,6 +1027,12 @@
         </div>
       </template>
     </main>
+    <ThreadPanel 
+      v-if="chatStore.activeThreadId && chatStore.activeConversationId" 
+      :conversationId="chatStore.activeConversationId" 
+      :threadId="chatStore.activeThreadId" 
+      @close="chatStore.setActiveThread(null)" 
+    />
 
     <!-- New Chat Modal -->
     <div v-if="showNewChatModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -1151,11 +1168,11 @@
       </div>
     </div>
 
-    <!-- Group Info Modal -->
-    <div v-if="showGroupInfo && chatStore.activeConversation?.isGroup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <!-- Group/Chat Info Modal -->
+    <div v-if="showGroupInfo && chatStore.activeConversation" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div class="glass-panel w-full max-w-sm rounded-2xl p-6 relative flex flex-col bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-xl">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">Detalhes do Grupo</h2>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ chatStore.activeConversation.isGroup ? 'Detalhes do Grupo' : 'Detalhes da Conversa' }}</h2>
           <button @click="showGroupInfo = false" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white">
             <span class="material-symbols-outlined">close</span>
           </button>
@@ -1164,13 +1181,14 @@
         <div class="flex flex-col items-center mb-6">
            <div class="bg-center bg-cover rounded-full size-20 mb-3 border-4 border-primary/20" :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"></div>
            <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}</h3>
-           <p class="text-sm text-gray-500 dark:text-slate-400 text-center mt-1 font-medium">{{ chatStore.activeConversation.participants.length }} Participantes</p>
+           <p v-if="chatStore.activeConversation.isGroup" class="text-sm text-gray-500 dark:text-slate-400 text-center mt-1 font-medium">{{ chatStore.activeConversation.participants.length }} Participantes</p>
         </div>
 
         <div class="flex gap-4 mb-4 border-b border-gray-200 dark:border-white/10 w-full justify-center">
           <button @click="infoTab = 'members'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'members' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Membros</button>
           <button @click="infoTab = 'media'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'media' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Mídia</button>
           <button @click="infoTab = 'files'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'files' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Arquivos</button>
+          <button @click="infoTab = 'pins'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'pins' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Fixados</button>
           <button @click="infoTab = 'calls'" :class="['pb-2 text-sm font-medium transition-colors', infoTab === 'calls' ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']">Chamadas</button>
         </div>
 
@@ -1264,6 +1282,23 @@
               </div>
            </template>
            <div v-if="chatStore.activeMessages.filter(m => m.contentType === 'call').length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma chamada registrada.</div>
+        </div>
+
+        <!-- PINS TAB -->
+        <div v-if="infoTab === 'pins'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full relative">
+           <template v-for="msg in chatStore.activeMessages">
+              <div v-if="msg.isPinned" :key="msg.id" class="flex flex-col gap-1 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
+                 <div class="flex items-center gap-1 mb-1">
+                    <span class="material-symbols-outlined text-yellow-600 dark:text-yellow-400 text-xs text-sm">keep</span>
+                    <span class="text-[10px] text-yellow-700 dark:text-yellow-500 font-bold uppercase truncate">Fixado por {{ typeof msg.pinnedBy === 'string' ? msg.pinnedBy : 'Membro' }}</span>
+                 </div>
+                 <span class="text-xs text-gray-800 dark:text-slate-200 truncate">{{ msg.content }}</span>
+                 <div class="flex justify-between items-center mt-1">
+                    <span class="text-[10px] text-gray-500">{{ formatTime(msg.createdAt) }}</span>
+                 </div>
+              </div>
+           </template>
+           <div v-if="chatStore.activeMessages.filter(m => m.isPinned).length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma mensagem fixada.</div>
         </div>
 
         <button v-if="chatStore.activeConversation?.isGroup" @click="leaveGroup" class="w-full mt-2 py-2 flex items-center justify-center gap-2 text-sm font-bold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-900/30">
@@ -1675,6 +1710,7 @@ import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import LinkPreview from '@/components/LinkPreview.vue';
+import ThreadPanel from '@/components/ThreadPanel.vue';
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -2174,12 +2210,7 @@ function startEdit(msg) {
 }
 
 function startReply(msg) {
-  replyingToMessage.value = msg
-  editingMessageId.value = null
-  requestAnimationFrame(() => {
-    const textarea = document.querySelector('textarea')
-    if (textarea) textarea.focus()
-  })
+  chatStore.setActiveThread(msg.id)
 }
 
 function cancelEditOrReply() {
