@@ -1006,7 +1006,8 @@
                   <span class="material-symbols-outlined">sticky_note_2</span>
                 </button>
 
-                <div v-if="showStickerPicker" class="absolute bottom-full right-0 mb-2 z-50" v-click-outside="() => showStickerPicker = false">
+                <div v-if="showStickerPicker" class="fixed inset-0 z-40" @click="showStickerPicker = false"></div>
+                <div v-if="showStickerPicker" class="absolute bottom-full right-0 mb-2 z-50">
                   <StickerPicker @select="sendStickerMessage" />
                 </div>
               </div>
@@ -1813,6 +1814,7 @@ import ThreadPanel from '@/components/ThreadPanel.vue';
 import CopilotPanel from '@/components/CopilotPanel.vue';
 import MeetingModal from '@/components/MeetingModal.vue';
 import WhiteboardModal from '@/components/WhiteboardModal.vue';
+import StickerPicker from '@/components/StickerPicker.vue';
 
 const router = useRouter()
 const authStore = useAuthStore()

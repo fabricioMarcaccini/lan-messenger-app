@@ -50,13 +50,20 @@ export const useStickerStore = defineStore('stickers', () => {
         formData.append('file', file);
 
         try {
-            // Usually we upload to get a URL
+            // Step 1: Upload file to get a URL
             const uploadRes = await api.post('/uploads', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            const fileUrl = uploadRes.data.url;
 
-            // Register as sticker
+            // The upload endpoint returns { success, data: { url, ... } }
+            const fileUrl = uploadRes.data?.data?.url || uploadRes.data?.url;
+
+            if (!fileUrl) {
+                console.error('Upload returned no URL:', uploadRes.data);
+                throw new Error('URL do arquivo não retornada pelo servidor');
+            }
+
+            // Step 2: Register as sticker in the stickers table
             const stickerRes = await api.post('/stickers', {
                 fileUrl,
                 isAnimated: file.type.includes('gif') || file.name.endsWith('.webp')
@@ -65,6 +72,8 @@ export const useStickerStore = defineStore('stickers', () => {
             if (stickerRes.data.success) {
                 companyStickers.value.unshift(stickerRes.data.sticker);
                 return stickerRes.data.sticker;
+            } else {
+                throw new Error(stickerRes.data.message || 'Erro ao registrar figurinha');
             }
         } catch (error) {
             console.error('Falha ao fazer upload de figurinha:', error);

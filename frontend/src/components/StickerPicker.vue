@@ -121,7 +121,9 @@ const handleUploadSticker = async (e) => {
 const getApiUrl = (path) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const baseUrl = import.meta.env.PROD
+        ? 'https://lan-messenger-backend.onrender.com'
+        : 'http://localhost:3000';
     return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 </script>
