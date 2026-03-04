@@ -615,8 +615,27 @@
 
             <!-- Verify 2FA -->
             <div v-else-if="!twoFactorEnabled && twoFactorSecret" class="mt-4 bg-white dark:bg-[#131c1e] p-6 rounded-2xl border border-gray-200 dark:border-white/10 text-center">
-              <img :src="twoFactorQR" alt="QR Code" class="mx-auto mb-4 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white">
-              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 font-mono select-all bg-gray-100 dark:bg-black/40 py-2 rounded-lg">{{ twoFactorSecret }}</p>
+              
+              <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-left text-sm border border-blue-100 dark:border-blue-800/50">
+                 <h4 class="font-bold flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">info</span> Como ativar:</h4>
+                 <ol class="list-decimal pl-5 space-y-1">
+                    <li>Baixe um app como <strong>Google Authenticator</strong> ou <strong>Authy</strong> no seu celular.</li>
+                    <li>Abra o aplicativo e clique no botão de <strong>+</strong> para ler códigos.</li>
+                    <li>Aponte a câmera <strong>por dentro do app</strong> (e não da sua câmera normal) para este QR Code.</li>
+                 </ol>
+              </div>
+
+              <a v-if="twoFactorOtpauth" :href="twoFactorOtpauth" class="block w-fit mx-auto cursor-pointer" title="Clique para abrir diretamente no seu aplicativo Authenticator">
+                <img :src="twoFactorQR" alt="QR Code" class="mb-2 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white hover:scale-105 transition-transform mx-auto">
+              </a>
+              <img v-else :src="twoFactorQR" alt="QR Code" class="mx-auto mb-4 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white">
+              
+              <div class="mb-4 text-center">
+                 <a v-if="twoFactorOtpauth" :href="twoFactorOtpauth" class="hidden sm:inline-block md:hidden px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-bold rounded-lg text-xs mb-3 shadow-sm active:scale-95 transition-all">
+                   <span class="material-symbols-outlined text-[14px] align-middle mr-1">open_in_new</span> Abrir direto no app
+                 </a>
+                 <p class="text-sm text-gray-600 dark:text-slate-400 font-mono select-all bg-gray-100 dark:bg-black/40 py-2 rounded-lg" title="Se não conseguir ler o QR Code, use o código abaixo e adicione manualmente no app">{{ twoFactorSecret }}</p>
+              </div>
               
               <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
                 <input v-model="twoFactorVerifyCode" type="text" maxlength="6" placeholder="000000" class="w-full text-center tracking-widest text-xl font-mono px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
@@ -835,22 +854,18 @@ const galleryAvatars = [
 const twoFactorEnabled = ref(false)
 const twoFactorSecret = ref('')
 const twoFactorQR = ref('')
+const twoFactorOtpauth = ref('')
 const twoFactorVerifyCode = ref('')
 const loading2FA = ref(false)
 const error2FA = ref('')
 
 async function load2FAStatus() {
-  // Try to load via /auth/me or a new endpoint if needed.
-  // The simplest is checking authStore.user.is_two_factor_enabled (requires me endpoint update or checking current state)
-  // Let's assume authStore.user has it, or we just rely on state.
   try {
      const res = await api.get('/auth/me');
      const me = res.data.data;
-     // Note: we'd need to ensure auth/me returns is_two_factor_enabled. For now let's set it if we find it:
      if (me && me.is_two_factor_enabled !== undefined) {
          twoFactorEnabled.value = me.is_two_factor_enabled;
      } else {
-         // Fallback if not injected in 'me' mapping yet
          twoFactorEnabled.value = authStore.user?.is_two_factor_enabled || false;
      }
   } catch (e) {
@@ -866,6 +881,7 @@ async function generate2FA() {
     if (res.data.success) {
       twoFactorSecret.value = res.data.data.secret
       twoFactorQR.value = res.data.data.qrCodeUrl
+      twoFactorOtpauth.value = res.data.data.otpauthUrl
     }
   } catch(e) {
     error2FA.value = e.response?.data?.message || 'Erro ao gerar 2FA'

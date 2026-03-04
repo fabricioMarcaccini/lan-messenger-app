@@ -11,53 +11,55 @@ let passed = 0;
 let failed = 0;
 let total = 0;
 
-function describe(name, fn) {
-    console.log(`\n\x1b[1m📦 ${name}\x1b[0m`);
-    fn();
-}
-
-function test(name, fn) {
-    total++;
-    try {
+if (!process.env.JEST_WORKER_ID) {
+    global.describe = function describe(name, fn) {
+        console.log(`\n\x1b[1m📦 ${name}\x1b[0m`);
         fn();
-        passed++;
-        console.log(`  \x1b[32m✓\x1b[0m ${name}`);
-    } catch (e) {
-        failed++;
-        console.log(`  \x1b[31m✗\x1b[0m ${name}`);
-        console.log(`    \x1b[31m${e.message}\x1b[0m`);
     }
-}
 
-function expect(value) {
-    return {
-        toBe(expected) {
-            if (value !== expected) throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(value)}`);
-        },
-        toBeNull() {
-            if (value !== null) throw new Error(`Expected null but got ${JSON.stringify(value)}`);
-        },
-        toBeUndefined() {
-            if (value !== undefined) throw new Error(`Expected undefined but got ${JSON.stringify(value)}`);
-        },
-        toBeCloseTo(expected, precision = 2) {
-            const pow = Math.pow(10, precision);
-            if (Math.round(value * pow) !== Math.round(expected * pow))
-                throw new Error(`Expected ~${expected} but got ${value}`);
-        },
-        toHaveLength(len) {
-            if (value.length !== len) throw new Error(`Expected length ${len} but got ${value.length}`);
-        },
-        toContain(item) {
-            if (!value.includes(item)) throw new Error(`Expected array to contain ${item}`);
-        },
-        toBeGreaterThan(n) {
-            if (!(value > n)) throw new Error(`Expected ${value} > ${n}`);
-        },
-        toBeLessThanOrEqual(n) {
-            if (!(value <= n)) throw new Error(`Expected ${value} <= ${n}`);
-        },
-    };
+    global.test = function test(name, fn) {
+        total++;
+        try {
+            fn();
+            passed++;
+            console.log(`  \x1b[32m✓\x1b[0m ${name}`);
+        } catch (e) {
+            failed++;
+            console.log(`  \x1b[31m✗\x1b[0m ${name}`);
+            console.log(`    \x1b[31m${e.message}\x1b[0m`);
+        }
+    }
+
+    global.expect = function expect(value) {
+        return {
+            toBe(expected) {
+                if (value !== expected) throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(value)}`);
+            },
+            toBeNull() {
+                if (value !== null) throw new Error(`Expected null but got ${JSON.stringify(value)}`);
+            },
+            toBeUndefined() {
+                if (value !== undefined) throw new Error(`Expected undefined but got ${JSON.stringify(value)}`);
+            },
+            toBeCloseTo(expected, precision = 2) {
+                const pow = Math.pow(10, precision);
+                if (Math.round(value * pow) !== Math.round(expected * pow))
+                    throw new Error(`Expected ~${expected} but got ${value}`);
+            },
+            toHaveLength(len) {
+                if (value.length !== len) throw new Error(`Expected length ${len} but got ${value.length}`);
+            },
+            toContain(item) {
+                if (!value.includes(item)) throw new Error(`Expected array to contain ${item}`);
+            },
+            toBeGreaterThan(n) {
+                if (!(value > n)) throw new Error(`Expected ${value} > ${n}`);
+            },
+            toBeLessThanOrEqual(n) {
+                if (!(value <= n)) throw new Error(`Expected ${value} <= ${n}`);
+            },
+        };
+    }
 }
 
 // ─── Environment Setup ──────────────────────────────────────────────────────
@@ -356,8 +358,8 @@ console.log('\n' + '═'.repeat(60));
 console.log(`\x1b[1m📊 Results: ${passed}/${total} passed\x1b[0m`);
 if (failed > 0) {
     console.log(`\x1b[31m❌ ${failed} test(s) failed\x1b[0m`);
-    process.exit(1);
+    if (!process.env.JEST_WORKER_ID) process.exit(1);
 } else {
     console.log(`\x1b[32m✅ All tests passed!\x1b[0m`);
-    process.exit(0);
+    if (!process.env.JEST_WORKER_ID) process.exit(0);
 }

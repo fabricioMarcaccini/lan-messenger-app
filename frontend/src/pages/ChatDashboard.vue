@@ -48,6 +48,14 @@
             <span class="material-symbols-outlined group-hover:text-accent transition-colors">settings</span>
             <span class="text-sm font-medium">{{ locale.t.nav.settings }}</span>
           </router-link>
+
+          <button @click="toggleDeepWork" :class="['flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left', isDeepWorkMode ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5']">
+            <span class="material-symbols-outlined transition-colors" :class="isDeepWorkMode ? 'text-amber-500' : 'group-hover:text-amber-400'">notifications_paused</span>
+            <span class="text-sm font-medium flex-1">Foco Total</span>
+            <div class="w-8 h-4 rounded-full relative transition-colors" :class="isDeepWorkMode ? 'bg-amber-500' : 'bg-gray-200 dark:bg-white/10'">
+              <div class="absolute w-3 h-3 rounded-full bg-white top-0.5 transition-transform" :class="isDeepWorkMode ? 'left-4.5 translate-x-3.5' : 'left-0.5'"></div>
+            </div>
+          </button>
           
           <router-link v-if="authStore.isAdmin" to="/admin/users" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
             <span class="material-symbols-outlined group-hover:text-purple-400 transition-colors">admin_panel_settings</span>
@@ -219,7 +227,7 @@
       </div>
       
       <!-- Conversations List -->
-      <div class="flex-1 overflow-y-auto px-3 pb-4">
+      <div class="flex-1 overflow-y-auto space-y-1 mt-4 px-2" :class="isDeepWorkMode ? 'opacity-20 pointer-events-none filter blur-[2px] transition-all' : 'transition-all'">
         
         <!-- Canais / Grupos -->
         <div class="mt-4 mb-2 px-1 flex justify-between items-center group">
@@ -337,6 +345,14 @@
     
     <!-- Right Panel: Active Chat -->
     <main :class="['flex-1 flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300 w-full', chatStore.activeConversation ? 'flex' : 'hidden md:flex']">
+      
+      <!-- Foco Total Banner Overlay -->
+      <div v-if="isDeepWorkMode" class="absolute top-0 inset-x-0 z-20 bg-amber-500 text-white text-xs font-bold py-1.5 flex justify-center items-center gap-2 shadow-lg animate-fade-in-down">
+        <span class="material-symbols-outlined text-[14px]">notifications_paused</span>
+        Foco Total Ativo — Som das notificações silenciado. 
+        <button @click="toggleDeepWork" class="underline hover:text-amber-100 ml-2">Desativar</button>
+      </div>
+
       <template v-if="chatStore.activeConversation">
         <!-- Chat Header -->
         <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-20 shrink-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
@@ -657,23 +673,29 @@
                     </div>
 
                     <!-- Meeting Message -->
-                    <div v-else-if="msg.contentType === 'meeting'" class="p-3 min-w-[260px] max-w-md">
-                      <div class="rounded-xl border border-indigo-300/40 dark:border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-500/10 p-3">
-                        <p class="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide mb-2">Reunião agendada</p>
-                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-100">{{ parseMeeting(msg.content).title || 'Reunião' }}</p>
-                        <p class="text-xs text-gray-600 dark:text-slate-300 mt-1">{{ formatMeetingDate(parseMeeting(msg.content).startAt) }}</p>
-                        <p v-if="parseMeeting(msg.content).description" class="text-xs text-gray-600 dark:text-slate-300 mt-2 line-clamp-2">{{ parseMeeting(msg.content).description }}</p>
-                        <a
-                          v-if="parseMeeting(msg.content).meetingLink"
-                          :href="parseMeeting(msg.content).meetingLink"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="mt-3 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:underline"
-                        >
-                          Entrar no link <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+                    <div v-else-if="msg.contentType === 'meeting'" class="w-full max-w-sm rounded-2xl bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden mt-1 p-0.5">
+                     <div class="h-1 bg-primary w-full rounded-t-xl"></div>
+                     <div class="p-4 flex flex-col gap-3">
+                        <div class="flex items-center gap-2">
+                           <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span class="material-symbols-outlined text-primary text-sm">event</span>
+                           </div>
+                           <div class="flex flex-col flex-1 min-w-0">
+                              <span class="text-sm font-bold text-gray-900 dark:text-white truncate" :title="parseMeeting(msg.content)?.title">{{ parseMeeting(msg.content)?.title || 'Reunião Agendada' }}</span>
+                              <span class="text-[11px] text-gray-500 font-medium truncate">Liderada por {{ msg.senderName || msg.senderUsername }}</span>
+                           </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300 bg-gray-50 dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                           <span class="material-symbols-outlined text-[16px] text-gray-400">schedule</span>
+                           <span class="font-medium">{{ formatTimeObj(parseMeeting(msg.content)?.startAt) || formatMeetingDate(parseMeeting(msg.content)?.startAt) }}</span>
+                        </div>
+                        <p v-if="parseMeeting(msg.content)?.description" class="text-xs text-gray-500 italic px-1 line-clamp-2">"{{ parseMeeting(msg.content)?.description }}"</p>
+                        <a v-if="parseMeeting(msg.content)?.meetingLink" :href="parseMeeting(msg.content)?.meetingLink" target="_blank" class="mt-1 w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-colors">
+                           <span class="material-symbols-outlined text-[14px]">videocam</span> Juntar-se à Reunião
                         </a>
-                      </div>
-                    </div>
+                        <div v-else class="text-center text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">Sem link de vídeo</div>
+                     </div>
+                  </div>
                     
                     <!-- Image Message -->
                     <div v-else-if="msg.contentType === 'image'" class="p-1">
@@ -844,6 +866,24 @@
               :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
             >
               <span class="material-symbols-outlined transform rotate-45">attach_file</span>
+            </button>
+            <button 
+              @click="showWhiteboardModal = true"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
+              title="Lousa Criativa (Desenho livre)"
+              :disabled="editingMessageId"
+              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
+            >
+              <span class="material-symbols-outlined">draw</span>
+            </button>
+            <button 
+              @click="showMeetingModal = true"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
+              title="Agendar Reunião"
+              :disabled="editingMessageId"
+              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
+            >
+              <span class="material-symbols-outlined">event</span>
             </button>
             <select v-model="messageExpiresIn" class="mb-1 ml-1 text-xs bg-transparent border-none text-gray-500 dark:text-slate-400 p-1 cursor-pointer outline-none ring-0 w-16" title="Temporizador de Autodestruição">
                 <option :value="null">Off</option>
@@ -1026,12 +1066,41 @@
           </div>
         </div>
       </template>
+
+      <!-- FAB Copilot -->
+      <button 
+        v-if="!showCopilotPanel"
+        @click="showCopilotPanel = true"
+        class="absolute bottom-20 right-6 z-40 size-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-xl shadow-purple-500/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-purple-500/20"
+        title="Falar com o Copilot Empresarial (Lanly Brain)"
+      >
+        <span class="material-symbols-outlined text-[24px]">auto_awesome</span>
+      </button>
+
     </main>
     <ThreadPanel 
       v-if="chatStore.activeThreadId && chatStore.activeConversationId" 
       :conversationId="chatStore.activeConversationId" 
       :threadId="chatStore.activeThreadId" 
       @close="chatStore.setActiveThread(null)" 
+    />
+    
+    <CopilotPanel 
+      v-if="showCopilotPanel"
+      @close="showCopilotPanel = false"
+    />
+
+    <WhiteboardModal
+      v-if="showWhiteboardModal"
+      @close="showWhiteboardModal = false"
+      @send="handleSendWhiteboard"
+    />
+
+    <MeetingModal
+      v-if="showMeetingModal"
+      :conversationId="chatStore.activeConversationId"
+      @close="showMeetingModal = false"
+      @success="() => { showMeetingModal = false }"
     />
 
     <!-- New Chat Modal -->
@@ -1132,7 +1201,7 @@
           <div
             v-for="channel in chatStore.publicChannels"
             :key="channel.id"
-            class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-transparent hover:border-primary/20 transition-all"
+            class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-transparent hover:border-primary/20 transition-all cursor-pointer"
           >
             <div class="flex items-center gap-3 min-w-0 pr-2">
               <div class="size-10 rounded-full bg-indigo-500/80 text-white flex flex-shrink-0 items-center justify-center shadow-[0_0_8px_rgba(99,102,241,0.5)]">
@@ -1236,22 +1305,32 @@
            <div v-if="chatStore.activeMessages.filter(m => ['image','audio','video'].includes(m.contentType)).length === 0" class="text-center text-xs text-gray-400 py-4">Nenhuma mídia compartilhada.</div>
         </div>
 
-        <!-- FILES TAB: pdfs, docs, archives, etc -->
-        <div v-if="infoTab === 'files'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
-           <template v-for="msg in chatStore.conversationFiles" :key="msg.id">
-              <div class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20">
-                 <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span class="material-symbols-outlined text-primary" v-if="msg.content_type === 'pdf'">picture_as_pdf</span>
-                    <span class="material-symbols-outlined text-primary" v-else>description</span>
-                 </div>
-                 <div class="flex flex-col flex-1 min-w-0">
-                    <span class="text-xs font-medium text-gray-800 dark:text-slate-200 truncate">{{ getFileName(msg.file_url || msg.content) }}</span>
-                    <span class="text-[10px] text-gray-400">{{ formatTime(msg.created_at || msg.createdAt) }}</span>
-                 </div>
-                 <a :href="getApiUrl(msg.file_url || msg.content)" target="_blank" download class="text-xs text-primary hover:underline flex-shrink-0">Baixar</a>
-              </div>
-           </template>
+        <!-- FILES TAB: pdfs, docs, archives, etc -> SMART VAULT -->
+        <div v-if="infoTab === 'files'" class="flex flex-col gap-2 max-h-64 overflow-y-auto mb-4 pr-1 w-full relative">
            <div v-if="chatStore.conversationFiles.length === 0" class="text-center text-xs text-gray-400 py-4">Nenhum arquivo compartilhado.</div>
+           <template v-else>
+               <div v-for="(filesList, catName) in smartVaultCategories" :key="catName" class="mb-2">
+                   <p v-if="filesList.length > 0" class="text-[10px] uppercase text-primary/80 dark:text-primary font-bold tracking-wider mb-1.5 flex items-center gap-1 border-b border-gray-100 dark:border-white/10 pb-1">
+                     <span class="material-symbols-outlined text-[13px]">{{ catName.includes('Fiscais') ? 'receipt_long' : catName.includes('Contratos') ? 'handshake' : catName.includes('Apresentações') ? 'slideshow' : 'folder' }}</span>
+                     {{ catName }}
+                   </p>
+                   <div class="flex flex-col gap-1.5">
+                       <template v-for="msg in filesList" :key="msg.id">
+                          <div class="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                             <div class="size-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-primary" v-if="msg.content_type === 'pdf'">picture_as_pdf</span>
+                                <span class="material-symbols-outlined text-primary" v-else>description</span>
+                             </div>
+                             <div class="flex flex-col flex-1 min-w-0">
+                                <span class="text-xs font-bold text-gray-800 dark:text-slate-200 truncate" :title="getFileName(msg.file_url || msg.content)">{{ getFileName(msg.file_url || msg.content) }}</span>
+                                <span class="text-[10px] text-gray-400 flex items-center gap-1">{{ formatTime(msg.created_at || msg.createdAt) }} <span class="text-[9px] px-1 bg-white dark:bg-white/10 rounded">{{ (msg.content_type || 'arquivo').toUpperCase() }}</span></span>
+                             </div>
+                             <a :href="getApiUrl(msg.file_url || msg.content)" target="_blank" download class="text-xs text-primary font-bold hover:underline flex-shrink-0 bg-primary/10 px-2 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-colors">Baixar</a>
+                          </div>
+                       </template>
+                   </div>
+               </div>
+           </template>
         </div>
 
         <!-- CALLS TAB: call logs -->
@@ -1285,7 +1364,7 @@
         </div>
 
         <!-- PINS TAB -->
-        <div v-if="infoTab === 'pins'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full relative">
+        <div v-if="infoTab === 'pins'" class="flex flex-col gap-2 max-h-48 overflow-y-auto mb-4 pr-1 w-full">
            <template v-for="msg in chatStore.activeMessages">
               <div v-if="msg.isPinned" :key="msg.id" class="flex flex-col gap-1 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20">
                  <div class="flex items-center gap-1 mb-1">
@@ -1711,6 +1790,9 @@ import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import LinkPreview from '@/components/LinkPreview.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
+import CopilotPanel from '@/components/CopilotPanel.vue';
+import MeetingModal from '@/components/MeetingModal.vue';
+import WhiteboardModal from '@/components/WhiteboardModal.vue';
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -1723,6 +1805,40 @@ const webrtcStore = useWebRTCStore()
 const groupCallStore = useGroupCallStore()
 const themeStore = useThemeStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
+
+const isDeepWorkMode = ref(localStorage.getItem('isDeepWorkMode') === 'true')
+function toggleDeepWork() {
+  isDeepWorkMode.value = !isDeepWorkMode.value
+  localStorage.setItem('isDeepWorkMode', isDeepWorkMode.value)
+}
+
+const showCopilotPanel = ref(false)
+
+const smartVaultCategories = computed(() => {
+  const cats = {
+    'Fiscais/Notas': [],
+    'Contratos/Docs': [],
+    'Apresentações': [],
+    'Outros Arquivos': []
+  }
+  
+  if (!chatStore.conversationFiles) return cats;
+  
+  chatStore.conversationFiles.forEach(msg => {
+    const filename = (msg.file_url || msg.content || '').toLowerCase()
+    if (filename.includes('nota') || filename.includes('nf') || filename.includes('fiscal') || filename.includes('fatura') || filename.includes('recibo')) {
+      cats['Fiscais/Notas'].push(msg)
+    } else if (filename.includes('contrato') || filename.includes('assinado') || filename.includes('documento') || filename.includes('doc')) {
+      cats['Contratos/Docs'].push(msg)
+    } else if (filename.includes('ppt') || filename.includes('apresentacao') || filename.includes('slides')) {
+      cats['Apresentações'].push(msg)
+    } else {
+      cats['Outros Arquivos'].push(msg)
+    }
+  })
+  
+  return cats
+})
 
 // Group call grid layout
 const groupCallGridClass = computed(() => {
@@ -1926,6 +2042,7 @@ const fileInput = ref(null)
 const lightboxImageUrl = ref('')
 const showPollModal = ref(false)
 const showMeetingModal = ref(false)
+const showWhiteboardModal = ref(false)
 const pollForm = ref({
   question: '',
   options: ['', ''],
@@ -2383,6 +2500,23 @@ function renderMessageContent(content) {
     if (!content) return '';
     let safeContent = content.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
+    // Code Blocks (```code```)
+    safeContent = safeContent.replace(/```([\s\S]*?)```/g, '<pre class="bg-[#1e1e1e] text-green-400 p-3 rounded-xl font-mono text-xs overflow-x-auto border border-white/10 my-2 shadow-inner select-all"><code>$1</code></pre>');
+    
+    // Inline Code (`code`)
+    safeContent = safeContent.replace(/`([^`]+)`/g, '<code class="bg-gray-200 dark:bg-black/40 text-rose-500 dark:text-rose-400 rounded-md px-1.5 py-0.5 text-[0.85em] font-mono">$1</code>');
+    
+    // Bold (**text**)
+    safeContent = safeContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Italic (*text* or _text_)
+    safeContent = safeContent.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
+    safeContent = safeContent.replace(/_([^_]+)_/g, '<em>$1</em>');
+    
+    // Strikethrough (~text~)
+    safeContent = safeContent.replace(/~([^~]+)~/g, '<del class="opacity-70">$1</del>');
+
+    // Mentions (@user)
     safeContent = safeContent.replace(/@([a-zA-Z0-9_.-]+)/g, (match, username) => {
         const isMe = authStore.user?.username === username;
         const colorClass = isMe 
@@ -2476,6 +2610,25 @@ async function handleFileUpload(event) {
     alert('Erro ao enviar arquivo: ' + (error.response?.data?.message || error.message || 'Erro desconhecido'))
   } finally {
     event.target.value = '' // Reset input
+  }
+}
+
+async function handleSendWhiteboard(file) {
+  showWhiteboardModal.value = false
+  if (!file) return
+
+  try {
+    const uploadedFile = await chatStore.uploadFile(file)
+    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType, {
+        replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
+        expiresIn: messageExpiresIn.value
+    })
+    replyingToMessage.value = null
+    await nextTick()
+    scrollToBottom()
+  } catch (error) {
+    console.error('❌ Upload whiteboard failed:', error)
+    alert('Erro ao enviar lousa: ' + (error.response?.data?.message || error.message || 'Erro desconhecido'))
   }
 }
 
@@ -3019,6 +3172,7 @@ async function toggleReaction(messageId, emoji) {
 // Handle new message from socket
 let notifAudioCtx = null
 function playNotificationSound() {
+  if (isDeepWorkMode.value) return; // Mute se Foco Total estiver ativo
   try {
     if (!notifAudioCtx) notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
     const ctx = notifAudioCtx

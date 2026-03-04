@@ -20,9 +20,12 @@ jest.unstable_mockModule('../src/config/database.js', () => ({
 // Mock auth middleware
 jest.unstable_mockModule('../src/middlewares/auth.js', () => ({
     authMiddleware: async (ctx, next) => {
-        ctx.state = { user: { id: 'test-user' } };
+        ctx.state = { user: { id: 'test-user', company_id: 'test-company' } };
         await next();
-    }
+    },
+    requirePlan: () => async (ctx, next) => { await next(); },
+    requireRole: () => async (ctx, next) => { await next(); },
+    authConfig: { maxCompanyUsers: 10 }
 }));
 
 const aiRouter = (await import('../src/routes/ai.routes.js')).default;

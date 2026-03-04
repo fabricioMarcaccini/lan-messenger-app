@@ -435,7 +435,7 @@ router.get('/me', async (ctx) => {
 
         const result = await db.write(
             `SELECT id, username, email, full_name, avatar_url, role, department, company_id,
-                    custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message
+                    custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message, is_two_factor_enabled
              FROM users WHERE id = $1`,
             [decoded.id]
         );
@@ -478,6 +478,7 @@ router.get('/me', async (ctx) => {
                 customStatusText: user.custom_status_text,
                 customStatusEmoji: user.custom_status_emoji,
                 customStatusExpiresAt: user.custom_status_expires_at,
+                is_two_factor_enabled: user.is_two_factor_enabled,
                 oooUntil: user.ooo_until,
                 oooMessage: user.ooo_message,
                 planId,
@@ -671,7 +672,7 @@ router.get('/2fa/generate', authMiddleware, async (ctx) => {
 
         ctx.body = {
             success: true,
-            data: { secret, qrCodeUrl }
+            data: { secret, qrCodeUrl, otpauthUrl: otpauthContent }
         };
     } catch (error) {
         console.error('2FA Generate Error:', error);
