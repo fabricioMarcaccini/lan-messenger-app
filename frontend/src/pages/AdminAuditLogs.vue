@@ -4,10 +4,10 @@
     <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">
-          {{ locale.t.audit.title }}
+          Auditoria de Sistema
         </h1>
         <p class="text-sm text-gray-500 mt-1 flex items-center gap-2">
-          {{ locale.t.audit.subtitle }}
+          Monitoramento de segurança e compliance
         </p>
       </div>
 
@@ -18,7 +18,7 @@
           :disabled="loading"
         >
           <span :class="['material-symbols-outlined text-[18px]', { 'animate-spin': loading }]">sync</span>
-          {{ locale.t.audit.refresh }}
+          Atualizar
         </button>
         <button 
           @click="exportCsv" 
@@ -26,7 +26,7 @@
           :disabled="loading || logs.length === 0"
         >
           <span class="material-symbols-outlined text-[18px]">download</span>
-          {{ locale.t.audit.exportCSV }}
+          Exportar CSV
         </button>
       </div>
     </header>
@@ -34,37 +34,37 @@
     <!-- Filters -->
     <div class="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shadow-sm">
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ locale.t.audit.action }}</label>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Ação</label>
         <div class="relative">
           <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
           <input 
             v-model="filters.action"
             @keyup.enter="applyFilters"
             type="text" 
-            :placeholder="locale.t.audit.actionPlaceholder || 'Ex: login, delete_user...'" 
+            placeholder="Ex: login, delete_user..." 
             class="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white"
           >
         </div>
       </div>
       
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ locale.t.audit.targetType }}</label>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo Alvo</label>
         <select 
           v-model="filters.targetType"
           @change="applyFilters"
           class="w-full px-3 py-2 bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all dark:text-white appearance-none"
         >
-          <option value="">{{ locale.t.audit.all }}</option>
-          <option value="user">{{ locale.t.audit.userLabel || 'User' }}</option>
-          <option value="conversation">{{ locale.t.audit.conversation || 'Conversation' }}</option>
-          <option value="message">{{ locale.t.audit.message || 'Message' }}</option>
-          <option value="meeting">{{ locale.t.audit.meeting || 'Meeting' }}</option>
-          <option value="file">{{ locale.t.audit.file || 'File' }}</option>
+          <option value="">Todos</option>
+          <option value="user">Usuário</option>
+          <option value="conversation">Conversa</option>
+          <option value="message">Mensagem</option>
+          <option value="meeting">Reunião</option>
+          <option value="file">Arquivo</option>
         </select>
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ locale.t.audit.startDate || 'Start Date' }}</label>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Data Inicial</label>
         <input 
           v-model="filters.dateFrom"
           @change="applyFilters"
@@ -74,7 +74,7 @@
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ locale.t.audit.endDate || 'End Date' }}</label>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Data Final</label>
         <input 
           v-model="filters.dateTo"
           @change="applyFilters"
@@ -90,18 +90,18 @@
       <!-- Loading Overlay -->
       <div v-if="loading && logs.length === 0" class="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
         <span class="material-symbols-outlined text-primary text-4xl animate-spin mb-4">progress_activity</span>
-        <p class="text-gray-500 font-medium">{{ locale.t.audit.loadingLogs }}</p>
+        <p class="text-gray-500 font-medium">Carregando logs...</p>
       </div>
 
       <div class="overflow-x-auto flex-1">
         <table class="w-full text-left border-collapse">
           <thead class="bg-gray-50 dark:bg-white/5 sticky top-0 z-10">
             <tr>
-              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">{{ locale.t.audit.dateTime }}</th>
-              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">{{ locale.t.audit.actor }}</th>
-              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">{{ locale.t.audit.action }}</th>
-              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">{{ locale.t.audit.target }}</th>
-              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">{{ locale.t.audit.metadata }}</th>
+              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">Data / Hora</th>
+              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">Ator</th>
+              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">Ação</th>
+              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">Alvo</th>
+              <th class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 dark:border-white/10">Metadados</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-white/5">
@@ -118,7 +118,7 @@
                       <p class="text-[10px] text-gray-500">@{{ log.actor_username }}</p>
                     </div>
                   </div>
-                  <span v-else class="text-sm text-gray-500 italic pb-1">{{ locale.t.audit.system }}</span>
+                  <span v-else class="text-sm text-gray-500 italic pb-1">Sistema</span>
                 </td>
                 <td class="py-3 px-4">
                   <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium" :class="getActionColor(log.action)">
@@ -137,7 +137,7 @@
                   <details class="text-[11px] text-gray-500 cursor-pointer relative" v-if="Object.keys(log.metadata || {}).length > 0">
                     <summary class="hover:text-primary outline-none list-none flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                       <span class="material-symbols-outlined text-[14px]">data_object</span>
-                      {{ locale.t.audit.viewPayload }}
+                      Ver payload
                     </summary>
                     <div class="absolute right-0 top-6 w-64 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-lg shadow-xl z-20 font-mono overflow-auto max-h-48 whitespace-pre-wrap">
                       {{ JSON.stringify(log.metadata, null, 2) }}
@@ -150,7 +150,7 @@
             <tr v-else-if="!loading">
               <td colspan="5" class="py-12 text-center text-gray-500">
                 <span class="material-symbols-outlined text-4xl mb-2 opacity-50">search_off</span>
-                <p>{{ locale.t.audit.noLogsFound }}</p>
+                <p>Nenhum log de auditoria encontrado para os filtros atuais.</p>
               </td>
             </tr>
           </tbody>
@@ -160,9 +160,9 @@
       <!-- Pagination -->
       <div class="border-t border-gray-200 dark:border-white/10 p-4 bg-gray-50 dark:bg-white/5 flex items-center justify-between">
         <p class="text-sm text-gray-500">
-          {{ locale.t.audit.showingFrom || 'Showing' }} <span class="font-medium text-gray-900 dark:text-white">{{ offset + 1 }}</span> {{ locale.t.audit.toLabel || 'to' }} 
-          <span class="font-medium text-gray-900 dark:text-white">{{ Math.min(offset + limit, total) }}</span> {{ locale.t.audit.ofLabel || 'of' }} 
-          <span class="font-medium text-gray-900 dark:text-white">{{ total }}</span> {{ locale.t.audit.results || 'results' }}
+          Mostrando <span class="font-medium text-gray-900 dark:text-white">{{ offset + 1 }}</span> a 
+          <span class="font-medium text-gray-900 dark:text-white">{{ Math.min(offset + limit, total) }}</span> de 
+          <span class="font-medium text-gray-900 dark:text-white">{{ total }}</span> resultados
         </p>
         <div class="flex gap-2">
           <button 
@@ -170,14 +170,14 @@
             :disabled="offset === 0 || loading"
             class="p-1 px-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded hover:bg-gray-50 dark:hover:bg-white/20 disabled:opacity-50 transition-colors text-sm font-medium"
           >
-            {{ locale.t.audit.previous }}
+            Anterior
           </button>
           <button 
             @click="nextPage" 
             :disabled="offset + limit >= total || loading"
             class="p-1 px-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded hover:bg-gray-50 dark:hover:bg-white/20 disabled:opacity-50 transition-colors text-sm font-medium"
           >
-            {{ locale.t.audit.next }}
+            Próxima
           </button>
         </div>
       </div>
@@ -188,9 +188,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { api } from '@/stores/auth'
-import { useLocaleStore } from '@/stores/locale'
-
-const locale = useLocaleStore()
 
 const logs = ref([])
 const total = ref(0)
@@ -225,7 +222,7 @@ async function fetchLogs() {
     }
   } catch (error) {
     console.error('Error fetching audit logs:', error)
-    alert(locale.t.audit.errorLoading)
+    alert('Erro ao carregar auditoria. Verifique se você tem permissão.')
   } finally {
     loading.value = false
   }
@@ -258,19 +255,18 @@ async function exportCsv() {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `audit_lanly_${new Date().toISOString().split('T')[0]}.csv`)
+    link.setAttribute('download', `auditoria_lanly_${new Date().toISOString().split('T')[0]}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   } catch (err) {
-    alert(locale.t.audit.errorExport)
+    alert("Erro ao exportar CSV")
   }
 }
 
 function formatDate(isoStr) {
   if (!isoStr) return '-'
-  const dateLocale = locale.currentLang === 'pt' ? 'pt-BR' : locale.currentLang === 'es' ? 'es-ES' : 'en-US'
-  return new Date(isoStr).toLocaleString(dateLocale, {
+  return new Date(isoStr).toLocaleString('pt-BR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   })

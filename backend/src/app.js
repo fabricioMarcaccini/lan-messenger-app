@@ -32,6 +32,7 @@ import stripeRoutes from './routes/stripe.routes.js';
 import meetingsRoutes from './routes/meetings.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import auditRoutes from './routes/audit.routes.js';
+import stickersRoutes from './routes/stickers.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 import { auditMiddleware } from './middlewares/audit.middleware.js';
 
@@ -229,6 +230,7 @@ router.use('/api/stripe', stripeRoutes.routes());
 router.use('/api/meetings', meetingsRoutes.routes());
 router.use('/api/analytics', analyticsRoutes.routes());
 router.use('/api/audit', auditRoutes.routes());
+router.use('/api/stickers', stickersRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());

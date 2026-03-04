@@ -619,6 +619,7 @@
               <div :class="['flex items-center gap-2', msg.senderId === authStore.user?.id ? 'flex-row-reverse' : '']">
                 <div :class="[
                   'rounded-2xl border shadow-sm overflow-hidden min-w-[60px]',
+                  msg.contentType === 'sticker' ? '!bg-transparent !border-transparent !shadow-none' :
                   msg.senderId === authStore.user?.id 
                     ? 'bg-primary text-white dark:bg-gradient-to-br dark:from-primary/20 dark:to-blue-600/20 dark:backdrop-blur-md dark:border-primary/30 dark:shadow-neon rounded-br-none border-primary'
                     : 'bg-white dark:bg-white/10 dark:backdrop-blur-md text-gray-700 dark:text-slate-200 border-gray-200 dark:border-white/5 rounded-bl-none'
@@ -696,6 +697,11 @@
                         <div v-else class="text-center text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">Sem link de vídeo</div>
                      </div>
                   </div>
+                    
+                    <!-- Sticker Message -->
+                    <div v-else-if="msg.contentType === 'sticker'" class="p-1 max-w-[160px]">
+                      <img :src="getApiUrl(msg.content)" class="w-full h-auto object-contain drop-shadow-xl cursor-context-menu select-none scale-100 hover:scale-105 transition-transform" />
+                    </div>
                     
                     <!-- Image Message -->
                     <div v-else-if="msg.contentType === 'image'" class="p-1">
@@ -983,13 +989,27 @@
               </div>
 
               <button 
-                @click="showEmojiPicker = !showEmojiPicker"
+                @click="showEmojiPicker = !showEmojiPicker; showStickerPicker = false"
                 class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
                 title="Inserir um Emoji (Rostinhos)"
                 v-if="!isRecording"
               >
                 <span class="material-symbols-outlined">sentiment_satisfied</span>
               </button>
+
+              <div class="relative items-center flex" v-if="!isRecording">
+                <button 
+                  @click="showStickerPicker = !showStickerPicker; showEmojiPicker = false"
+                  class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors"
+                  title="Figurinhas (Stickers)"
+                >
+                  <span class="material-symbols-outlined">sticky_note_2</span>
+                </button>
+
+                <div v-if="showStickerPicker" class="absolute bottom-full right-0 mb-2 z-50" v-click-outside="() => showStickerPicker = false">
+                  <StickerPicker @select="sendStickerMessage" />
+                </div>
+              </div>
               
               <button 
                 v-if="!newMessage.trim() && !editingMessageId"
@@ -2040,6 +2060,7 @@ const showEmojiPicker = ref(false)
 const showMobileSidebar = ref(false)
 const fileInput = ref(null)
 const lightboxImageUrl = ref('')
+const showStickerPicker = ref(false)
 const showPollModal = ref(false)
 const showMeetingModal = ref(false)
 const showWhiteboardModal = ref(false)
@@ -2269,16 +2290,32 @@ async function sendMessage() {
     }
   }
   
+  
   newMessage.value = ''
   showEmojiPicker.value = false
+  showStickerPicker.value = false
   replyingToMessage.value = null
   
   await nextTick()
   scrollToBottom()
   
-  // Reset textarea height
+// Reset textarea height
   const textarea = document.querySelector('textarea')
   if (textarea) textarea.style.height = 'auto'
+}
+
+async function sendStickerMessage(sticker) {
+  if (!chatStore.activeConversationId) return;
+  try {
+    await chatStore.sendMessage(chatStore.activeConversationId, sticker.url, 'sticker', {
+       isAnimated: sticker.isAnimated
+    });
+    showStickerPicker.value = false;
+    nextTick(scrollToBottom);
+  } catch (err) {
+    console.error('Erro ao enviar figurinha:', err);
+    alert('Erro ao enviar figurinha');
+  }
 }
 
 async function requestLanlyReply(messageText) {
@@ -2938,6 +2975,7 @@ function getMessageSnippet(id) {
     if (msg.contentType === 'audio') return '🎤 Áudio';
     if (msg.contentType === 'video') return '🎥 Vídeo';
     if (msg.contentType === 'pdf') return '📄 Arquivo PDF';
+    if (msg.contentType === 'sticker') return '🖼️ Figurinha';
     
     // Fallback caso a msg venha sem content type mas seja um arquivo da API de uploads ou uma imagem copiada
     if (msg.content && msg.content.includes('/api/uploads/')) {
