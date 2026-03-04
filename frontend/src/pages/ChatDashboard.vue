@@ -2134,16 +2134,23 @@ function openCacheDb() {
 
 async function saveCachedMessages(conversationId, msgs) {
   if (!conversationId || !Array.isArray(msgs)) return
-  const db = await openCacheDb()
-  if (!db) return
+  try {
+    const db = await openCacheDb()
+    if (!db) return
 
-  const tx = db.transaction(CACHE_STORE_NAME, 'readwrite')
-  const store = tx.objectStore(CACHE_STORE_NAME)
-  store.put({
-    conversationId,
-    messages: msgs.slice(-50),
-    updatedAt: Date.now(),
-  })
+    // JSON round-trip strips Vue reactive proxies and non-cloneable objects (Date, etc.)
+    const plainMsgs = JSON.parse(JSON.stringify(msgs.slice(-50)))
+
+    const tx = db.transaction(CACHE_STORE_NAME, 'readwrite')
+    const store = tx.objectStore(CACHE_STORE_NAME)
+    store.put({
+      conversationId,
+      messages: plainMsgs,
+      updatedAt: Date.now(),
+    })
+  } catch (e) {
+    console.warn('Cache save failed (non-critical):', e.message)
+  }
 }
 
 async function loadCachedMessages(conversationId) {
