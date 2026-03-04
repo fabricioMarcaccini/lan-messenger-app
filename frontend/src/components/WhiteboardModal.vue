@@ -8,19 +8,19 @@
             <span class="material-symbols-outlined text-orange-400">draw</span>
           </div>
           <div>
-            <h3 class="font-bold text-lg">Lousa Criativa</h3>
-            <p class="text-xs text-white/50">Desenhe, anote e envie como imagem na conversa</p>
+            <h3 class="font-bold text-lg">{{ t.whiteboard.title }}</h3>
+            <p class="text-xs text-white/50">{{ t.whiteboard.subtitle || 'Draw, annotate and send as image' }}</p>
           </div>
         </div>
 
         <div class="flex items-center gap-3">
           <!-- Clear Button -->
           <button @click="clearCanvas" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-            <span class="material-symbols-outlined text-sm">delete</span> Limpar
+            <span class="material-symbols-outlined text-sm">delete</span> {{ t.whiteboard.clear }}
           </button>
           <!-- Send Button -->
           <button @click="sendCanvas" class="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-500/30 transition-all">
-            <span class="material-symbols-outlined text-sm">send</span> Enviar
+            <span class="material-symbols-outlined text-sm">send</span> {{ t.whiteboard.send }}
           </button>
           <!-- Close -->
           <button @click="$emit('close')" class="size-10 flex items-center justify-center rounded-lg hover:bg-red-500/20 text-white hover:text-red-400 transition-colors ml-2">
@@ -33,17 +33,17 @@
       <div class="flex items-center justify-center gap-6 p-3 bg-gray-800 shrink-0 border-b border-white/5">
         <!-- Tools -->
         <div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl">
-          <button @click="tool = 'pen'" :class="tool === 'pen' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="size-10 flex items-center justify-center rounded-lg transition-colors" title="Caneta Livre">
+          <button @click="tool = 'pen'" :class="tool === 'pen' ? 'bg-orange-500 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="size-10 flex items-center justify-center rounded-lg transition-colors" :title="t.whiteboard.draw">
             <span class="material-symbols-outlined">edit</span>
           </button>
-          <button @click="tool = 'eraser'" :class="tool === 'eraser' ? 'bg-gray-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="size-10 flex items-center justify-center rounded-lg transition-colors" title="Borracha">
+          <button @click="tool = 'eraser'" :class="tool === 'eraser' ? 'bg-gray-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="size-10 flex items-center justify-center rounded-lg transition-colors" :title="t.whiteboard.erase">
             <span class="material-symbols-outlined">ink_eraser</span>
           </button>
         </div>
 
         <!-- Thickness -->
         <div class="flex items-center gap-3">
-           <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Tamanho</span>
+           <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">{{ t.whiteboard.thickness }}</span>
            <input type="range" v-model="lineWidth" min="1" max="30" class="w-32 accent-orange-500 shadow" />
            <div class="size-6 bg-black/40 rounded-full flex items-center justify-center">
              <div class="bg-white rounded-full" :style="{ width: lineWidth + 'px', height: lineWidth + 'px', backgroundColor: tool === 'eraser' ? '#ffffff' : color }"></div>
@@ -79,7 +79,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useLocaleStore } from '../stores/locale'
+
+const localeStore = useLocaleStore()
+const t = computed(() => localeStore.t)
 
 const emit = defineEmits(['close', 'send'])
 

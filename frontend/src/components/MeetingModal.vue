@@ -5,7 +5,7 @@
       <div class="flex justify-between items-center mb-6">
         <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <span class="material-symbols-outlined text-primary text-[28px]">event</span>
-          Agendar Reunião
+          {{ t.meetings.title }}
         </h2>
         <button @click="$emit('close')" class="text-gray-400 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-colors">
           <span class="material-symbols-outlined">close</span>
@@ -15,11 +15,11 @@
       <div class="flex flex-col gap-4">
         <!-- Title -->
         <div class="group">
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Título / Assunto</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">{{ t.meetings.subject }}</label>
           <input 
             v-model="form.title"
             type="text" 
-            placeholder="Ex: Sync Semanal de Marketing"
+            :placeholder="t.meetings.phSubject"
             class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
           />
         </div>
@@ -27,7 +27,7 @@
         <div class="grid grid-cols-2 gap-3">
           <!-- Start At -->
           <div class="group">
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Início</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">{{ t.meetings.start }}</label>
             <input 
               v-model="form.startAt"
               type="datetime-local" 
@@ -36,7 +36,7 @@
           </div>
           <!-- End At -->
           <div class="group">
-            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Fim (Opcional)</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">{{ t.meetings.end }}</label>
             <input 
               v-model="form.endAt"
               type="datetime-local" 
@@ -47,22 +47,22 @@
 
         <!-- Meeting Link -->
         <div class="group">
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Link da Sala (Zoom/Meet)</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">{{ t.meetings.link }}</label>
           <input 
             v-model="form.meetingLink"
             type="url" 
-            placeholder="https://meet.google.com/xxx-yyy-zzz"
+            :placeholder="t.meetings.phLink"
             class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all"
           />
         </div>
 
         <!-- Description -->
         <div class="group">
-          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">Observações (Pauta)</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">{{ t.meetings.notes }}</label>
           <textarea 
             v-model="form.description"
             rows="2"
-            placeholder="Detalhes ou pauta da reunião"
+            :placeholder="t.meetings.phNotes"
             class="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none"
           ></textarea>
         </div>
@@ -77,7 +77,7 @@
       >
         <span v-if="isSubmitting" class="material-symbols-outlined animate-spin text-lg">progress_activity</span>
         <span v-else class="material-symbols-outlined text-xl">calendar_add_on</span>
-        Agendar Reunião
+        {{ t.meetings.scheduleBtn }}
       </button>
 
       <p v-if="errorMsg" class="mt-3 text-xs text-red-500 text-center font-bold">{{ errorMsg }}</p>
@@ -86,8 +86,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { api } from '@/stores/auth';
+import { useLocaleStore } from '@/stores/locale';
+
+const localeStore = useLocaleStore();
+const t = computed(() => localeStore.t);
 
 const props = defineProps({
   conversationId: { type: String, required: true }

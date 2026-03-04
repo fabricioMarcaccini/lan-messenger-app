@@ -590,18 +590,18 @@
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <span class="material-symbols-outlined text-primary">verified_user</span>
-              Autenticação de Dois Fatores (2FA)
+              {{ t.twoFactor.title }}
             </h2>
             <div v-if="twoFactorEnabled" class="flex items-center gap-2 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
               <span class="material-symbols-outlined text-sm">check_circle</span>
-              <span class="text-xs font-bold">Ativado</span>
+              <span class="text-xs font-bold">{{ t.twoFactor.enabled }}</span>
             </div>
           </div>
           
           <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10 mb-6">
-            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Google Authenticator</h3>
+            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">{{ t.twoFactor.appTitle }}</h3>
             <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 max-w-2xl leading-relaxed">
-             Adicione uma camada extra de segurança à sua conta corporativa exigindo um código do aplicativo (Google Authenticator, Authy, etc) além da sua senha a cada login.
+             {{ t.twoFactor.description }}
             </p>
 
             <!-- Generate 2FA -->
@@ -609,7 +609,7 @@
               <button @click="generate2FA" :disabled="loading2FA" class="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50">
                 <span v-if="loading2FA" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
                 <span v-else class="material-symbols-outlined text-sm">qr_code_scanner</span>
-                Configurar 2FA
+                {{ t.twoFactor.setupBtn }}
               </button>
             </div>
 
@@ -617,31 +617,31 @@
             <div v-else-if="!twoFactorEnabled && twoFactorSecret" class="mt-4 bg-white dark:bg-[#131c1e] p-6 rounded-2xl border border-gray-200 dark:border-white/10 text-center">
               
               <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 rounded-xl text-left text-sm border border-blue-100 dark:border-blue-800/50">
-                 <h4 class="font-bold flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">info</span> Como ativar:</h4>
+                 <h4 class="font-bold flex items-center gap-2 mb-2"><span class="material-symbols-outlined text-[18px]">info</span> {{ t.twoFactor.howToTitle }}</h4>
                  <ol class="list-decimal pl-5 space-y-1">
-                    <li>Baixe um app como <strong>Google Authenticator</strong> ou <strong>Authy</strong> no seu celular.</li>
-                    <li>Abra o aplicativo e clique no botão de <strong>+</strong> para ler códigos.</li>
-                    <li>Aponte a câmera <strong>por dentro do app</strong> (e não da sua câmera normal) para este QR Code.</li>
+                    <li v-html="t.twoFactor.step1"></li>
+                    <li v-html="t.twoFactor.step2"></li>
+                    <li v-html="t.twoFactor.step3"></li>
                  </ol>
               </div>
 
-              <a v-if="twoFactorOtpauth" :href="twoFactorOtpauth" class="block w-fit mx-auto cursor-pointer" title="Clique para abrir diretamente no seu aplicativo Authenticator">
+              <a v-if="twoFactorOtpauth" :href="twoFactorOtpauth" class="block w-fit mx-auto cursor-pointer" title="Abrir App Authenticator">
                 <img :src="twoFactorQR" alt="QR Code" class="mb-2 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white hover:scale-105 transition-transform mx-auto">
               </a>
               <img v-else :src="twoFactorQR" alt="QR Code" class="mx-auto mb-4 border-4 border-white rounded-xl shadow-md size-48 object-contain bg-white">
               
               <div class="mb-4 text-center">
                  <a v-if="twoFactorOtpauth" :href="twoFactorOtpauth" class="hidden sm:inline-block md:hidden px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-bold rounded-lg text-xs mb-3 shadow-sm active:scale-95 transition-all">
-                   <span class="material-symbols-outlined text-[14px] align-middle mr-1">open_in_new</span> Abrir direto no app
+                   <span class="material-symbols-outlined text-[14px] align-middle mr-1">open_in_new</span> {{ t.twoFactor.openAppBtn }}
                  </a>
-                 <p class="text-sm text-gray-600 dark:text-slate-400 font-mono select-all bg-gray-100 dark:bg-black/40 py-2 rounded-lg" title="Se não conseguir ler o QR Code, use o código abaixo e adicione manualmente no app">{{ twoFactorSecret }}</p>
+                 <p class="text-sm text-gray-600 dark:text-slate-400 font-mono select-all bg-gray-100 dark:bg-black/40 py-2 rounded-lg" :title="t.twoFactor.manualCodeDesc">{{ twoFactorSecret }}</p>
               </div>
               
               <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
                 <input v-model="twoFactorVerifyCode" type="text" maxlength="6" placeholder="000000" class="w-full text-center tracking-widest text-xl font-mono px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
                 <button @click="verify2FA" :disabled="loading2FA || twoFactorVerifyCode.length !== 6" class="px-6 py-2.5 bg-primary hover:bg-cyan-400 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center disabled:opacity-50">
                    <span v-if="loading2FA" class="material-symbols-outlined animate-spin">progress_activity</span>
-                   <span v-else>Ativar</span>
+                   <span v-else>{{ t.twoFactor.activateBtn }}</span>
                 </button>
               </div>
               <div v-if="error2FA" class="text-red-500 mt-2 text-sm font-medium">{{ error2FA }}</div>
@@ -649,12 +649,12 @@
 
             <!-- Disable 2FA -->
             <div v-if="twoFactorEnabled" class="mt-4 bg-white dark:bg-[#131c1e] p-6 rounded-2xl border border-gray-200 dark:border-white/10">
-               <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">Para desativar o 2FA, confirme o código atual do seu aplicativo.</p>
+               <p class="text-sm text-gray-600 dark:text-slate-400 mb-4">{{ t.twoFactor.disableDesc }}</p>
                <div class="flex items-center gap-2 max-w-xs">
                 <input v-model="twoFactorVerifyCode" type="text" maxlength="6" placeholder="000000" class="w-full text-center tracking-widest font-mono px-4 py-2 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
                 <button @click="disable2FA" :disabled="loading2FA || twoFactorVerifyCode.length !== 6" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                    <span v-if="loading2FA" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
-                   <span v-else>Desativar</span>
+                   <span v-else>{{ t.twoFactor.disableBtn }}</span>
                 </button>
               </div>
                <div v-if="error2FA" class="text-red-500 mt-2 text-sm font-medium">{{ error2FA }}</div>
@@ -903,11 +903,11 @@ async function verify2FA() {
       twoFactorVerifyCode.value = ''
       
       // Toast notification reusing the password success logic visually
-      passwordSuccess.value = "2FA Habilidado com Sucesso! Seu login corporativo agora é blindado."
+      passwordSuccess.value = localeStore.t.twoFactor.successEnabled
       setTimeout(() => passwordSuccess.value = '', 5000);
     }
   } catch(e) {
-    error2FA.value = e.response?.data?.message || 'Código inválido'
+    error2FA.value = e.response?.data?.message || 'Invalid code'
   } finally {
     loading2FA.value = false
   }
@@ -924,11 +924,11 @@ async function disable2FA() {
       twoFactorVerifyCode.value = ''
       
       // Toast notification
-      passwordSuccess.value = "2FA Desabilitado."
+      passwordSuccess.value = localeStore.t.twoFactor.successDisabled
       setTimeout(() => passwordSuccess.value = '', 5000);
     }
   } catch(e) {
-    error2FA.value = e.response?.data?.message || 'Código inválido'
+    error2FA.value = e.response?.data?.message || 'Invalid code'
   } finally {
     loading2FA.value = false
   }
