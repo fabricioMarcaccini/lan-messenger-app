@@ -699,8 +699,32 @@
                   </div>
                     
                     <!-- Sticker Message -->
-                    <div v-else-if="msg.contentType === 'sticker'" class="p-1 max-w-[160px]">
-                      <img :src="getApiUrl(msg.content)" class="w-full h-auto object-contain drop-shadow-xl cursor-context-menu select-none scale-100 hover:scale-105 transition-transform" />
+                    <div v-else-if="msg.contentType === 'sticker'" class="p-1 max-w-[180px] relative group/sticker">
+                      <img 
+                        :src="getApiUrl(msg.content)" 
+                        class="w-full h-auto object-contain drop-shadow-xl select-none scale-100 hover:scale-105 transition-transform cursor-pointer" 
+                        @contextmenu.prevent="showStickerActions(msg)"
+                      />
+                      <!-- Hover action buttons -->
+                      <div class="absolute top-1 right-1 opacity-0 group-hover/sticker:opacity-100 transition-opacity flex gap-1">
+                        <button 
+                          @click.stop="saveStickerToFavorites(msg.content)"
+                          class="size-7 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-yellow-500 transition-colors" 
+                          title="Salvar nos Favoritos"
+                        >
+                          <span class="material-symbols-outlined text-sm">star</span>
+                        </button>
+                        <a 
+                          :href="getApiUrl(msg.content)" 
+                          download 
+                          target="_blank"
+                          class="size-7 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-primary transition-colors" 
+                          title="Baixar Figurinha"
+                          @click.stop
+                        >
+                          <span class="material-symbols-outlined text-sm">download</span>
+                        </a>
+                      </div>
                     </div>
                     
                     <!-- Image Message -->
@@ -1806,6 +1830,7 @@ import { useLocaleStore } from '@/stores/locale'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useGroupCallStore } from '@/stores/groupCall'
 import { useThemeStore } from '@/stores/theme'
+import { useStickerStore } from '@/stores/stickers'
 import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
@@ -1826,6 +1851,7 @@ const locale = useLocaleStore()
 const webrtcStore = useWebRTCStore()
 const groupCallStore = useGroupCallStore()
 const themeStore = useThemeStore()
+const stickerStore = useStickerStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 
 const isDeepWorkMode = ref(localStorage.getItem('isDeepWorkMode') === 'true')
@@ -2325,6 +2351,42 @@ async function sendStickerMessage(sticker) {
     console.error('Erro ao enviar figurinha:', err);
     alert('Erro ao enviar figurinha');
   }
+}
+
+// Save a sticker from chat to favorites
+async function saveStickerToFavorites(stickerUrl) {
+  try {
+    // Find sticker by URL in company stickers
+    await stickerStore.fetchStickers();
+    const found = stickerStore.companyStickers.find(s => s.url === stickerUrl);
+    if (found) {
+      if (stickerStore.isFavorite(found.id)) {
+        alert('Esta figurinha já está nos seus favoritos! ⭐');
+      } else {
+        await stickerStore.addFavorite(found.id);
+        alert('Figurinha salva nos favoritos! ⭐');
+      }
+    } else {
+      // If not found as company sticker, upload it as one first
+      try {
+        const response = await api.post('/stickers', { fileUrl: stickerUrl, isAnimated: false });
+        if (response.data?.success) {
+          await stickerStore.addFavorite(response.data.sticker.id);
+          await stickerStore.fetchStickers();
+          alert('Figurinha salva nos favoritos! ⭐');
+        }
+      } catch(e) {
+        console.error('Erro ao salvar figurinha:', e);
+        alert('Não foi possível salvar esta figurinha.');
+      }
+    }
+  } catch(err) {
+    console.error('Erro ao salvar figurinha:', err);
+  }
+}
+
+function showStickerActions(msg) {
+  saveStickerToFavorites(msg.content);
 }
 
 async function requestLanlyReply(messageText) {

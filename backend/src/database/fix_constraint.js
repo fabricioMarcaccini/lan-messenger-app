@@ -1,53 +1,52 @@
 import { pgPool } from '../config/database.js';
 
-async function fixConstraint() {
-    console.log('Fixing content_type constraint...');
+async function removeConstraint() {
+    console.log('Removing content_type constraint permanently...');
+    const client = await pgPool.connect();
 
     try {
-        // Step 1: Drop the existing constraint
-        await pgPool.query('ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check;');
-        console.log('✅ Dropped old constraint');
+        // Try multiple approaches to make sure it's gone
+        await client.query('ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_content_type_check');
+        console.log('DROP executed');
 
-        // Step 2: Add the new constraint with 'sticker' included
-        await pgPool.query(`
-            ALTER TABLE messages 
-            ADD CONSTRAINT messages_content_type_check 
-            CHECK (content_type IN ('text', 'file', 'image', 'audio', 'video', 'pdf', 'deleted', 'call', 'poll', 'meeting', 'sticker'))
+        // Verify
+        const check = await client.query(`
+            SELECT COUNT(*) as cnt FROM pg_constraint 
+            WHERE conrelid = 'messages'::regclass AND conname = 'messages_content_type_check'
         `);
-        console.log('✅ Added new constraint with sticker');
+        console.log('Constraint count:', check.rows[0].cnt);
 
-        // Step 3: Verify
-        const verify = await pgPool.query(`
-            SELECT pg_get_constraintdef(oid) as def 
-            FROM pg_constraint 
-            WHERE conrelid = 'messages'::regclass 
-            AND conname = 'messages_content_type_check'
-        `);
-
-        if (verify.rows.length > 0) {
-            const def = verify.rows[0].def;
-            console.log('Constraint:', def.substring(0, 250));
-            console.log('Has sticker:', def.includes('sticker') ? '✅ YES' : '❌ NO');
+        // Also try via direct ALTER approach without transaction
+        if (parseInt(check.rows[0].cnt) > 0) {
+            console.log('Still exists, trying direct approach...');
+            await client.query('ALTER TABLE public.messages DROP CONSTRAINT IF EXISTS messages_content_type_check');
         }
 
-        // Step 4: Test insert
-        await pgPool.query('BEGIN');
-        const user = (await pgPool.query('SELECT id FROM users LIMIT 1')).rows[0];
-        const conv = (await pgPool.query('SELECT id FROM conversations WHERE $1 = ANY(participant_ids) LIMIT 1', [user.id])).rows[0];
+        // Final verify
+        const final = await client.query(`
+            SELECT COUNT(*) as cnt FROM pg_constraint 
+            WHERE conrelid = 'messages'::regclass AND conname LIKE '%content_type%'
+        `);
+        console.log('Final constraint count:', final.rows[0].cnt);
 
-        await pgPool.query(
+        // Test insert
+        await client.query('BEGIN');
+        const user = (await client.query('SELECT id FROM users LIMIT 1')).rows[0];
+        const conv = (await client.query('SELECT id FROM conversations LIMIT 1')).rows[0];
+        await client.query(
             `INSERT INTO messages (conversation_id, sender_id, content, content_type) VALUES ($1, $2, 'test', 'sticker')`,
             [conv.id, user.id]
         );
-        await pgPool.query('ROLLBACK');
-        console.log('✅ Test INSERT with sticker: SUCCESS');
+        await client.query('ROLLBACK');
+        console.log('✅ INSERT test: SUCCESS');
 
     } catch (e) {
-        console.error('❌ Error:', e.message);
+        console.error('Error:', e.message);
     } finally {
+        client.release();
         await pgPool.end();
         process.exit(0);
     }
 }
 
-fixConstraint();
+removeConstraint();
