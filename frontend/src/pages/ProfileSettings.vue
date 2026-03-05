@@ -491,6 +491,222 @@
           </div>
         </section>
 
+        <!-- ═══ Admin: Gestão de Equipe (Onboarding Turbo) ═══ -->
+        <section v-if="authStore.isAdmin" class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">rocket_launch</span>
+              Gestão de Equipe
+            </h2>
+            <div class="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20">
+              <span class="material-symbols-outlined text-primary text-sm">group</span>
+              <span class="text-xs font-bold text-gray-900 dark:text-white">Onboarding Turbo</span>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 mb-6 bg-gray-100 dark:bg-black/20 rounded-xl p-1 border border-gray-200 dark:border-white/5">
+            <button
+              @click="adminTeamTab = 'bulk'"
+              :class="['flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all', adminTeamTab === 'bulk' ? 'bg-white dark:bg-white/10 text-primary shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white']"
+            >
+              <span class="material-symbols-outlined text-[18px]">upload_file</span>
+              Importação em Massa
+            </button>
+            <button
+              @click="adminTeamTab = 'invite'"
+              :class="['flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all', adminTeamTab === 'invite' ? 'bg-white dark:bg-white/10 text-primary shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white']"
+            >
+              <span class="material-symbols-outlined text-[18px]">link</span>
+              Links Mágicos
+            </button>
+            <button
+              @click="adminTeamTab = 'quick'"
+              :class="['flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all', adminTeamTab === 'quick' ? 'bg-white dark:bg-white/10 text-primary shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white']"
+            >
+              <span class="material-symbols-outlined text-[18px]">person_add</span>
+              Usuário Rápido
+            </button>
+          </div>
+
+          <!-- TAB 1: Importação em Massa -->
+          <div v-if="adminTeamTab === 'bulk'" class="space-y-4">
+            <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10">
+              <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary text-[20px]">content_paste</span>
+                Smart Paste
+              </h3>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 leading-relaxed">
+                Cole uma lista de usuários. Formato: <strong>nome;email;departamento</strong> (um por linha). O sistema cria as contas automaticamente com senha padrão <code class="bg-primary/10 text-primary px-1 rounded text-xs">Lanly@2026!</code>.
+              </p>
+              <textarea
+                v-model="bulkPasteText"
+                rows="6"
+                placeholder="João Silva;joao@empresa.com;TI&#10;Maria Santos;maria@empresa.com;RH&#10;Pedro Souza;pedro@empresa.com;Comercial"
+                class="w-full px-4 py-3 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all font-mono text-sm resize-none"
+              ></textarea>
+              
+              <div class="flex items-center justify-between mt-4">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-500 dark:text-slate-400">ou</span>
+                  <label class="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-medium text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-white/10 cursor-pointer transition-colors">
+                    <span class="material-symbols-outlined text-[18px]">attach_file</span>
+                    Upload CSV
+                    <input type="file" accept=".csv,.txt" class="hidden" @change="handleCSVUpload" />
+                  </label>
+                  <span v-if="csvFileName" class="text-xs text-primary font-medium">{{ csvFileName }}</span>
+                </div>
+                <button
+                  @click="handleBulkImport"
+                  :disabled="loadingBulk || (!bulkPasteText.trim() && bulkParsedUsers.length === 0)"
+                  class="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="loadingBulk" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-sm">group_add</span>
+                  Importar Todos
+                </button>
+              </div>
+            </div>
+
+            <!-- Preview of parsed users -->
+            <div v-if="bulkParsedUsers.length > 0" class="bg-white dark:bg-[#131c1e] rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+              <div class="bg-gray-50 dark:bg-black/20 px-4 py-3 border-b border-gray-200 dark:border-white/5 flex items-center justify-between">
+                <span class="text-sm font-bold text-gray-900 dark:text-white">{{ bulkParsedUsers.length }} usuários prontos para importar</span>
+                <button @click="bulkParsedUsers = []; bulkPasteText = ''; csvFileName = ''" class="text-xs text-red-500 hover:text-red-600 font-medium">Limpar</button>
+              </div>
+              <div class="max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5">
+                <div v-for="(u, idx) in bulkParsedUsers.slice(0, 20)" :key="idx" class="px-4 py-2.5 flex items-center gap-3 text-sm">
+                  <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">{{ (u.fullName || '?')[0] }}</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-900 dark:text-white truncate">{{ u.fullName }}</p>
+                    <p class="text-xs text-gray-500 dark:text-slate-400 truncate">{{ u.email }} <span v-if="u.department" class="text-primary">• {{ u.department }}</span></p>
+                  </div>
+                </div>
+                <div v-if="bulkParsedUsers.length > 20" class="px-4 py-2 text-xs text-gray-400 text-center">...e mais {{ bulkParsedUsers.length - 20 }} usuários</div>
+              </div>
+            </div>
+
+            <!-- Result -->
+            <div v-if="bulkResult" :class="['p-4 rounded-xl border text-sm font-medium flex items-center gap-2', bulkResult.success ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800']">
+              <span class="material-symbols-outlined text-lg">{{ bulkResult.success ? 'check_circle' : 'error' }}</span>
+              {{ bulkResult.message }}
+            </div>
+          </div>
+
+          <!-- TAB 2: Links Mágicos -->
+          <div v-if="adminTeamTab === 'invite'" class="space-y-4">
+            <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10">
+              <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Gerar Link de Convite</h3>
+              <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 leading-relaxed">
+                Crie um link mágico e compartilhe com sua equipe. Quem acessar o link se cadastra automaticamente na sua empresa.
+              </p>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Máximo de usos</label>
+                  <input v-model.number="inviteForm.maxUses" type="number" min="1" max="500" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Expira em (dias)</label>
+                  <input v-model.number="inviteForm.expiresInDays" type="number" min="1" max="90" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+              </div>
+              <button
+                @click="handleCreateInvite"
+                :disabled="loadingInvite"
+                class="flex items-center gap-2 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl shadow-sm transition-all hover:bg-gray-800 dark:hover:bg-gray-100 disabled:opacity-50"
+              >
+                <span v-if="loadingInvite" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                <span v-else class="material-symbols-outlined text-sm">add_link</span>
+                Gerar Link
+              </button>
+            </div>
+
+            <!-- Active invites list -->
+            <div v-if="activeInvites.length > 0" class="bg-white dark:bg-[#131c1e] rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden">
+              <div class="bg-gray-50 dark:bg-black/20 px-4 py-3 border-b border-gray-200 dark:border-white/5">
+                <span class="text-sm font-bold text-gray-900 dark:text-white">Links Ativos ({{ activeInvites.length }})</span>
+              </div>
+              <div class="divide-y divide-gray-100 dark:divide-white/5">
+                <div v-for="inv in activeInvites" :key="inv.id" class="px-4 py-3 flex items-center justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <code class="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">{{ getInviteUrl(inv.code) }}</code>
+                      <button @click="copyInviteLink(inv.code)" class="text-gray-400 hover:text-primary transition-colors" title="Copiar link">
+                        <span class="material-symbols-outlined text-[16px]">content_copy</span>
+                      </button>
+                    </div>
+                    <p class="text-[11px] text-gray-500 dark:text-slate-400 mt-1">
+                      {{ inv.uses }}/{{ inv.max_uses }} usos
+                      <span class="mx-1">•</span>
+                      Expira: {{ new Date(inv.expires_at).toLocaleDateString('pt-BR') }}
+                    </p>
+                  </div>
+                  <button @click="handleDeleteInvite(inv.code)" class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors" title="Revogar">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center py-8 text-gray-400 dark:text-slate-500 text-sm">
+              <span class="material-symbols-outlined text-3xl mb-2 block">link_off</span>
+              Nenhum link de convite ativo. Crie um acima!
+            </div>
+          </div>
+
+          <!-- TAB 3: Criação Rápida -->
+          <div v-if="adminTeamTab === 'quick'" class="space-y-4">
+            <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10">
+              <h3 class="text-base font-bold text-gray-900 dark:text-white mb-4">Adicionar Usuário</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Nome Completo *</label>
+                  <input v-model="quickUserForm.fullName" type="text" placeholder="João da Silva" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Email *</label>
+                  <input v-model="quickUserForm.email" type="email" placeholder="joao@empresa.com" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Departamento</label>
+                  <input v-model="quickUserForm.department" type="text" placeholder="TI, RH, Comercial..." class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Cargo</label>
+                  <input v-model="quickUserForm.position" type="text" placeholder="Analista, Gerente..." class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Senha (opcional)</label>
+                  <input v-model="quickUserForm.password" type="password" placeholder="Deixe em branco para padrão" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50" />
+                </div>
+                <div>
+                  <label class="text-xs font-medium text-gray-600 dark:text-slate-400 mb-1 block">Perfil</label>
+                  <select v-model="quickUserForm.role" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary/50">
+                    <option value="user">Usuário</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex items-center justify-between mt-5">
+                <p class="text-[11px] text-gray-400 dark:text-slate-500">* Campos obrigatórios</p>
+                <button
+                  @click="handleQuickCreateUser"
+                  :disabled="loadingQuickUser || !quickUserForm.fullName || !quickUserForm.email"
+                  class="flex items-center gap-2 px-6 py-2.5 bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold rounded-xl shadow-lg shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="loadingQuickUser" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-sm">person_add</span>
+                  Criar Usuário
+                </button>
+              </div>
+            </div>
+            <!-- Quick user result -->
+            <div v-if="quickUserResult" :class="['p-4 rounded-xl border text-sm font-medium flex items-center gap-2', quickUserResult.success ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800']">
+              <span class="material-symbols-outlined text-lg">{{ quickUserResult.success ? 'check_circle' : 'error' }}</span>
+              {{ quickUserResult.message }}
+            </div>
+          </div>
+        </section>
+
         <!-- Security Section - Change Password -->
         <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
           <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -861,6 +1077,20 @@ const showCheckoutSuccess = ref(false)
 const showStatusModal = ref(false)
 const loadingPush = ref(false)
 
+// ── Admin: Gestão de Equipe ──
+const adminTeamTab = ref('bulk')
+const bulkPasteText = ref('')
+const bulkParsedUsers = ref([])
+const csvFileName = ref('')
+const loadingBulk = ref(false)
+const bulkResult = ref(null)
+const activeInvites = ref([])
+const loadingInvite = ref(false)
+const inviteForm = reactive({ maxUses: 50, expiresInDays: 7 })
+const quickUserForm = reactive({ fullName: '', email: '', department: '', position: '', password: '', role: 'user' })
+const loadingQuickUser = ref(false)
+const quickUserResult = ref(null)
+
 const formData = ref({
   fullName: '',
   username: '',
@@ -1166,6 +1396,7 @@ onMounted(() => {
   subStore.fetchSubscriptionStatus()
   loadAiSettings()
   load2FAStatus()
+  if (authStore.isAdmin) loadInvites()
   notificationsStore.checkStatus()
 
   // Check for checkout success/cancel query params
@@ -1295,5 +1526,140 @@ async function handleCheckout(planId) {
 
 async function handleOpenPortal() {
   await subStore.openPortal()
+}
+
+// ── Admin Team Management Functions ──
+function parseBulkText(text) {
+  if (!text.trim()) return []
+  return text.trim().split('\n').map(line => {
+    const parts = line.split(/[;,\t]/).map(s => s.trim())
+    if (parts.length >= 2) {
+      return {
+        fullName: parts[0],
+        email: parts[1],
+        department: parts[2] || null,
+        position: parts[3] || null
+      }
+    }
+    return null
+  }).filter(Boolean)
+}
+
+function handleCSVUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  csvFileName.value = file.name
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const text = e.target.result
+    // Skip header line if it contains common header words
+    const lines = text.split('\n')
+    const firstLine = lines[0]?.toLowerCase() || ''
+    const dataLines = (firstLine.includes('nome') || firstLine.includes('name') || firstLine.includes('email')) ? lines.slice(1) : lines
+    bulkPasteText.value = dataLines.join('\n')
+    bulkParsedUsers.value = parseBulkText(dataLines.join('\n'))
+  }
+  reader.readAsText(file)
+}
+
+async function handleBulkImport() {
+  loadingBulk.value = true
+  bulkResult.value = null
+  try {
+    const users = bulkParsedUsers.length > 0 ? bulkParsedUsers.value : parseBulkText(bulkPasteText.value)
+    if (users.length === 0 && bulkPasteText.value.trim()) {
+      // Re-parse
+      const parsed = parseBulkText(bulkPasteText.value)
+      if (parsed.length === 0) {
+        bulkResult.value = { success: false, message: 'Nenhum usuário válido encontrado. Use o formato: nome;email;departamento' }
+        loadingBulk.value = false
+        return
+      }
+      bulkParsedUsers.value = parsed
+    }
+    const payload = bulkParsedUsers.value.length > 0 ? bulkParsedUsers.value : parseBulkText(bulkPasteText.value)
+    const response = await api.post('/users/bulk', { users: payload })
+    if (response.data.success) {
+      bulkResult.value = { success: true, message: response.data.message }
+      bulkPasteText.value = ''
+      bulkParsedUsers.value = []
+      csvFileName.value = ''
+    }
+  } catch (err) {
+    bulkResult.value = { success: false, message: err.response?.data?.message || 'Erro ao importar usuários' }
+  } finally {
+    loadingBulk.value = false
+  }
+}
+
+async function loadInvites() {
+  try {
+    const res = await api.get(`/companies/${authStore.user.companyId}/invites`)
+    if (res.data.success) activeInvites.value = res.data.data
+  } catch (e) {
+    console.warn('Could not load invites')
+  }
+}
+
+async function handleCreateInvite() {
+  loadingInvite.value = true
+  try {
+    const res = await api.post(`/companies/${authStore.user.companyId}/invites`, {
+      maxUses: inviteForm.maxUses,
+      expiresInDays: inviteForm.expiresInDays
+    })
+    if (res.data.success) {
+      activeInvites.value.unshift(res.data.data)
+    }
+  } catch (e) {
+    alert(e.response?.data?.message || 'Erro ao gerar convite')
+  } finally {
+    loadingInvite.value = false
+  }
+}
+
+async function handleDeleteInvite(code) {
+  if (!confirm('Deseja revogar este link de convite?')) return
+  try {
+    await api.delete(`/companies/${authStore.user.companyId}/invites/${code}`)
+    activeInvites.value = activeInvites.value.filter(i => i.code !== code)
+  } catch (e) {
+    alert('Erro ao revogar convite')
+  }
+}
+
+function getInviteUrl(code) {
+  const base = window.location.origin
+  return `${base}/join/${code}`
+}
+
+function copyInviteLink(code) {
+  navigator.clipboard.writeText(getInviteUrl(code))
+  alert('Link copiado!')
+}
+
+async function handleQuickCreateUser() {
+  loadingQuickUser.value = true
+  quickUserResult.value = null
+  try {
+    const username = quickUserForm.email.split('@')[0].toLowerCase().replace(/[^a-z0-9_.]/g, '')
+    const response = await api.post('/users', {
+      username,
+      email: quickUserForm.email,
+      fullName: quickUserForm.fullName,
+      password: quickUserForm.password || undefined,
+      role: quickUserForm.role,
+      department: quickUserForm.department || undefined,
+      position: quickUserForm.position || undefined
+    })
+    if (response.data.success) {
+      quickUserResult.value = { success: true, message: `Usuário ${quickUserForm.fullName} criado com sucesso!` }
+      Object.assign(quickUserForm, { fullName: '', email: '', department: '', position: '', password: '', role: 'user' })
+    }
+  } catch (err) {
+    quickUserResult.value = { success: false, message: err.response?.data?.message || 'Erro ao criar usuário' }
+  } finally {
+    loadingQuickUser.value = false
+  }
 }
 </script>
