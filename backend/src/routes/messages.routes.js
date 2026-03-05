@@ -1,6 +1,8 @@
 import Router from 'koa-router';
 import { db, cache } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
+import { validateRequest } from '../middlewares/validate.middleware.js';
+import { createMessageSchema } from '../schemas/messages.schema.js';
 
 const router = new Router();
 
@@ -96,6 +98,18 @@ router.post('/conversations', async (ctx) => {
     }
 
     const allParticipants = [...new Set([userId, ...participantIds])];
+
+    // BOLA FIX: Check if all requested participants belong to the same company
+    const validateUsers = await db.query(
+        'SELECT id FROM users WHERE id = ANY($1::uuid[]) AND company_id = $2',
+        [allParticipants, companyId]
+    );
+
+    if (validateUsers.rows.length !== allParticipants.length) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Um ou mais usuários informados não pertencem à sua empresa.' };
+        return;
+    }
 
     if (!isGroup && allParticipants.length === 2) {
         const existing = await db.write(`
@@ -243,7 +257,8 @@ router.put('/conversations/:id/participants', async (ctx) => {
 // GET /api/messages/conversations/:id
 router.get('/conversations/:id', async (ctx) => {
     const { id } = ctx.params;
-    const { cursor, limit = 50 } = ctx.query;
+    const { cursor, limit: rawLimit } = ctx.query;
+    const limit = Math.min(parseInt(rawLimit, 10) || 50, 100);
     const userId = ctx.state.user.id;
 
     const convCheck = await db.write(
@@ -336,17 +351,11 @@ router.get('/conversations/:id', async (ctx) => {
 });
 
 // POST /api/messages/conversations/:id - Send message
-router.post('/conversations/:id', async (ctx) => {
+router.post('/conversations/:id', validateRequest(createMessageSchema), async (ctx) => {
     const { id } = ctx.params;
     const { content, contentType = 'text', fileUrl, replyTo = null, threadId = null, expiresIn = null } = ctx.request.body;
     const userId = ctx.state.user.id;
     const companyId = ctx.state.user.companyId;
-
-    if (!content) {
-        ctx.status = 400;
-        ctx.body = { success: false, message: 'Conteúdo é obrigatório' };
-        return;
-    }
 
     const convCheck = await db.write(
         'SELECT participant_ids FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
@@ -574,10 +583,12 @@ router.put('/:id', async (ctx) => {
         return;
     }
 
-    const msgCheck = await db.write(
-        'SELECT sender_id, conversation_id, is_deleted FROM messages WHERE id = $1',
-        [id]
-    );
+    const msgCheck = await db.write(`
+        SELECT m.sender_id, m.conversation_id, m.is_deleted 
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = $1 AND $2 = ANY(c.participant_ids)
+    `, [id, userId]);
 
     if (msgCheck.rows.length === 0) {
         ctx.status = 404;
@@ -588,7 +599,7 @@ router.put('/:id', async (ctx) => {
     const msg = msgCheck.rows[0];
     if (msg.sender_id !== userId) {
         ctx.status = 403;
-        ctx.body = { success: false, message: 'Apenas o autor pode editar' };
+        ctx.body = { success: false, message: 'Acesso negado' };
         return;
     }
     if (msg.is_deleted) {
@@ -620,10 +631,12 @@ router.delete('/:id', async (ctx) => {
     const { id } = ctx.params;
     const userId = ctx.state.user.id;
 
-    const msgCheck = await db.write(
-        'SELECT sender_id, conversation_id FROM messages WHERE id = $1',
-        [id]
-    );
+    const msgCheck = await db.write(`
+        SELECT m.sender_id, m.conversation_id 
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = $1 AND $2 = ANY(c.participant_ids)
+    `, [id, userId]);
 
     if (msgCheck.rows.length === 0) {
         ctx.status = 404;
@@ -634,7 +647,7 @@ router.delete('/:id', async (ctx) => {
     const msg = msgCheck.rows[0];
     if (msg.sender_id !== userId) {
         ctx.status = 403;
-        ctx.body = { success: false, message: 'Apenas o autor pode apagar' };
+        ctx.body = { success: false, message: 'Acesso negado' };
         return;
     }
 
@@ -659,24 +672,31 @@ router.put('/:id/read', async (ctx) => {
     const { id } = ctx.params;
     const userId = ctx.state.user.id;
 
-    const msgResult = await db.write(
-        'SELECT sender_id, conversation_id FROM messages WHERE id = $1',
-        [id]
-    );
+    // BOLA Check: only participants of the conversation can read
+    const msgResult = await db.write(`
+        SELECT m.sender_id, m.conversation_id 
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = $1 AND $2 = ANY(c.participant_ids)
+    `, [id, userId]);
+
+    if (msgResult.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Mensagem não encontrada' };
+        return;
+    }
 
     await db.write('UPDATE messages SET is_read = true, read_at = NOW() WHERE id = $1', [id]);
 
-    if (msgResult.rows.length > 0) {
-        const { sender_id, conversation_id } = msgResult.rows[0];
-        const io = ctx.app.context.io;
-        if (io && sender_id !== userId) {
-            io.to(`user:${sender_id}`).emit('message:read', {
-                messageId: id,
-                conversationId: conversation_id,
-                readBy: userId,
-                readAt: new Date(),
-            });
-        }
+    const { sender_id, conversation_id } = msgResult.rows[0];
+    const io = ctx.app.context.io;
+    if (io && sender_id !== userId) {
+        io.to(`user:${sender_id}`).emit('message:read', {
+            messageId: id,
+            conversationId: conversation_id,
+            readBy: userId,
+            readAt: new Date(),
+        });
     }
 
     ctx.body = { success: true, message: 'Mensagem marcada como lida' };
@@ -694,7 +714,13 @@ router.post('/:id/react', async (ctx) => {
         return;
     }
 
-    const msgCheck = await db.write('SELECT reactions, conversation_id FROM messages WHERE id = $1', [id]);
+    // BOLA Check: only participants can react to a message
+    const msgCheck = await db.write(`
+        SELECT m.reactions, m.conversation_id 
+        FROM messages m
+        JOIN conversations c ON m.conversation_id = c.id
+        WHERE m.id = $1 AND $2 = ANY(c.participant_ids)
+    `, [id, userId]);
 
     if (msgCheck.rows.length === 0) {
         ctx.status = 404;
@@ -1089,6 +1115,31 @@ router.get('/preview-link', async (ctx) => {
     }
 
     try {
+        const urlObj = new URL(url.trim());
+        if (!['http:', 'https:'].includes(urlObj.protocol)) {
+            ctx.status = 400;
+            ctx.body = { success: false, message: 'Protocolo inválido' };
+            return;
+        }
+
+        // SSRF Protection: Prevent accessing internal IP addresses
+        const hostname = urlObj.hostname;
+        const isInternalIP =
+            /^localhost$/i.test(hostname) ||
+            /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^\[::1\]$/.test(hostname) ||
+            /^0\.0\.0\.0$/.test(hostname);
+
+        if (isInternalIP) {
+            ctx.status = 403;
+            ctx.body = { success: false, message: 'Acesso a redes locais/internas bloqueado.' };
+            return;
+        }
+
         const response = await fetch(url.trim(), {
             headers: {
                 'User-Agent': 'LanlyBot/1.0 (+https://lanly.com.br)'

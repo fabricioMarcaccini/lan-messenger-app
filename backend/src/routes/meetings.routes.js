@@ -176,10 +176,22 @@ router.put('/:id/rsvp', async (ctx) => {
         return;
     }
 
-    const meetingCheck = await db.write('SELECT id, conversation_id FROM meetings WHERE id = $1', [id]);
+    const meetingCheck = await db.write(`
+        SELECT m.id, m.conversation_id, m.creator_id, c.participant_ids 
+        FROM meetings m
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE m.id = $1
+    `, [id]);
     if (meetingCheck.rows.length === 0) {
         ctx.status = 404;
         ctx.body = { success: false, message: 'Reunião não encontrada' };
+        return;
+    }
+
+    const meetingRow = meetingCheck.rows[0];
+    if (!meetingRow.participant_ids.includes(userId) && meetingRow.creator_id !== userId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Sem permissão de acesso a esta reunião' };
         return;
     }
 

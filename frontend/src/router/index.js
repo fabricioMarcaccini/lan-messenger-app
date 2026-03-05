@@ -51,6 +51,11 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
+        path: '/join/:code',
+        name: 'JoinInvite',
+        component: () => import('@/pages/JoinViaInvite.vue')
+    },
+    {
         path: '/:pathMatch(.*)*',
         redirect: '/'
     }
@@ -79,7 +84,7 @@ router.beforeEach(async (to, from, next) => {
         next({ name: 'Dashboard' })
     } else if (to.meta.requiresAdmin && !isAdmin) {
         next({ name: 'Dashboard' })
-    } else if (isAuthenticated && to.name !== 'Pricing' && to.name !== 'Login') {
+    } else if (isAuthenticated && !['Pricing', 'Login', 'JoinInvite'].includes(to.name)) {
         // Paywall guard: check if plan is valid
         const user = authStore.user
         const planId = user?.planId || 'free'

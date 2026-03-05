@@ -193,12 +193,13 @@ app.use(async (ctx, next) => {
     } catch (err) {
         const ms = Date.now() - start;
         logger.error(`${ctx.method} ${ctx.url} - ${err.status || 500} - ${ms}ms - ${err.message}`);
+        const isDev = process.env.NODE_ENV === 'development';
         ctx.status = err.status || 500;
         ctx.body = {
             success: false,
-            message: err.message || 'Internal Server Error',
-            stack: err.stack, // Always send stack trace temporarily for debugging
-            detail: err.detail || err.hint || null
+            message: isDev ? (err.message || 'Internal Server Error') : (err.status && err.status < 500 ? err.message : 'Internal Server Error'),
+            stack: isDev ? err.stack : undefined,
+            detail: isDev ? (err.detail || err.hint || null) : undefined
         };
     }
 });
@@ -508,10 +509,26 @@ httpServer.listen(PORT, async () => {
             await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS groq_api_key VARCHAR(255)");
             await db.write("ALTER TABLE companies ADD COLUMN IF NOT EXISTS ai_credits_balance INTEGER DEFAULT 50"); // 50 credits free to start
             console.log('✅ Colunas BYOK (OpenRouter/Groq) e Créditos de IA sincronizados!');
+
+            // 🚀 FEATURE: ONBOARDING TURBO (Links Mágicos)
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS company_invites (
+                    id SERIAL PRIMARY KEY,
+                    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+                    code VARCHAR(50) UNIQUE NOT NULL,
+                    max_uses INTEGER DEFAULT 50,
+                    uses INTEGER DEFAULT 0,
+                    expires_at TIMESTAMP,
+                    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_company_invites_code ON company_invites(code)');
+            console.log('✅ Tabela de Convites Inteligentes (Onboarding Turbo) sincronizada!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);
     }
 });
 
-export { app, io };
+export { app, io, httpServer };

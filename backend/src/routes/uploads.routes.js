@@ -3,6 +3,18 @@ import { db } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { randomUUID } from 'crypto';
 import path from 'path';
+import ratelimit from 'koa-ratelimit';
+
+const uploadRateLimit = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60 * 1000,
+    errorMessage: 'Muitos uploads em pouco tempo. Tente novamente em um minuto.',
+    id: (ctx) => ctx.state.user ? ctx.state.user.id : ctx.ip,
+    headers: { remaining: 'RateLimit-Remaining', reset: 'RateLimit-Reset', total: 'RateLimit-Total' },
+    max: 10,
+    disableHeader: false
+});
 
 const router = new Router();
 
@@ -43,7 +55,7 @@ router.get('/:id/file', async (ctx) => {
 router.use(authMiddleware);
 
 // POST /api/uploads - Upload a file (stores in DB as base64 for Render compatibility)
-router.post('/', async (ctx) => {
+router.post('/', uploadRateLimit, async (ctx) => {
     console.log('📤 Upload request received');
 
     // koa-body puts file in ctx.request.files

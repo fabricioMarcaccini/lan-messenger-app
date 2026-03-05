@@ -1,6 +1,18 @@
 import Router from 'koa-router';
 import { db } from '../config/database.js';
 import { authMiddleware, requirePlan } from '../middlewares/auth.js';
+import ratelimit from 'koa-ratelimit';
+
+const aiRateLimit = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60 * 1000,
+    errorMessage: 'Muitas requisições de IA em pouco tempo. Tente novamente em um minuto.',
+    id: (ctx) => ctx.state.user ? ctx.state.user.id : ctx.ip,
+    headers: { remaining: 'RateLimit-Remaining', reset: 'RateLimit-Reset', total: 'RateLimit-Total' },
+    max: 20,
+    disableHeader: false
+});
 
 const router = new Router();
 
@@ -94,7 +106,7 @@ async function checkAndDeductAIAudioCredits(userId) {
 }
 
 // Endpoint para resposta do bot @lanly
-router.post('/bot-reply', authMiddleware, async (ctx) => {
+router.post('/bot-reply', authMiddleware, aiRateLimit, async (ctx) => {
     const { message, context = [] } = ctx.request.body || {};
 
     if (!message || typeof message !== 'string') {
@@ -148,7 +160,7 @@ router.post('/bot-reply', authMiddleware, async (ctx) => {
 });
 
 // Endpoint para Respostas Rápidas (Smart Replies)
-router.post('/smart-replies', authMiddleware, async (ctx) => {
+router.post('/smart-replies', authMiddleware, aiRateLimit, async (ctx) => {
     const { contextText } = ctx.request.body;
     if (!contextText) {
         ctx.status = 400; ctx.body = { success: false }; return;
@@ -180,7 +192,7 @@ router.post('/smart-replies', authMiddleware, async (ctx) => {
 });
 
 // Endpoint para Resumo de Grupo e Extração de Tarefas
-router.post('/analyze-chat', authMiddleware, async (ctx) => {
+router.post('/analyze-chat', authMiddleware, aiRateLimit, async (ctx) => {
     const { textLog, action } = ctx.request.body;
     if (!textLog) {
         ctx.status = 400; ctx.body = { success: false }; return;
@@ -215,7 +227,7 @@ router.post('/analyze-chat', authMiddleware, async (ctx) => {
 });
 
 // Endpoint for Magic Text (Productivity feature) — REQUIRES MAX PLAN
-router.post('/magic-text', authMiddleware, requirePlan('max'), async (ctx) => {
+router.post('/magic-text', authMiddleware, requirePlan('max'), aiRateLimit, async (ctx) => {
     const { text, action } = ctx.request.body;
     if (!text) {
         ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
@@ -263,7 +275,7 @@ router.post('/magic-text', authMiddleware, requirePlan('max'), async (ctx) => {
 });
 
 // Endpoint para Tradução em Tempo Real (Babel)
-router.post('/translate-message', authMiddleware, async (ctx) => {
+router.post('/translate-message', authMiddleware, aiRateLimit, async (ctx) => {
     const { text, targetLanguage = 'pt' } = ctx.request.body;
     if (!text) {
         ctx.status = 400; ctx.body = { success: false, message: 'Texto obrigatório' }; return;
@@ -290,7 +302,7 @@ router.post('/translate-message', authMiddleware, async (ctx) => {
 });
 
 // Endpoint para Transcrição Magnética de Áudios (Whisper via Groq) — REQUIRES MAX PLAN
-router.post('/transcribe-audio', authMiddleware, requirePlan('max'), async (ctx) => {
+router.post('/transcribe-audio', authMiddleware, requirePlan('max'), aiRateLimit, async (ctx) => {
     const { fileId } = ctx.request.body;
     if (!fileId) {
         ctx.status = 400; ctx.body = { success: false, message: 'ID do arquivo obrigatório' }; return;

@@ -18,8 +18,24 @@ const loginRateLimit = ratelimit({
     disableHeader: false
 });
 
+// Strict Rate Limiter for Registration and Forgot Password
+const strictRateLimit = ratelimit({
+    driver: 'memory',
+    db: new Map(),
+    duration: 60 * 60 * 1000, // 1 hour
+    errorMessage: 'Muitas tentativas. Tente novamente mais tarde.',
+    id: (ctx) => ctx.ip,
+    headers: {
+        remaining: 'RateLimit-Remaining',
+        reset: 'RateLimit-Reset',
+        total: 'RateLimit-Total'
+    },
+    max: 5,
+    disableHeader: false
+});
+
 // POST /api/auth/register (Public) — Creates company + admin user with 7-day trial
-router.post('/register', async (ctx) => {
+router.post('/register', strictRateLimit, async (ctx) => {
     const { companyName, username, email, password, fullName } = ctx.request.body;
 
     if (!companyName || !username || !email || !password) {
@@ -129,6 +145,156 @@ router.post('/register', async (ctx) => {
         console.error('❌ Register error:', error);
         ctx.status = 500;
         ctx.body = { success: false, message: 'Erro ao criar empresa e conta' };
+    }
+});
+
+// ==========================================
+// FEATURE: ONBOARDING TURBO (Links Mágicos)
+// ==========================================
+
+// GET /api/auth/invites/:code - Validate invite and return company info (Public)
+router.get('/invites/:code', strictRateLimit, async (ctx) => {
+    const { code } = ctx.params;
+
+    const result = await db.query(
+        `SELECT i.id, i.company_id, i.expires_at, i.max_uses, i.uses,
+                c.name as company_name, c.logo_url
+         FROM company_invites i
+         JOIN companies c ON c.id = i.company_id
+         WHERE i.code = $1`,
+        [code]
+    );
+
+    if (result.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Convite inválido ou não encontrado.' };
+        return;
+    }
+
+    const invite = result.rows[0];
+
+    // Validations
+    if (invite.expires_at && new Date() > new Date(invite.expires_at)) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Este link de convite já expirou.' };
+        return;
+    }
+
+    if (invite.max_uses > 0 && invite.uses >= invite.max_uses) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Este link de convite atingiu o limite de usos.' };
+        return;
+    }
+
+    ctx.body = {
+        success: true,
+        data: {
+            companyId: invite.company_id,
+            companyName: invite.company_name,
+            logoUrl: invite.logo_url
+        }
+    };
+});
+
+// POST /api/auth/invites/:code/join - Register user via magic link (Public)
+router.post('/invites/:code/join', strictRateLimit, async (ctx) => {
+    const { code } = ctx.params;
+    const { username, email, password, fullName } = ctx.request.body;
+
+    if (!username || !email || !password) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Preencha todos os campos obrigatórios' };
+        return;
+    }
+
+    try {
+        // Find and validate the invite again (inside transaction context conceptually)
+        const inviteResult = await db.query(
+            `SELECT i.id, i.company_id, i.expires_at, i.max_uses, i.uses
+             FROM company_invites i
+             WHERE i.code = $1 FOR UPDATE`,
+            [code]
+        );
+
+        if (inviteResult.rows.length === 0) {
+            ctx.status = 404;
+            ctx.body = { success: false, message: 'Convite inválido' };
+            return;
+        }
+
+        const invite = inviteResult.rows[0];
+
+        if (invite.expires_at && new Date() > new Date(invite.expires_at)) {
+            ctx.status = 400; ctx.body = { success: false, message: 'Convite expirado' }; return;
+        }
+
+        if (invite.max_uses > 0 && invite.uses >= invite.max_uses) {
+            ctx.status = 400; ctx.body = { success: false, message: 'Limite de convites atingido' }; return;
+        }
+
+        // Check for existing users
+        const existing = await db.query(
+            'SELECT id FROM users WHERE username = $1 OR email = $2',
+            [username, email]
+        );
+        if (existing.rows.length > 0) {
+            ctx.status = 409; ctx.body = { success: false, message: 'Usuário ou e-mail já existe' }; return;
+        }
+
+        const safeFullName = fullName || username;
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        // Import createUserWithSeatLock dynamically to avoid circular deps if they exist 
+        // We already imported it at the top of the file!
+        const { createUserWithSeatLock } = await import('../middlewares/auth.js');
+
+        // Create user with seat check
+        const { user } = await createUserWithSeatLock(invite.company_id, {
+            username, email, passwordHash, fullName: safeFullName, role: 'user'
+        });
+
+        // Increment invite uses
+        await db.query('UPDATE company_invites SET uses = uses + 1 WHERE id = $1', [invite.id]);
+
+        // Generate tokens
+        const tokens = generateTokens(user);
+
+        // Notify admins new user joined
+        const io = ctx.app.context.io;
+        if (io) {
+            const adminResult = await db.query(
+                `SELECT id FROM users WHERE company_id = $1 AND role = 'admin'`,
+                [invite.company_id]
+            );
+            adminResult.rows.forEach(admin => {
+                io.to(`user:${admin.id}`).emit('company:user_joined_via_invite', {
+                    userId: user.id, username: user.username, fullName: user.full_name
+                });
+            });
+        }
+
+        // Optional log
+        await db.query(`
+            INSERT INTO audit_logs (company_id, action, target_type, target_id, metadata)
+            VALUES ($1, $2, $3, $4, $5)`,
+            [invite.company_id, 'invite.join', 'user', user.id, { username, email, inviteCode: code }]
+        );
+
+        ctx.status = 201;
+        ctx.body = {
+            success: true,
+            message: 'Conta criada com sucesso e adicionada à empresa!',
+            data: { user, ...tokens }
+        };
+
+    } catch (error) {
+        console.error('Join via Invite Error:', error);
+        ctx.status = error.status || 500;
+        ctx.body = {
+            success: false,
+            message: error.message || 'Erro ao criar conta',
+            code: error.code || 'INVITE_JOIN_FAILED'
+        };
     }
 });
 
@@ -539,7 +705,7 @@ router.get('/password-reset-requests', async (ctx) => {
 });
 
 // POST /api/auth/forgot-password - Request password reset (Public)
-router.post('/forgot-password', async (ctx) => {
+router.post('/forgot-password', strictRateLimit, async (ctx) => {
     const { username } = ctx.request.body;
 
     if (!username) {

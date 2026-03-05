@@ -10,6 +10,12 @@ router.use(authMiddleware);
 router.get('/:id', async (ctx) => {
     const { id } = ctx.params;
 
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado. ID da empresa diferente da sua.' };
+        return;
+    }
+
     const result = await db.write(
         'SELECT id, name, cnpj, logo_url, address, settings, created_at FROM companies WHERE id = $1',
         [id]
@@ -30,6 +36,12 @@ router.get('/:id', async (ctx) => {
 // PUT /api/companies/:id - Update company (Admin only)
 router.put('/:id', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
+
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado. ID da empresa diferente da sua.' };
+        return;
+    }
     const { name, cnpj, logoUrl, address, settings } = ctx.request.body;
 
     const result = await db.write(
@@ -62,6 +74,12 @@ router.put('/:id', adminMiddleware, async (ctx) => {
 router.get('/:id/stats', async (ctx) => {
     const { id } = ctx.params;
 
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado. ID da empresa diferente da sua.' };
+        return;
+    }
+
     const [usersCount, activeCount, messagesCount, devicesCount] = await Promise.all([
         db.write('SELECT COUNT(*) as count FROM users WHERE company_id = $1', [id]),
         db.write('SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND is_active = true', [id]),
@@ -85,6 +103,12 @@ router.get('/:id/stats', async (ctx) => {
 // GET /api/companies/:id/ai-settings - Get company AI settings (Admin only)
 router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
+
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado. ID da empresa diferente da sua.' };
+        return;
+    }
     const result = await db.write(
         'SELECT openrouter_api_key, groq_api_key, ai_credits_balance FROM companies WHERE id = $1',
         [id]
@@ -121,6 +145,12 @@ router.get('/:id/ai-settings', adminMiddleware, async (ctx) => {
 // PUT /api/companies/:id/ai-settings - Update company AI key (Admin only)
 router.put('/:id/ai-settings', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
+
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado. ID da empresa diferente da sua.' };
+        return;
+    }
     const { openrouterApiKey, groqApiKey } = ctx.request.body;
 
     // Remove whitespace and check if removing key
@@ -155,6 +185,75 @@ router.put('/:id/ai-settings', adminMiddleware, async (ctx) => {
         success: true,
         message: 'Configurações de IA salvas com sucesso!'
     };
+});
+
+// ==========================================
+// FEATURE: ONBOARDING TURBO (Links Mágicos)
+// ==========================================
+
+// GET /api/companies/:id/invites - List active invites
+router.get('/:id/invites', adminMiddleware, async (ctx) => {
+    const { id } = ctx.params;
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado.' };
+        return;
+    }
+
+    const result = await db.query(
+        `SELECT id, code, max_uses, uses, expires_at, created_at 
+         FROM company_invites 
+         WHERE company_id = $1 
+         ORDER BY created_at DESC`,
+        [id]
+    );
+
+    ctx.body = { success: true, data: result.rows };
+});
+
+// POST /api/companies/:id/invites - Create a new magic link
+router.post('/:id/invites', adminMiddleware, async (ctx) => {
+    const { id } = ctx.params;
+    const { maxUses = 50, expiresInDays = 7 } = ctx.request.body;
+
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado.' };
+        return;
+    }
+
+    const { randomBytes } = await import('crypto');
+    const code = randomBytes(8).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + parseInt(expiresInDays));
+
+    const result = await db.query(
+        `INSERT INTO company_invites (company_id, code, max_uses, expires_at, created_by)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, code, max_uses, uses, expires_at, created_at`,
+        [id, code, parseInt(maxUses), expiresAt, ctx.state.user.id]
+    );
+
+    ctx.status = 201;
+    ctx.body = { success: true, data: result.rows[0] };
+});
+
+// DELETE /api/companies/:id/invites/:code - Invalidate a magic link
+router.delete('/:id/invites/:code', adminMiddleware, async (ctx) => {
+    const { id, code } = ctx.params;
+
+    if (id !== ctx.state.user.companyId) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado.' };
+        return;
+    }
+
+    await db.query(
+        'DELETE FROM company_invites WHERE company_id = $1 AND code = $2',
+        [id, code]
+    );
+
+    ctx.body = { success: true, message: 'Link de convite invalidado com sucesso.' };
 });
 
 export default router;

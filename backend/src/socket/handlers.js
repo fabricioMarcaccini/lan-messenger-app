@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { cache } from '../config/database.js';
+import { db, cache } from '../config/database.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -118,6 +118,21 @@ export function setupSocketHandlers(io) {
 
             const { conversationId, content, contentType = 'text' } = data;
 
+            // BOLA Check: verify participant rights before emitting message
+            try {
+                const convCheck = await db.write(
+                    'SELECT id FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+                    [conversationId, socket.userId]
+                );
+                if (convCheck.rows.length === 0) {
+                    socket.emit('error', { message: 'Não autorizado a enviar mensagens nesta conversa.' });
+                    return;
+                }
+            } catch (error) {
+                console.error('Socket BOLA error on send:', error.message);
+                return;
+            }
+
             // Emit to all participants in conversation
             io.to(`conversation:${conversationId}`).emit('message:new', {
                 conversationId,
@@ -152,8 +167,24 @@ export function setupSocketHandlers(io) {
         });
 
         // Join conversation room
-        socket.on('conversation:join', (conversationId) => {
+        socket.on('conversation:join', async (conversationId) => {
             if (!socket.userId) return;
+
+            // BOLA Check: verify participant rights before joining the socket room
+            try {
+                const convCheck = await db.write(
+                    'SELECT id FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+                    [conversationId, socket.userId]
+                );
+                if (convCheck.rows.length === 0) {
+                    socket.emit('error', { message: 'Não autorizado a acessar esta conversa.' });
+                    return;
+                }
+            } catch (error) {
+                console.error('Socket BOLA error on join:', error.message);
+                return;
+            }
+
             socket.join(`conversation:${conversationId}`);
             console.log(`👥 User ${socket.userId} joined conversation ${conversationId}`);
 

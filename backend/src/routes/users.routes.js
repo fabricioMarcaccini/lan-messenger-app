@@ -1,7 +1,7 @@
 import Router from 'koa-router';
 import bcrypt from 'bcrypt';
 import { db } from '../config/database.js';
-import { authMiddleware, adminMiddleware, createUserWithSeatLock } from '../middlewares/auth.js';
+import { authMiddleware, adminMiddleware, createUserWithSeatLock, createBulkUsersWithSeatLock } from '../middlewares/auth.js';
 
 const router = new Router();
 
@@ -231,8 +231,8 @@ router.get('/:id', async (ctx) => {
         `SELECT id, username, email, full_name, avatar_url, role, department, 
                 position, status_message, is_active, last_seen_at, created_at,
                 custom_status_text, custom_status_emoji, custom_status_expires_at, ooo_until, ooo_message
-         FROM users WHERE id = $1`,
-        [id]
+         FROM users WHERE id = $1 AND company_id = $2`,
+        [id, ctx.state.user.companyId]
     );
 
     if (result.rows.length === 0) {
@@ -343,10 +343,103 @@ router.post('/', adminMiddleware, async (ctx) => {
     }
 });
 
+// POST /api/users/bulk - Importação em massa de usuários (Onboarding Turbo - Smart Paste / CSV)
+router.post('/bulk', adminMiddleware, async (ctx) => {
+    const { users } = ctx.request.body;
+    const companyId = ctx.state.user.companyId;
+
+    if (!Array.isArray(users) || users.length === 0) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Lista de usuários inválida ou vazia.' };
+        return;
+    }
+
+    // Limit to 100 users per bulk request to prevent payloads that are too large
+    if (users.length > 100) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'O limite de importação por vez é de 100 usuários.' };
+        return;
+    }
+
+    try {
+        // Validate and hash passwords for all valid users before the transaction
+        const validUsers = [];
+        for (const u of users) {
+            if (!u.email || !u.fullName) {
+                continue; // Skip invalid entries
+            }
+            // Generate username from email if not provided
+            const rawUsername = u.username || u.email.split('@')[0];
+            const username = rawUsername.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+
+            // Base validation for length
+            if (username.length < 3) continue;
+
+            const plainPassword = u.password || 'Lanly@' + new Date().getFullYear() + '!';
+            const passwordHash = await bcrypt.hash(plainPassword, 12);
+
+            validUsers.push({
+                username,
+                email: u.email.toLowerCase(),
+                passwordHash,
+                fullName: u.fullName,
+                role: u.role || 'user',
+                department: u.department || null,
+                position: u.position || null
+            });
+        }
+
+        if (validUsers.length === 0) {
+            ctx.status = 400;
+            ctx.body = { success: false, message: 'Nenhum usuário válido encontrado na lista.' };
+            return;
+        }
+
+        // 🔒 ATOMIC BULK INSERT: Lock + Check all seats + Insert multiple
+        const result = await createBulkUsersWithSeatLock(companyId, validUsers);
+
+        ctx.status = 201;
+        ctx.body = {
+            success: true,
+            message: `${result.users.length} usuários importados com sucesso!`,
+            data: result.users,
+            seatInfo: result.seatInfo
+        };
+
+        // Notify admins of the company that bulk creation occurred
+        const io = ctx.app.context.io;
+        if (io) {
+            const adminResult = await db.query(
+                `SELECT id FROM users WHERE company_id = $1 AND role = 'admin'`,
+                [companyId]
+            );
+            adminResult.rows.forEach((admin) => {
+                io.to(`user:${admin.id}`).emit('company:bulk_users_added', {
+                    count: result.users.length,
+                    seatInfo: result.seatInfo
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Bulk User Creation Error:', error);
+        ctx.status = error.status || 500;
+        ctx.body = {
+            success: false,
+            message: error.message || 'Erro interno ao importar usuários',
+            code: error.code || 'BULK_IMPORT_FAILED',
+            ...(error.maxSeats && { maxSeats: error.maxSeats }),
+            ...(error.activeUsers !== undefined && { activeUsers: error.activeUsers }),
+            ...(error.attemptingToAdd && { attemptingToAdd: error.attemptingToAdd }),
+            ...(error.conflicts && { conflicts: error.conflicts })
+        };
+    }
+});
+
 // PUT /api/users/:id - Update user
 router.put('/:id', async (ctx) => {
     const { id } = ctx.params;
     const { fullName, email, department, position, statusMessage, avatarUrl } = ctx.request.body;
+    const companyId = ctx.state.user.companyId;
 
     // Check if user can update (self or admin)
     if (ctx.state.user.id !== id && ctx.state.user.role !== 'admin') {
@@ -364,9 +457,9 @@ router.put('/:id', async (ctx) => {
              status_message = COALESCE($6, status_message),
              avatar_url = COALESCE($7, avatar_url),
              updated_at = NOW()
-         WHERE id = $1
+         WHERE id = $1 AND company_id = $8
          RETURNING id, username, email, full_name, department, position, status_message, avatar_url, is_active, last_seen_at, created_at`,
-        [id, fullName, email, department, position, statusMessage, avatarUrl]
+        [id, fullName, email, department, position, statusMessage, avatarUrl, companyId]
     );
 
     if (result.rows.length === 0) {
@@ -399,6 +492,7 @@ router.put('/:id', async (ctx) => {
 // DELETE /api/users/:id - Deactivate user (Admin only)
 router.delete('/:id', adminMiddleware, async (ctx) => {
     const { id } = ctx.params;
+    const companyId = ctx.state.user.companyId;
 
     // Prevent self-deletion
     if (ctx.state.user.id === id) {
@@ -408,8 +502,8 @@ router.delete('/:id', adminMiddleware, async (ctx) => {
     }
 
     const result = await db.write(
-        'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id',
-        [id]
+        'UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1 AND company_id = $2 RETURNING id',
+        [id, companyId]
     );
 
     if (result.rows.length === 0) {

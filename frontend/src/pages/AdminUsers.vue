@@ -56,13 +56,23 @@
             <p class="text-gray-500 dark:text-slate-400">{{ locale.t.admin?.subtitle || 'Manage access, roles, and permissions for enterprise users.' }}</p>
           </div>
           
-          <button 
-            @click="showCreateModal = true"
-            class="group relative flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/50 text-primary hover:text-white hover:border-primary rounded-lg px-5 py-2.5 transition-all duration-300 shadow-sm hover:shadow-lg"
-          >
-            <span class="material-symbols-outlined text-[20px]">add</span>
-            <span class="font-bold text-sm tracking-wide">{{ locale.t.admin?.addNewUser || 'Add New User' }}</span>
-          </button>
+          <div class="flex items-center gap-3">
+            <button 
+              @click="showOnboardingModal = true"
+              class="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-blue-600 text-white rounded-lg px-5 py-2.5 transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-primary/30"
+              title="Importação em massa e links mágicos"
+            >
+              <span class="material-symbols-outlined text-[20px] transition-transform group-hover:-translate-y-1">rocket_launch</span>
+              <span class="font-bold text-sm tracking-wide hidden sm:block">Onboarding Turbo</span>
+            </button>
+            <button 
+              @click="showCreateModal = true"
+              class="group relative flex items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/50 text-primary hover:text-white hover:border-primary rounded-lg px-5 py-2.5 transition-all duration-300 shadow-sm hover:shadow-lg"
+            >
+              <span class="material-symbols-outlined text-[20px]">add</span>
+              <span class="font-bold text-sm tracking-wide">{{ locale.t.admin?.addNewUser || 'Add New User' }}</span>
+            </button>
+          </div>
         </div>
         
         <!-- Stats Cards -->
@@ -556,6 +566,14 @@
         </div>
       </div>
     </div>
+    
+    <!-- ★ Onboarding Turbo Modal -->
+    <OnboardingTurboModal 
+      v-if="showOnboardingModal" 
+      :company-id="authStore.user?.companyId" 
+      @close="showOnboardingModal = false" 
+      @imported="handleImportSuccess" 
+    />
   </div>
 </template>
 
@@ -567,6 +585,7 @@ import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
 import { useSocketStore } from '@/stores/socket'
 import { useSubscriptionStore } from '@/stores/subscription'
+import OnboardingTurboModal from '@/components/OnboardingTurboModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -580,6 +599,14 @@ const searchQuery = ref('')
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showUpsellModal = ref(false)
+const showOnboardingModal = ref(false)
+
+function handleImportSuccess() {
+  showOnboardingModal.value = false
+  usersStore.fetchUsers(1)
+  subscriptionStore.fetchSubscriptionStatus()
+}
+
 const activeAdminTab = ref('users')
 const auditLogs = ref([])
 const upgradeSeats = ref(25)
