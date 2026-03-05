@@ -7,6 +7,9 @@ export default defineConfig({
     plugins: [
         vue(),
         VitePWA({
+            strategies: 'injectManifest',
+            srcDir: 'public',
+            filename: 'sw.js',
             registerType: 'autoUpdate',
             manifest: {
                 name: 'Lanly',

@@ -660,6 +660,67 @@
                <div v-if="error2FA" class="text-red-500 mt-2 text-sm font-medium">{{ error2FA }}</div>
             </div>
 
+        <!-- Push Notifications Section -->
+        <section class="mb-8 p-6 bg-white dark:bg-glass-surface rounded-2xl border border-gray-200 dark:border-glass-border shadow-sm">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">notifications_active</span>
+              Notificações Desktop & Mobile
+            </h2>
+            <div v-if="notificationsStore.isSubscribed" class="flex items-center gap-2 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
+              <span class="material-symbols-outlined text-sm">notifications</span>
+              <span class="text-xs font-bold">Ativadas</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-black/20 p-5 rounded-xl border border-gray-200 dark:border-white/10 mb-6">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white mb-2">Mensagens fora do app</h3>
+            <p class="text-sm text-gray-600 dark:text-slate-400 mb-4 max-w-2xl leading-relaxed">
+             Ative as notificações para receber alertas de novas mensagens mesmo quando o Lanly estiver fechado ou minimizado. Essencial para não perder chamados da equipe.
+            </p>
+
+            <div v-if="!notificationsStore.isSupported" class="mt-4 p-4 bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-xl border border-yellow-200 dark:border-yellow-800/50 flex flex-col gap-2">
+              <div class="flex items-center gap-2 font-bold"><span class="material-symbols-outlined text-[18px]">warning</span> Não Suportado</div>
+              <p class="text-xs">Seu navegador atual não suporta Notificações Push, ou o ServiceWorker falhou ao tentar ser registrado.</p>
+            </div>
+            
+            <div v-else class="mt-4">
+              <div v-if="notificationsStore.permission === 'denied'" class="p-4 bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-800/50 text-sm">
+                <strong>Você bloqueou as notificações deste site.</strong> Por favor, altere nas configurações do seu navegador para permitir.
+              </div>
+
+              <div class="flex items-center justify-between" v-else>
+                 <div class="flex flex-col gap-1">
+                    <p class="text-sm font-semibold text-gray-800 dark:text-white">{{ notificationsStore.isSubscribed ? 'Notificações Ativas neste dispositivo' : 'Notificações desligadas neste dispositivo' }}</p>
+                    <p class="text-xs text-gray-500">Você tem um total de <strong>{{ notificationsStore.activeDevices }} dispositivos</strong> conectados ao push.</p>
+                 </div>
+                 
+                 <button 
+                  v-if="!notificationsStore.isSubscribed"
+                  @click="handleSubscribeToPush" 
+                  :disabled="loadingPush" 
+                  class="px-6 py-2.5 bg-primary hover:bg-cyan-400 text-white dark:text-background-dark font-bold rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                 >
+                  <span v-if="loadingPush" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  <span v-else class="material-symbols-outlined text-sm">notifications_active</span>
+                  Ativar
+                 </button>
+
+                 <button 
+                  v-else
+                  @click="handleUnsubscribeFromPush" 
+                  :disabled="loadingPush" 
+                  class="px-6 py-2.5 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-bold rounded-xl border border-red-200 dark:border-red-800/50 shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                 >
+                  <span v-if="loadingPush" class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                  Desativar daqui
+                 </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
           </div>
         </section>
 
@@ -782,6 +843,7 @@ import { useAuthStore, api } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
 import { useSubscriptionStore } from '@/stores/subscription'
+import { useNotificationsStore } from '@/stores/notifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -789,6 +851,7 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const locale = useLocaleStore()
 const subStore = useSubscriptionStore()
+const notificationsStore = useNotificationsStore()
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 const loading = ref(false)
@@ -796,6 +859,7 @@ const showMobileSidebar = ref(false)
 const selectedSeats = ref(5)
 const showCheckoutSuccess = ref(false)
 const showStatusModal = ref(false)
+const loadingPush = ref(false)
 
 const formData = ref({
   fullName: '',
@@ -1102,6 +1166,7 @@ onMounted(() => {
   subStore.fetchSubscriptionStatus()
   loadAiSettings()
   load2FAStatus()
+  notificationsStore.checkStatus()
 
   // Check for checkout success/cancel query params
   const checkoutParam = new URLSearchParams(window.location.search).get('checkout')
@@ -1116,6 +1181,29 @@ onMounted(() => {
     window.history.replaceState({}, '', window.location.pathname)
   }
 })
+
+// Push Notifications logic
+async function handleSubscribeToPush() {
+    loadingPush.value = true
+    try {
+        await notificationsStore.subscribe()
+    } catch (e) {
+        alert(e.message || 'Erro ao inscrever push notification.')
+    } finally {
+        loadingPush.value = false
+    }
+}
+
+async function handleUnsubscribeFromPush() {
+    loadingPush.value = true
+    try {
+        await notificationsStore.unsubscribe()
+    } catch (e) {
+        alert('Erro ao cancelar notificação.')
+    } finally {
+        loadingPush.value = false
+    }
+}
 
 async function saveProfile() {
   loading.value = true

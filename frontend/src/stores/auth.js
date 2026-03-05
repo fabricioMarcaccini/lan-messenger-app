@@ -279,6 +279,15 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    function setToken(newAccessToken, newRefreshToken) {
+        accessToken.value = newAccessToken
+        refreshToken.value = newRefreshToken
+        localStorage.setItem('accessToken', newAccessToken)
+        if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken)
+        }
+    }
+
     return {
         user,
         accessToken,
@@ -294,5 +303,6 @@ export const useAuthStore = defineStore('auth', () => {
         checkAuth,
         updateProfile,
         changePassword,
+        setToken,
     }
 })

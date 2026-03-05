@@ -3,6 +3,7 @@ import { db, cache } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { validateRequest } from '../middlewares/validate.middleware.js';
 import { createMessageSchema } from '../schemas/messages.schema.js';
+import { sendPushNotification } from './notifications.routes.js';
 
 const router = new Router();
 
@@ -358,7 +359,7 @@ router.post('/conversations/:id', validateRequest(createMessageSchema), async (c
     const companyId = ctx.state.user.companyId;
 
     const convCheck = await db.write(
-        'SELECT participant_ids FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        'SELECT participant_ids, name, is_group FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
         [id, userId]
     );
 
@@ -451,9 +452,24 @@ router.post('/conversations/:id', validateRequest(createMessageSchema), async (c
     }
 
     if (io) {
-        convCheck.rows[0].participant_ids.forEach(participantId => {
+        convCheck.rows[0].participant_ids.forEach(async participantId => {
             if (participantId !== userId) {
                 io.to(`user:${participantId}`).emit('message:new', messageData);
+
+                // Feature: Push Notification
+                // Envia push caso o usuário esteja offline
+                const isOnline = await cache.getPresence(participantId);
+                if (isOnline !== 'online') {
+                    const title = convCheck.rows[0].is_group ? `Nova mensagem em ${convCheck.rows[0].name || 'Grupo'}` : `Nova mensagem de ${sender.full_name || sender.username}`;
+                    const bodyText = contentType === 'text' ? content : (contentType === 'call' ? 'Iniciou uma chamada' : 'Enviou um arquivo');
+
+                    await sendPushNotification(participantId, {
+                        title: title,
+                        body: bodyText,
+                        icon: sender.avatar_url || '/lanly-logo.png',
+                        url: `/?conversation=${id}`
+                    });
+                }
             }
         });
 

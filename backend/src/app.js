@@ -33,6 +33,7 @@ import meetingsRoutes from './routes/meetings.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import stickersRoutes from './routes/stickers.routes.js';
+import notificationsRoutes from './routes/notifications.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 import { auditMiddleware } from './middlewares/audit.middleware.js';
 
@@ -168,10 +169,10 @@ app.use(compress({
 }));
 
 // Rate Limiting
-const db = new Map();
+const db_rate = new Map();
 app.use(ratelimit({
     driver: 'memory',
-    db: db,
+    db: db_rate,
     duration: 60000,
     errorMessage: 'Algumas vezes, devagar é melhor. Limite de requisições excedido.',
     id: (ctx) => ctx.ip,
@@ -232,6 +233,7 @@ router.use('/api/meetings', meetingsRoutes.routes());
 router.use('/api/analytics', analyticsRoutes.routes());
 router.use('/api/audit', auditRoutes.routes());
 router.use('/api/stickers', stickersRoutes.routes());
+router.use('/api/notifications', notificationsRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -525,6 +527,21 @@ httpServer.listen(PORT, async () => {
             `);
             await db.write('CREATE INDEX IF NOT EXISTS idx_company_invites_code ON company_invites(code)');
             console.log('✅ Tabela de Convites Inteligentes (Onboarding Turbo) sincronizada!');
+
+            // 🚀 FEATURE: PUSH NOTIFICATIONS (Service Worker)
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    id SERIAL PRIMARY KEY,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    endpoint TEXT NOT NULL,
+                    auth_key VARCHAR(255) NOT NULL,
+                    p256dh_key VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(endpoint)
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)');
+            console.log('✅ Tabela de Notificações Push (Web Push) sincronizada!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);
