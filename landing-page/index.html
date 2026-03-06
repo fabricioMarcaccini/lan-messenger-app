@@ -17,9 +17,11 @@
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=Unbounded:wght@400;600;800&display=swap"
         rel="stylesheet" media="print" onload="this.media='all'">
 
-    <meta property="og:title" content="Lanly — Chat Corporativo com IA">
-    <meta property="og:description" content="Substitua Slack e Teams por R$6,99/usuário. Teste Grátis 7 Dias.">
-    <meta property="og:url" content="https://lan-messenger-web-br.vercel.app">
+    <link rel="canonical" href="https://lanly.com.br" />
+    <meta property="og:title" content="Lanly — O Chat Corporativo Otimizado para o seu Negócio">
+    <meta property="og:description"
+        content="Mensalidade incrivelmente justa a partir de R$6,99/usuário. Teste Grátis 7 Dias.">
+    <meta property="og:url" content="https://lanly.com.br">
     <meta property="og:type" content="website">
     <meta name="twitter:card" content="summary_large_image">
     <!-- sitemap.xml e robots.txt
@@ -1058,18 +1060,34 @@
       "description": "Plataforma de comunicação corporativa com chat, vídeo, IA e monitoramento de rede.",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web, PWA",
-      "url": "https://lan-messenger-web-br.vercel.app",
+      "url": "https://lanly.com.br",
       "offers": {
         "@type": "Offer",
         "price": "6.99",
-        "priceCurrency": "USD",
+        "priceCurrency": "BRL",
         "availability": "https://schema.org/InStock"
-      },
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.9",
-        "reviewCount": "87"
       }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [{
+        "@type": "Question",
+        "name": "Preciso colocar o Cartão de Crédito no período de teste?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Não. Os 7 dias são livres para testar, o checkout ocorre estritamente depois através da sua aprovação via painel Stripe."
+        }
+      }, {
+        "@type": "Question",
+        "name": "Os dados da IA da Lanly são privados?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sim. Suas instâncias generativas do Max AI enviam requisições ofuscadas como APIs transitórias que não são utilizadas pelos motores terceiros na retenção de memória de massa."
+        }
+      }]
     }
     </script>
 </head>
@@ -1107,14 +1125,12 @@
     <section id="hero">
         <div class="container hero-grid">
             <div style="z-index: 10;">
-                <div style="margin-bottom: 24px;"><span class="urgency-badge">TRIAL GRÁTIS DE 7 DIAS — CANCELE QUANDO
-                        QUISER</span></div>
-                <span class="sub-title">Alta Performance & Foco Total</span>
+                <div style="margin-bottom: 24px;"><span class="urgency-badge">TRIAL GRÁTIS ENCERRA EM BREVE PARA NOVOS
+                        CADASTROS</span></div>
+                <span class="sub-title">Comunicação corporativa segura e inteligente</span>
                 <h1 class="reveal">Centralize seu time, elimine o ruído interno.</h1>
-                <p class="hero-desc reveal" style="transition-delay: 0.1s;">Esqueça o grupo do WhatsApp e fuja das taxas
-                    imensas do Slack. Uma plataforma única com Chat estruturado (Enquetes, Menções e Fixados), Agenda de
-                    Reuniões Nativa, Inteligência Artificial e Auditoria Completa, por apenas R$6,99/mês por usuário.
-                </p>
+                <p class="hero-desc reveal" style="transition-delay: 0.1s;">Esqueça o caos do WhatsApp e o alto custo do
+                    Slack. Chat, enquetes, agendas nativas, resumos de IA e mapa de rede por apenas R$ 6,99/mês.</p>
                 <div class="cta-group reveal" style="transition-delay: 0.2s;">
                     <a href="https://lan-messenger-web-br.vercel.app/register" class="btn btn-primary"
                         style="font-size: 1.1rem; padding: 18px 36px; box-shadow: 0 0 40px rgba(2, 252, 240, 0.4);">Acelerar
@@ -1187,6 +1203,172 @@
             <div class="stat-item">
                 <div class="stat-num" data-val="2">0</div>
                 <div class="stat-label">minutos para setup completo sem TI</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Power-Ups Minimalist Grid -->
+    <style>
+        .power-ups-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 100px;
+        }
+
+        .pu-item {
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+        }
+
+        .pu-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .pu-wide {
+            grid-column: span 3;
+        }
+
+        .pu-audit-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+
+        @media (max-width: 1024px) {
+            .power-ups-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pu-wide {
+                grid-column: span 1;
+            }
+
+            .pu-audit-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+
+    <section id="power-ups" class="container">
+        <div class="section-header reveal" style="text-align: center; margin: 0 auto 60px;">
+            <h2>Adições <span class="text-gradient">recentes.</span></h2>
+            <p>O Lanly evolui semanalmente. Novas ferramentas vitais já ativadas no seu hub de comunicação.</p>
+        </div>
+
+        <div class="power-ups-grid reveal">
+            <!-- Pinned & Polls -->
+            <div class="glass pu-item"
+                style="border: 1px solid rgba(168, 85, 247, 0.4); background: radial-gradient(circle at top right, rgba(168,85,247,0.1), transparent);">
+                <div style="color:#a855f7; margin-bottom: 24px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20v-6M6 20V10M18 20V4"></path>
+                    </svg>
+                </div>
+                <h3 style="font-size: 1.4rem; font-family:var(--font-display); margin-bottom: 12px; color: #fff;">
+                    Decisão Guiada</h3>
+                <p style="margin:0; font-size: 1rem; line-height: 1.6; color: var(--text-muted);">
+                    <strong>Fixe comunicados críticos</strong> ou lance <strong>Enquetes nativas</strong> e capte o
+                    consenso instantâneo sem poluição.
+                </p>
+            </div>
+
+            <!-- RSVS / Meetings Agenda -->
+            <div class="glass pu-item"
+                style="border: 1px solid rgba(2, 252, 240, 0.5); background: radial-gradient(circle at top right, rgba(2,252,240,0.1), transparent);">
+                <div style="color:var(--primary-glow); margin-bottom: 24px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14v-4z"></path>
+                        <rect x="3" y="6" width="12" height="12" rx="2" ry="2"></rect>
+                    </svg>
+                </div>
+                <h3 style="font-size: 1.4rem; font-family:var(--font-display); margin-bottom: 12px; color: #fff;">Agenda
+                    & WebRTC</h3>
+                <p style="margin:0; font-size: 1rem; line-height: 1.6; color: var(--text-muted);">
+                    Agende na timeline do chat com <strong>Confirmação Automática (RSVP)</strong>. Vídeo sem latência
+                    nativo da plataforma.
+                </p>
+            </div>
+
+            <!-- Mentions & Status -->
+            <div class="glass pu-item"
+                style="border: 1px solid rgba(244, 191, 79, 0.5); background: radial-gradient(circle at top right, rgba(244,191,79,0.1), transparent);">
+                <div style="color:#f4bf4f; margin-bottom: 24px;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 style="font-size: 1.4rem; font-family:var(--font-display); margin-bottom: 12px; color: #fff;">Foco
+                    Inquebrável</h3>
+                <p style="margin:0; font-size: 1rem; line-height: 1.6; color: var(--text-muted);">
+                    Seja acionado só por <strong>@Menção</strong> ou inative-se ligando o <strong>Status de Retorno
+                        Customizável</strong> nas Férias.
+                </p>
+            </div>
+
+            <!-- Audit Logs -->
+            <div class="glass pu-item pu-wide"
+                style="border: 1px solid rgba(2, 252, 240, 0.2); background: linear-gradient(135deg, rgba(3,7,18,0.99), rgba(2,252,240,0.05));">
+                <div class="pu-audit-content">
+                    <div style="flex: 1.5;">
+                        <span class="badge"
+                            style="margin-bottom: 16px; display: inline-flex; align-items: center; gap: 6px; background: rgba(2,252,240,0.1); color: var(--primary-glow); border: 1px solid rgba(2,252,240,0.3);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                            Gestão Absoluta de TI
+                        </span>
+                        <h3 style="font-size: 2rem; font-family:var(--font-display); color: #fff; margin-bottom: 12px;">
+                            Governança à prova de falhas.</h3>
+                        <p style="margin:0; font-size: 1.1rem; color: var(--text-muted); line-height: 1.6;">
+                            O Lanly entrega <strong>Logs Irrefutáveis</strong> registando acessos e ações atípicas no
+                            nível IP. Perfeito para integração massiva (Bulk) e segurança enterprise com Magic Links.
+                        </p>
+                    </div>
+
+                    <div
+                        style="flex: 1; width: 100%; background: rgba(0,0,0,0.6); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <ul
+                            style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; font-size: 0.95rem;">
+                            <li
+                                style="display: flex; align-items: center; gap: 12px; color: var(--text-main); font-weight: 500;">
+                                <div style="color: #27c93f;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                </div>
+                                Importação de Arquivos em Massa (CSV)
+                            </li>
+                            <li
+                                style="display: flex; align-items: center; gap: 12px; color: var(--text-main); font-weight: 500;">
+                                <div style="color: var(--primary-glow);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                </div>
+                                Autenticação B2B via Magic Link
+                            </li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -1417,6 +1599,14 @@
         <div class="section-header reveal" style="text-align: center; margin: 0 auto 60px;">
             <h2>Preços transparentes.</h2>
             <p>Selecione a licença correta para sua PME e corte custos imediatamente.</p>
+            <div
+                style="display: inline-flex; align-items: center; gap: 10px; margin-top: 20px; background: rgba(2, 252, 240, 0.1); border: 1px solid rgba(2, 252, 240, 0.3); padding: 8px 16px; border-radius: 30px; color: var(--primary-glow); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+                Economia de até 70% comparado a Microsoft / Slack
+            </div>
         </div>
 
         <div class="pricing-grid">
@@ -1519,10 +1709,33 @@
     </section>
 
     <!-- Contact -->
+    <style>
+        .contact-grid-responsive {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        @media (max-width: 1024px) {
+            .contact-grid-responsive {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                text-align: center;
+            }
+
+            .contact-grid-responsive .contact-left {
+                text-align: center !important;
+            }
+
+            .contact-grid-responsive .whatsapp-btn {
+                margin: 0 auto;
+            }
+        }
+    </style>
     <section id="contato" class="container">
-        <div class="contact-grid reveal"
-            style="display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
-            <div style="text-align: left;">
+        <div class="contact-grid-responsive reveal">
+            <div class="contact-left" style="text-align: left;">
                 <h2 style="font-size: clamp(2.5rem, 4vw, 3.5rem); margin-bottom: 24px;">Fale com a nossa <br><span
                         class="text-gradient">equipe Comercial.</span></h2>
                 <p style="font-size: 1.25rem; color: var(--text-muted); margin-bottom: 40px;">Precisa de mais de 100

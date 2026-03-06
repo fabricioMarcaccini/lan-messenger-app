@@ -38,7 +38,7 @@
     </header>
     
     <!-- Main Content -->
-    <main class="flex-1 px-6 py-8 lg:px-10 xl:px-20 max-w-[1600px] mx-auto w-full">
+    <main class="flex-1 px-4 py-6 md:px-6 md:py-8 lg:px-10 xl:px-20 max-w-[1600px] mx-auto w-full">
       <!-- Header + Stats -->
       <div class="flex flex-col xl:flex-row gap-6 mb-8 justify-between items-end">
         <div class="flex-1 min-w-[300px]">
@@ -179,14 +179,14 @@
           </select>
         </div>
 
-        <div class="flex items-center gap-2 w-full md:w-auto">
+        <div class="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
           <!-- Export -->
           <button 
             @click="exportCSV"
-            class="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-3 text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            class="flex w-full sm:w-auto h-10 items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-4 text-sm font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shadow-sm"
             title="Exportar lista de dispositivos em CSV"
           >
-            <span class="material-symbols-outlined text-[16px]">download</span>
+            <span class="material-symbols-outlined text-[18px]">download</span>
             Exportar CSV
           </button>
 
@@ -194,7 +194,7 @@
           <button 
             @click="handleScan"
             :disabled="networkStore.scanning"
-            class="group flex h-10 w-full md:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-white dark:text-background-dark shadow-sm dark:shadow-[0_0_15px_rgba(0,212,255,0.3)] hover:shadow-md dark:hover:shadow-[0_0_25px_rgba(0,212,255,0.5)] transition-all disabled:opacity-50"
+            class="group flex h-10 w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary px-6 text-sm font-bold text-white dark:text-background-dark shadow-md shadow-primary/20 hover:shadow-lg dark:hover:shadow-[0_0_25px_rgba(0,212,255,0.5)] transition-all disabled:opacity-50"
             title="Escanear a rede em busca de dispositivos"
           >
             <span :class="['material-symbols-outlined text-[20px] transition-transform', networkStore.scanning ? 'animate-spin' : 'group-hover:rotate-180']">sync</span>

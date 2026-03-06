@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Ajuda Lanly | Suporte, Documentação e Comunidade</title>
+    <meta name="description"
+        content="Tudo sobre como configurar, usar e integrar o Lanly. Guias para Admin, Desenvolvedores e suporte técnico oficial.">
+    <link rel="canonical" href="https://ajuda.lanly.com.br" />
+
+    <!-- OpenGraph Social -->
+    <meta property="og:title" content="Lanly Help Center & Developer Hub">
+    <meta property="og:description"
+        content="Central de suporte oficial para sua plataforma de comunicação corporativa.">
+    <meta property="og:url" content="https://ajuda.lanly.com.br">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Unbounded:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Structured Data (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Lanly Help Center",
+      "description": "Central de ajuda e documentação técnica da Lanly.",
+      "url": "https://ajuda.lanly.com.br",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [{
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://lanly.com.br"
+        },{
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Ajuda",
+          "item": "https://ajuda.lanly.com.br"
+        }]
+      }
+    }
+    </script>
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+
+<body>
+    <div id="cursor-dot"></div>
+    <div id="cursor-ring"></div>
+    <div class="noise-bg"></div>
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- Header / Navbar -->
+    <header class="glass-nav">
+        <div class="nav-container">
+            <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Menu">
+                <i class="ph ph-list"></i>
+            </button>
+            <div class="logo">
+                <i class="ph-fill ph-chat-circle-text" style="color: var(--primary-glow); font-size: 1.5rem;"></i>
+                <span>LANLY</span>
+                <span class="badge">HELP CENTER</span>
+            </div>
+
+            <div class="search-container">
+                <i class="ph ph-magnifying-glass search-icon"></i>
+                <input type="text" id="global-search" placeholder="Busque guias, APIs, erros... (Ctrl+K)">
+                <div class="search-shortcut">Ctrl K</div>
+
+                <div class="search-results glass" id="search-results" style="display: none;">
+                    <!-- Results will be injected here -->
+                </div>
+            </div>
+
+            <nav class="nav-links">
+                <a href="https://app.lanly.com.br" target="_blank" class="btn btn-secondary btn-sm">Ir para o App <i
+                        class="ph ph-arrow-up-right"></i></a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="layout-wrapper">
+        <div class="mobile-overlay" id="mobile-overlay"></div>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar scrollbar-hide">
+
+            <div class="nav-group">
+                <div class="nav-group-title">🚀 Getting Started</div>
+                <a href="#welcome" class="nav-link active" data-target="welcome">Bem-vindo</a>
+                <a href="#cloud-setup" class="nav-link" data-target="cloud-setup">Setup: Lanly Cloud</a>
+                <a href="#self-hosted" class="nav-link" data-target="self-hosted">Setup: Self-Hosted</a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">📖 Guias de Uso</div>
+                <a href="#chat-basics" class="nav-link" data-target="chat-basics">Chat & Mensagens</a>
+                <a href="#groups" class="nav-link" data-target="groups">Grupos & Canais</a>
+                <a href="#ai-magic" class="nav-link" data-target="ai-magic">IA Mágica ✨</a>
+                <a href="#network" class="nav-link" data-target="network">Descoberta de Rede</a>
+                <a href="#admin-panel" class="nav-link" data-target="admin-panel">Painel Admin</a>
+                <a href="#billing" class="nav-link" data-target="billing">Planos & Cobrança</a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">💡 Conceitos</div>
+                <a href="#how-lan-works" class="nav-link" data-target="how-lan-works">Como a Rede Local funciona</a>
+                <a href="#cloud-vs-selfhosted" class="nav-link" data-target="cloud-vs-selfhosted">Cloud vs
+                    Self-Hosted</a>
+                <a href="#security" class="nav-link" data-target="security">Segurança & Privacidade</a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">💻 Developer Hub</div>
+                <a href="#api-reference" class="nav-link" data-target="api-reference">API Reference</a>
+                <a href="#webhooks" class="nav-link" data-target="webhooks">Webhooks & Eventos</a>
+                <a href="#socket-io" class="nav-link" data-target="socket-io">WebSocket (Socket.IO)</a>
+                <a href="#advanced-deploy" class="nav-link" data-target="advanced-deploy">Deploy Avançado (Docker)</a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">🔧 Troubleshooting</div>
+                <a href="#troubleshooting" class="nav-link" data-target="troubleshooting">Problemas Comuns</a>
+            </div>
+
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area" id="main-content">
+            <!-- Content will be injected/toggled via JS here. Kept semantic sections below that will act as templates -->
+            <div id="content-container"></div>
+        </main>
+
+        <!-- TOC Sidebar (Right) -->
+        <aside class="toc-sidebar scrollbar-hide">
+            <div class="toc-title">Nesta página</div>
+            <div id="toc-container" class="toc-list">
+                <!-- Auto-generated TOC -->
+            </div>
+        </aside>
+    </div>
+
+    <!-- Data Templates for the SPA pages -->
+    <template id="tpl-welcome">
+        <div class="page-header">
+            <h1 class="gradient-text">Help Center do Lanly</h1>
+            <p class="lead">Tudo o que você precisa para configurar, usar e integrar a plataforma de comunicação
+                corporativa do futuro.</p>
+        </div>
+
+        <div class="bento-grid mt-12">
+            <div class="bento-card glass hover-glow"
+                onclick="document.querySelector('[data-target=\'cloud-setup\']').click()">
+                <div class="bento-icon"><i class="ph-fill ph-cloud"></i></div>
+                <h3>Começar na Nuvem</h3>
+                <p>Crie sua workspace em 2 minutos. Sem instalação, pronto para uso.</p>
+            </div>
+
+            <div class="bento-card glass hover-glow"
+                onclick="document.querySelector('[data-target=\'self-hosted\']').click()">
+                <div class="bento-icon"><i class="ph-fill ph-server"></i></div>
+                <h3>Instalação Self-Hosted</h3>
+                <p>O guia definitivo para implantar o Lanly nos seus próprios servidores via Docker.</p>
+            </div>
+
+            <div class="bento-card glass hover-glow"
+                onclick="document.querySelector('[data-target=\'api-reference\']').click()">
+                <div class="bento-icon"><i class="ph-fill ph-code"></i></div>
+                <h3>Para Desenvolvedores</h3>
+                <p>Integre seus sistemas com nossa REST API robusta e Eventos WebSocket.</p>
+            </div>
+
+            <div class="bento-card glass hover-glow"
+                onclick="document.querySelector('[data-target=\'ai-magic\']').click()">
+                <div class="bento-icon" style="color: #b05bff;"><i class="ph-fill ph-magic-wand"></i></div>
+                <h3>Dominando a IA </h3>
+                <p>Aprenda a usar traduções e transcrições automáticas nas suas reuniões.</p>
+            </div>
+        </div>
+
+        <h2 class="mt-16">Nuvem vs Self-Hosted: Qual escolher?</h2>
+        <div class="table-responsive glass p-6 mt-6 radius-lg">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Recurso</th>
+                        <th class="highlight-col">☁️ Lanly Cloud</th>
+                        <th>🏠 Self-Hosted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Setup & Tempo</strong></td>
+                        <td class="highlight-col">2 minutos (Imediato)</td>
+                        <td>30-60 minutos (Requer TI)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Manutenção</strong></td>
+                        <td class="highlight-col">Zero (Atualização Automática)</td>
+                        <td>Você gerencia (Updates manuais)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Descoberta de Rede (LAN)</strong></td>
+                        <td class="highlight-col text-muted">Apenas nuvem (sem scan local)</td>
+                        <td><span class="badge badge-success">Completo</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Proteção de Dados</strong></td>
+                        <td class="highlight-col">Servidores Lanly (Seguros)</td>
+                        <td>100% no seu servidor (Isolado)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="tpl-cloud-setup">
+        <h1 class="font-display">Começando na Nuvem ☁️</h1>
+        <p class="lead mb-10">O jeito mais rápido de colocar sua equipe inteira para se comunicar em menos de 5 minutos,
+            sem mexer em servidores.</p>
+
+        <div class="step-card glass">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>Crie sua Conta Admin</h3>
+                <p>Acesse <a href="https://app.lanly.com.br" target="_blank" class="glow-link">app.lanly.com.br</a> e
+                    clique em "Criar conta". Preencha com os dados da sua empresa. A primeira conta cadastrada será
+                    automaticamente a conta <strong>Administrador</strong> geral do sistema.</p>
+            </div>
+        </div>
+
+        <div class="step-card glass mt-6">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>Convide sua Equipe</h3>
+                <p>Vá em <strong>Configurações > Gerenciar Usuários</strong> e clique no botão "Adicionar Novo Usuário".
+                    Você pode criar o acesso manualmente para cada um ou enviar a eles o Link Mágico de Convite.</p>
+                <div class="callout callout-tip mt-4">
+                    <i class="ph-fill ph-lightbulb"></i>
+                    <div>
+                        <strong>Dica Importante:</strong> Recomendamos gerar o Link de Convite e enviar no grupo de
+                        WhatsApp da empresa. A própria equipe define suas senhas.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="step-card glass mt-6">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>Crie Grupos Iniciais</h3>
+                <p>De volta ao chat, clique no botão <strong>+</strong> no topo e selecione "Novo Grupo". Sugerimos
+                    começar criando os grupos básicos como "#Geral", "#Avisos-RH" e "#Time-de-Vendas".</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-self-hosted">
+        <h1 class="font-display">Instalação Self-Hosted 🏠</h1>
+        <p class="lead">Para empresas que precisam de 100% de controle dos dados ou desejam utilizar o módulo de
+            Descoberta de Rede Local profunda.</p>
+
+        <div class="callout callout-warning mt-6 mb-10">
+            <i class="ph-fill ph-warning"></i>
+            <div>
+                <strong>Requerimentos Técnicos:</strong> Esta instalação exige conhecimento prévio de terminal Linux,
+                Docker e gerenciamento de rede (redirecionamento de portas).
+            </div>
+        </div>
+
+        <h2 id="prereqs">1. Pré-requisitos</h2>
+        <ul class="custom-list">
+            <li>Servidor Linux (Ubuntu 22.04 LTS recomendado)</li>
+            <li>Docker 20.10+ e Docker Compose V2 instalados</li>
+            <li>No mínimo 4GB de RAM e 2 vCPUs</li>
+            <li>Portas <strong>3000</strong> (Backend), <strong>5173</strong> (Frontend) e <strong>5434</strong>
+                (Postgres) desobstruídas internamente.</li>
+        </ul>
+
+        <h2 id="install" class="mt-12">2. Instalação via Docker-Compose</h2>
+        <p>A maneira recomendada e oficial é utilizando os containers orquestrados. Isso levanta automaticamente a API
+            em Node.js, e o cluster de banco de dados (PostgreSQL + MySQL + Redis).</p>
+
+        <div class="code-block glass mt-4">
+            <div class="code-header">
+                <span class="code-lang">bash</span>
+                <button class="copy-btn" title="Copiar"><i class="ph ph-copy"></i></button>
+            </div>
+            <pre><code># 1. Clone o repositório oficial
+git clone https://github.com/lanly/lanly-server.git
+cd lanly-server
+
+# 2. Configure as variáveis de ambiente baseadas no template
+cp backend/.env.example backend/.env
+nano backend/.env  # Gere secrets fortes no JWT_SECRET
+
+# 3. Suba o cluster de Bancos de Dados
+docker-compose up -d
+
+# 4. Inicie o Backend (Serviço Node)
+cd backend
+npm install
+npm start
+
+# 5. Inicie o Frontend
+cd ../frontend
+npm install
+npm run build
+npm run preview -- --host 0.0.0.0</code></pre>
+        </div>
+
+        <h2 id="admin-setup" class="mt-12">3. Configuração do Admin</h2>
+        <p>Acesse o Frontend pelo navegador, via IP interno (ex: <code>http://192.168.0.100:5173</code>). Se for o
+            primeiro setup, use as credenciais padrão dos Seeds do banco de dados.</p>
+        <div class="callout callout-danger mt-4">
+            <i class="ph-fill ph-warning-octagon"></i>
+            <div>
+                <strong>Atenção Absoluta:</strong> A credencial gerada por padrão nos seeds pode ser <code>admin</code>
+                com a senha <code>admin123</code>. Altere isso IMEDIATAMENTE após o primeiro login.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-ai-magic">
+        <h1 class="gradient-text font-display">A Varinha Mágica ✨</h1>
+        <p class="lead">O Lanly integra LLMs avançados nativamente na comunicação corporativa para transcrição, resumo e
+            tradução instantânea.</p>
+
+        <div class="callout callout-info mt-6 mb-10">
+            <i class="ph-fill ph-info"></i>
+            <div>
+                <strong>Disponibilidade:</strong> Os recursos de Inteligência Artificial são exclusivos do <strong>Plano
+                    MAX</strong> (Lanly Cloud) ou exigem configuração de chaves de API próprias (Self-Hosted).
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card glass">
+                <div class="feature-icon" style="color: #00d4ff;"><i class="ph-fill ph-translate"></i></div>
+                <h3>Babelfish (Tradução Simultânea)</h3>
+                <p>Fale com filiais ou freelancers internacionais sem atrito. A IA detecta o idioma original e traduz
+                    diretamente no chat para o idioma de preferência do destinatário, mantendo o tom profissional (via
+                    OpenRouter Labs).</p>
+            </div>
+
+            <div class="feature-card glass">
+                <div class="feature-icon" style="color: #b05bff;"><i class="ph-fill ph-waveform"></i></div>
+                <h3>Ghost Whisperer (Áudio → Texto)</h3>
+                <p>Acabaram-se as interrupções de 10 minutos de áudio no meio do escritório. Áudios enviados podem ser
+                    transcritos e divididos em tópicos contextuais pela IA com 1 clique.</p>
+            </div>
+
+            <div class="feature-card glass">
+                <div class="feature-icon" style="color: #fca802;"><i class="ph-fill ph-article"></i></div>
+                <h3>Extrator de Pontos</h3>
+                <p>Nossa IA lê as últimas 30 mensagens de um grupo agitado e resume a decisão final ou os pontos de
+                    ação, salvando horas de leitura.</p>
+            </div>
+        </div>
+
+        <h2 class="mt-12">Como usar na interface</h2>
+        <p>Sempre que ver o ícone purpura da <strong>✨ Varinha Mágica</strong> (próximo à caixa de texto ou no menu de
+            mensagens), basta clicar nele. O processamento é instantâneo e invisível para o outro usuário, garantindo a
+            sua produtividade.</p>
+
+    </template>
+
+    <template id="tpl-api-reference">
+        <h1 class="font-display">API Reference</h1>
+        <p class="lead">Documentação completa da RESTful API do Lanly para integrações externas e automação.</p>
+
+        <div class="glass p-6 radius-lg mb-10 mt-8"
+            style="background: rgba(0, 0, 0, 0.4); border-color: rgba(2, 252, 240, 0.2);">
+            <div
+                style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px;">
+                URL Base</div>
+            <div style="font-family: var(--font-mono); font-size: 1.1rem; color: var(--primary-glow);">
+                https://api.lanly.com.br</div>
+        </div>
+
+        <h2 id="auth">Autenticação</h2>
+        <p>A API utiliza JWT (JSON Web Tokens) Bearer Tokens para segurança via header HTTP.</p>
+
+        <div class="code-block glass mt-4">
+            <div class="code-header">
+                <span class="code-lang">HTTP / REST</span>
+                <span class="endpoint-badge badge-post">POST</span> <span class="endpoint-path">/api/auth/login</span>
+            </div>
+            <pre><code>// 1. Receber o Token
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "username": "seu_usuario",
+  "password": "sua_senha"
+}
+
+// Resposta 200 OK
+{
+  "token": "eyJhbGciOiJIUzI1NiIsIn...",
+  "refreshToken": "7x8y9z0...",
+  "user": { "id": 1, "role": "admin" }
+}
+
+// 2. Usar o Token nas Requisições Subsequentes
+GET /api/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsIn...</code></pre>
+        </div>
+
+        <h2 id="endpoints" class="mt-12">Principais Endpoints</h2>
+
+        <div class="endpoint-card glass mt-6">
+            <div class="endpoint-meta">
+                <span class="endpoint-badge badge-get">GET</span>
+                <span class="endpoint-path">/api/messages/conversations</span>
+            </div>
+            <p>Lista todas as conversas e grupos recentes do usuário autenticado.</p>
+        </div>
+
+        <div class="endpoint-card glass mt-4">
+            <div class="endpoint-meta">
+                <span class="endpoint-badge badge-post">POST</span>
+                <span class="endpoint-path">/api/messages/conversations/:id</span>
+            </div>
+            <p>Envia uma mensagem de texto para um determinado ID de conversa. O corpo deve conter
+                <code>{ "content": "Texto aqui" }</code>.
+            </p>
+        </div>
+
+        <div class="endpoint-card glass mt-4">
+            <div class="endpoint-meta">
+                <span class="endpoint-badge badge-get">GET</span>
+                <span class="endpoint-path">/api/network/scan</span>
+            </div>
+            <p><strong>[Apenas Self-Hosted Admin]</strong> Dispara a rotina de varredura profunda ICMP/ARP na rede
+                local.</p>
+        </div>
+
+        <div class="endpoint-card glass mt-4">
+            <div class="endpoint-meta">
+                <span class="endpoint-badge badge-post">POST</span>
+                <span class="endpoint-path">/api/users</span>
+            </div>
+            <p><strong>[Apenas Admin]</strong> Cria um novo funcionário/conta na Workspace do sistema. Role pode ser
+                'user', 'moderator' ou 'admin'.</p>
+        </div>
+
+    </template>
+
+    <template id="tpl-troubleshooting">
+        <h1 class="gradient-text font-display">Troubleshooting</h1>
+        <p class="lead">Soluções instantâneas para os top 5 problemas relatados por administradores e usuários do
+            sistema.</p>
+
+        <div class="trouble-accordion mt-10">
+
+            <div class="trouble-item glass">
+                <div class="trouble-header">
+                    <div class="trouble-icon"><i class="ph ph-warning-circle"></i></div>
+                    <h3>"Credenciais Inválidas" ao tentar primeiro Login</h2>
+                        <i class="ph ph-caret-down toggle-icon"></i>
+                </div>
+                <div class="trouble-body">
+                    <p><strong>Cenário:</strong> Após instalar o sistema via Docker, o usuário tenta acessar e o login
+                        falha.</p>
+                    <p><strong>Solução:</strong> Por padrão de segurança, as migrations criam uma conta base. Utilize o
+                        usuário <code>admin</code> com a senha <code>admin123</code>. Assegure-se de que os dados foram
+                        populados pelo seu script de seeds SQL localizados em:
+                        <code>backend/src/database/init.sql</code>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="trouble-item glass mt-4">
+                <div class="trouble-header">
+                    <div class="trouble-icon"><i class="ph ph-wifi-slash"></i></div>
+                    <h3>Mensagens estão lentas ou exigem "F5" para aparecer</h2>
+                        <i class="ph ph-caret-down toggle-icon"></i>
+                </div>
+                <div class="trouble-body">
+                    <p><strong>Cenário:</strong> O tempo real parou de fluir. As mensagens não pipocam na tela.</p>
+                    <p><strong>Solução:</strong> Este é um sintoma claro de desconexão do protocolo WebSocket
+                        (Socket.IO).</p>
+                    <ol class="custom-list mt-4">
+                        <li>Verifique se sua infraestrutura (ex: Nginx, AWS ELB, Cloudflare) libera Timeouts longos ou
+                            suporta Upgrade Header TTP. O WebSockets exige as configs de proxy reversos para não dropar
+                            pacotes TCP abertos.</li>
+                        <li>Verifique o container <strong>Redis</strong>, pois nossa arquitetura utiliza o Redis Pub/Sub
+                            para roteamento multi-node WebSocket. Se o Redis travou, o chat para.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="trouble-item glass mt-4">
+                <div class="trouble-header">
+                    <div class="trouble-icon"><i class="ph ph-radar"></i></div>
+                    <h3>Descoberta de Rede local está vazia</h2>
+                        <i class="ph ph-caret-down toggle-icon"></i>
+                </div>
+                <div class="trouble-body">
+                    <p><strong>Cenário:</strong> Clicar em "Escanear Dispositivos" retorna vazia.</p>
+                    <p><strong>Solução:</strong> A funcionalidade ARP Scan e Ping trabalha em Layer 2. Duas razões
+                        possíveis:</p>
+                    <ol class="custom-list mt-4">
+                        <li>O Servidor do Lanly (Backend) está em uma sub-rede corporativa isolada ou DMZ que não
+                            estende até as VLANs das estações de trabalho de fato.</li>
+                        <li>Se o Host subiu os containers com bridge do docker (padrão), ele na verdade isolou o node.
+                            Execute o container setando <code>network_mode: "host"</code> para o serviço do backend ter
+                            visibilidade ARP real, ou confira firewalls locais do S.O hospedeiro Linux bloqueando Echo
+                            Requests.</li>
+                    </ol>
+                </div>
+            </div>
+
+        </div>
+    </template>
+
+    <template id="tpl-billing">
+        <h1 class="gradient-text font-display">Planos & Cobrança (Billing)</h1>
+        <p class="lead">Entenda como funciona o sistema "Per Seat" (Assentos) de assinaturas SaaS na nuvem da Lanly,
+            operado em parceria com a infraestrutura da Stripe.</p>
+
+        <div class="bento-card glass mt-8" style="border-color: rgba(255, 215, 0, 0.3);">
+            <h3><i class="ph-fill ph-check-circle" style="color: gold; margin-right: 8px;"></i> Estratégia de Pagamento
+                Justo ("Per Seat")</h3>
+            <p class="mt-4">O Lanly não cobra por "Planos Fixos de Funcionalidade + Taxas de Sobrecarga". Nós utilizamos
+                o modelo de Licenças por Usuário (Seat-Based). Ou seja, sua conta Cloud tem um <code>plano base</code>
+                atrelado à quantidade de funcionários ativos na ferramenta.</p>
+            <p class="mt-2 text-muted">Se sua empresa assinar hoje 10 funcionários (Seats), a fatura mensal será de R$
+                69,90/mês. Se futuramente a equipe crescer e você convidar +3 membros no meio do mês através do Painel
+                Admin, a plataforma se encarrega automaticamente do "<i>prorating</i>" (cobrança fracionada apenas dos
+                dias de utilização dos três membros novos) em sua próxima tarifa de cartão via Stripe Billing.</p>
+        </div>
+
+        <h2 class="mt-12">Visão Rápida dos Tiers de Plano</h2>
+        <div class="table-responsive glass p-6 mt-6 radius-lg">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="font-family: var(--font-display);">STARTER</th>
+                        <th style="font-family: var(--font-display); border-color: rgba(2, 252, 240, 0.3);"
+                            class="highlight-col">MEDIUM</th>
+                        <th style="font-family: var(--font-display); color: #b05bff;">MAX (IA Premium)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>R$ 6,99</strong> / funcionário / mês</td>
+                        <td class="highlight-col"><strong>R$ 11,99</strong> / funcionário / mês</td>
+                        <td><strong>R$ 14,99</strong> / funcionário / mês</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">✔ Chat Full, Áudio e Vídeo</td>
+                        <td class="highlight-col">✔ Starter + Prioridade CDN</td>
+                        <td>✔ Acesso Full Limitless</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">✔ Histórico: Últimos 90 dias</td>
+                        <td class="highlight-col">✔ Histórico Ilimitado BD</td>
+                        <td>✔ Storage Master SSD</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">❌ Sem Recursos de IA Mágica</td>
+                        <td class="highlight-col">❌ Sem Recursos de IA Mágica</td>
+                        <td>✨ Trancrição de Voz em Texto<br>✨ Tradução Automa em LiveChat<br>✨ Integração de Robôs
+                            OpenRouter</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 class="mt-12">Auto-Atendimento Customer Portal</h2>
+        <p>A qualquer momento, o titular (quem inseriu o cartão de crédito) encontra opção de acessar a seção
+            <strong>"Configurações Fiscais"</strong> ou "Minha Assinatura" na área de ProfileSettings. Em um clique sem
+            necessidade de contato humano, você será redirecionado para o ambiente seguro e PCI Compliant da plataforma
+            <strong>Stripe.com</strong>, habilitado para Download de NFs (Invoices PDF), Troca / Atualização de um
+            cartão de crédito antigo, ou cancelamento simplificado "Um Clique" caso decidam parar a hospedagem de Cloud.
+        </p>
+
+        <div class="callout callout-warning mt-6">
+            <i class="ph-fill ph-shield-check"></i>
+            <div>
+                <strong>Privacidade PCI DSS:</strong> O Lanly Cloud (backend NodeJS) retém localmente e exclusivamente
+                um identificador anonimizado (`stripe_customer_id`). Cartões, CVVs de segurança ou histórico de extratos
+                confidenciais nunca batem em nossos servidores isolados no banco de dados.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-chat-basics">
+        <h1 class="font-display">Chat & Mensagens Básicas</h1>
+        <p class="lead">Tudo que você precisa saber para se comunicar com eficiência no Lanly. Do simples envio de texto
+            até videochamadas interativas.</p>
+
+        <h2 id="send-messages">Enviando e Respondendo</h2>
+        <div class="step-card glass mt-4">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>Mensagens Diretas (DMs)</h3>
+                <p>Na barra lateral esquerda, clique no nome de qualquer colega de trabalho para iniciar uma DM. Digite
+                    na caixa de texto inferior e aperte <strong>Enter</strong> para enviar.</p>
+            </div>
+        </div>
+
+        <div class="step-card glass mt-4">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>Threads e Respostas (ThreadPanel)</h3>
+                <p>Para manter o chat organizado, passe o mouse sobre uma mensagem e clique em <strong>Responder em
+                        Thread</strong> <i class="ph ph-chat-teardrop-dots"></i>. Um painel lateral será aberto à
+                    direita (o <code>ThreadPanel</code>), permitindo discutir assuntos específicos sem poluir a timeline
+                    principal do grupo.</p>
+            </div>
+        </div>
+
+        <h2 id="rich-features" class="mt-12">Recursos Ricos</h2>
+        <div class="bento-grid mt-6">
+            <div class="bento-card glass">
+                <div class="bento-icon" style="color: #61c554;"><i class="ph-fill ph-sticker"></i></div>
+                <h3>Stickers e Favoritos</h3>
+                <p>O Lanly possui um <strong>Sticker Picker</strong> nativo, igual ao do WhatsApp. Clique no ícone de
+                    adesivo no chat. Você pode favoritar ⭐️ os stickers enviados por seus colegas clicando neles,
+                    salvando na sua galeria rápida.</p>
+            </div>
+
+            <div class="bento-card glass">
+                <div class="bento-icon" style="color: #f4bf4f;"><i class="ph-fill ph-presentation-chart"></i></div>
+                <h3>Lousa Compartilhada (Whiteboard)</h3>
+                <p>Precisa desenhar uma ideia rapidamente? No ícone de Anexos (+), selecione <strong>Iniciar
+                        Lousa</strong>. O <code>WhiteboardModal</code> abre um quadro branco sincronizado em tempo real
+                    para desenhar com todos na conversa.</p>
+            </div>
+        </div>
+
+        <h2 id="meetings" class="mt-12">Reuniões Nativas (Áudio/Vídeo)</h2>
+        <p>Você não precisa sair do Lanly para fazer uma huddle. No topo de qualquer chat ou grupo, há o botão de
+            <strong>Reunião em Vídeo</strong>.
+        </p>
+        <div class="callout callout-info mt-4">
+            <i class="ph-fill ph-video-camera"></i>
+            <div>
+                <strong>Reuniões Instantâneas:</strong> Ao clicar, o <code>MeetingModal</code> entra em ação ativando os
+                microfones e as câmeras (com a sua permissão). Os outros membros verão um card para clicar em "Juntar-se
+                à call" em tempo real.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-groups">
+        <h1 class="gradient-text font-display">Grupos & Canais</h1>
+        <p class="lead">Organize suas equipes, projetos e departamentos criando grupos ilimitados.</p>
+
+        <h2 id="create-group">Criando um grupo</h2>
+        <ol class="custom-list mt-4">
+            <li>No cabeçalho da barra lateral esquerda, clique no ícone de <strong>"+"</strong>.</li>
+            <li>Selecione <strong>Criar Novo Grupo</strong>.</li>
+            <li>Dê um nome, adicione uma breve descrição para o canal e selecione pelo menos um membro para iniciar.
+            </li>
+        </ol>
+
+        <h2 id="manage-group" class="mt-8">Gerenciamento e Permissões</h2>
+        <div class="step-card glass mt-4">
+            <div class="step-number"><i class="ph ph-crown"></i></div>
+            <div class="step-content">
+                <h3>O Papel de Admin do Grupo</h3>
+                <p>Quem cria o grupo é o Administrador dele. Apenas o admin possui botão para "Adicionar Novos Membros"
+                    àquele grupo e pode remover pessoas que saíram do projeto.</p>
+            </div>
+        </div>
+
+        <div class="callout callout-tip mt-6">
+            <i class="ph-fill ph-users-three"></i>
+            <div>
+                <strong>Cultura de Canais:</strong> Recomendamos o uso da hashtag (ex: <code>#marketing-q4</code>) no
+                nome de grupos públicos e usar cadeado <code>🔒 Diretoria</code> para grupos com assuntos sigilosos.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-network">
+        <h1 class="font-display">Descoberta de Rede 📡</h1>
+        <p class="lead">O módulo de NetworkDiscovery interage localmente para garantir presença hiper-veloz no ambiente
+            do seu escritório físico.</p>
+
+        <div class="callout callout-warning mt-4 mb-8">
+            <i class="ph-fill ph-warning"></i>
+            <div>
+                <strong>Apenas Self-Hosted:</strong> Este recurso só funciona quando o backend do Lanly está operando
+                fisicamente na mesma LAN que os roteadores e os usuários.
+            </div>
+        </div>
+
+        <h2 id="scanning">1. Efetuando o Scan de Rede</h2>
+        <p>Acesse o menu lateral principal (Dispositivos na Rede). Clique no botão azul <strong>Escanear Rede
+                Agora</strong>.</p>
+        <p>O servidor disparará via pacotes ARP (Address Resolution Protocol) e ICMP (Ping) requisições na sua sub-rede,
+            populando a tela com todos os PCs ou celulares online, junto da sua latência exata.</p>
+
+        <h2 id="link-devices" class="mt-8">2. Vinculando Hosts a Pessoas</h2>
+        <div class="step-card glass mt-4">
+            <div class="step-number"><i class="ph ph-link"></i></div>
+            <div class="step-content">
+                <h3>Vínculo de MAC Address</h3>
+                <p>O Admin pode clilar em um dispositivo (ex: <code>192.168.0.15</code>) não identificado e associá-lo a
+                    um funcionário. A partir dali, o sistema usa a placa de rede para reportar automaticamente quando
+                    esse funcionário entrar ou sair da empresa (Online/Offline no Chat) sem depender que a aba do
+                    navegador esteja aberta.</p>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-admin-panel">
+        <h1 class="gradient-text font-display">Painel de Administração</h1>
+        <p class="lead">Controle absoluto sobre usuários, retenção de mensagens e auditoria corporativa.</p>
+
+        <h2 id="admin-users">Gestão de Usuários (AdminUsers)</h2>
+        <p>Localizado em <strong>Admin > Usuários</strong>, o Gestor de TI pode criar, editar Senhas, atualizar
+            Departamentos ou Desativar funcionários demitidos (excluindo imediatamente seu acesso às sessões abertas no
+            app).</p>
+
+        <div class="callout callout-tip mt-4 mb-10">
+            <i class="ph-fill ph-microsoft-excel-logo"></i>
+            <div>
+                <strong>Importação Única:</strong> Você não precisa cadastrar 50 funcionários um por um. Use a opção de
+                colar planilhas ou Gerar um Código de Convite Temporário (JoinViaInvite).
+            </div>
+        </div>
+
+        <h2 id="analytics">Métricas Analíticas (AdminAnalytics)</h2>
+        <div class="features-grid mt-4">
+            <div class="feature-card glass">
+                <div class="feature-icon" style="color: var(--primary-glow);"><i class="ph-fill ph-chart-line-up"></i>
+                </div>
+                <h3>Estatísticas em Tempo Real</h3>
+                <p>Monitore quantos usuários estão ativos hoje, volume de mensagens trocadas no banco de dados e
+                    quantitativo do Storage.</p>
+            </div>
+        </div>
+
+        <h2 id="audit" class="mt-10">Logs de Auditoria (AdminAuditLogs)</h2>
+        <p>Exclusivo para Conformidade Fiscal e Segurança da Informação. Tudo que acontece na conta de administrador é
+            logado no banco auditável e imodificável.</p>
+        <ul class="custom-list mt-4">
+            <li>Identificação de tentativa de login (Sucesso/Falha) com IP.</li>
+            <li>Quando uma conta foi desativada e por qual Admin.</li>
+            <li>Quando foram gerados links de convite para registro.</li>
+        </ul>
+    </template>
+
+    <template id="tpl-how-lan-works">
+        <h1 class="font-display">Como e porquê a Rede Local Funciona</h1>
+        <p class="lead">Entenda a Base de Nível 2 (OSI Model) utilizada no Lanly para acelerar seu escritório.</p>
+
+        <h2 class="mt-8">O Problema do Slack no Escritório</h2>
+        <p>Hoje, quando o João do Marketing manda uma foto pesada pro Lucas (que senta na cadeira espelhada na frente
+            dele), a imagem de 50MB sobe pelos cabos de fibra óptica do Brasil até um DataCenter da Amazon na Virgínia
+            (USA). Sendo em seguida baixada de volta para o escritório no Brasil. Isso consome link externo inteiro da
+            empresa atoa.</p>
+
+        <h2 class="mt-8">A Resolução do LAN Messenger</h2>
+        <p>Se o servidor (Backend) estiver Self-Hosted no escritório de vocês (na mesma Subnet
+            <code>192.168.1.0/24</code>), os envios de anexo, chamadas em WebRTC (vídeo) e chat ocorrem pelas portas
+            físicas GigaBit de Roteamento (Switch) à espantosos 1000 Megabits por segundo, sem bater no Link de Internet
+            real.
+        </p>
+    </template>
+
+    <template id="tpl-cloud-vs-selfhosted">
+        <h1 class="font-display">Cloud vs Self-Hosted</h1>
+        <p class="lead">Uma comparação profunda (Deep-Dive) entre terceirizar a rede, ou manter as estruturas
+            on-premises.</p>
+
+        <div class="bento-grid mt-8">
+            <div class="bento-card glass" style="border-top: 3px solid var(--primary-glow);">
+                <h3>☁️ LANLY CLOUD</h3>
+                <ul class="custom-list mt-4 text-muted">
+                    <li>Ideal para o formato "Home Office" globalizado.</li>
+                    <li>SLA 99.9% bancado pela infra da Vercel + Render + Supabase AWS.</li>
+                    <li>Notificações Push Nativas para o celular em stand by.</li>
+                    <li>Zero preocupação caso acabe a Luz na sua empresa matriz.</li>
+                    <li>Custo em Plano com cobrança direto via Cartão Corporativo.</li>
+                </ul>
+            </div>
+
+            <div class="bento-card glass" style="border-top: 3px solid #61c554;">
+                <h3>🏠 SELF HOSTED (On-Premises)</h3>
+                <ul class="custom-list mt-4 text-muted">
+                    <li>Segurança Militar: Ninguém consegue hackear pela net, pois só é roteado fisicamente na sua LAN.
+                    </li>
+                    <li>Velocidade Gigabit nos uploads pesados do setor audiovisual.</li>
+                    <li>Scan ARP e Discovery Profile ativo.</li>
+                    <li>Você provê as máquinas, estabiliza energia elétrica e IP Estático.</li>
+                </ul>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-security">
+        <h1 class="gradient-text font-display">Segurança & Privacidade</h1>
+        <p class="lead">A arquitetura Zero Trust (Zero Confiança) sob a qual a criptografia dos bancos do Lanly rodam.
+        </p>
+
+        <h2 class="mt-8">Criptografia In Transit e At Rest</h2>
+        <ol class="custom-list mt-4">
+            <li><strong>Senhas via Bcrypt</strong>: Senhas não existem na base. Apenas pares unhas de sal (Salt Hash)
+                protegidas por rounds matemáticos altos.</li>
+            <li><strong>JSON Web Tokens (JWT) Short-lived</strong>: Os tokens expiram rápido (15 minutos). O app faz
+                Refresh-Token oculto no background. Se a conta for encerrada, após 15 minutos máximos, o terminal é
+                limpo e fechado obrigatoriamente.</li>
+            <li><strong>Isolamento Multi-Tenant do Postgres</strong>: Nossa infra usa Row Label Security (RLS). A
+                WorkSpace da empresa X nunca, sob nenhuma query hacker falha, conseguirá ver do ID de mensagem da
+                Workspace Y na nuvem.</li>
+        </ol>
+    </template>
+
+    <template id="tpl-webhooks">
+        <h1 class="font-display">Webhooks & Eventos Síncronos</h1>
+        <p class="lead">Para devs conectarem automações empresariais em cima de faturamentos ou de mensagens
+            corporativas da nossa pipeline.</p>
+
+        <h2 class="mt-8">Webhooks Externos Financeiros (Stripe Billing)</h2>
+        <p>No backend Node.js (arquivo <code>stripe.routes.js</code>), nós abrimos um parser Raw-body que aguarda gritos
+            via POST vindos diretamente das plataformas parceiras. Acatando Eventos reais como:
+            <code>customer.subscription.updated</code> para efetivar automações nas renovações Per Seat.
+        </p>
+
+        <div class="callout callout-danger mt-4">
+            <i class="ph-fill ph-shield-warning"></i>
+            <div>
+                <strong>Verificação JWT Externa:</strong> Nunca construa integrações financeiras aceitando requests
+                vazios. O Lanly usa a <code>STRIPE_WEBHOOK_SECRET</code> para checar criptograficamente a assinatura no
+                header antes de aprovar uma mudança em um Plaid/Ticket.
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-socket-io">
+        <h1 class="gradient-text font-display">WebSocket API (Socket.IO)</h1>
+        <p class="lead">Nosso Core Time-real (Tempo real extremo). Se desejar plugar clientes Python, Rust ou Mobile
+            para ver mensagens em real time.</p>
+
+        <div class="code-block glass mt-8">
+            <div class="code-header">
+                <span class="code-lang">javascript (CLIENT / NODE.JS)</span>
+            </div>
+            <pre><code>import { io } from "socket.io-client";
+
+// Mantenha URL e a passagem em Token Bearer seguras
+const socket = io("https://api.lanly.com.br", {
+    auth: { token: localStorage.getItem('lanToken') }
+});
+
+// Resposta de handshake 
+socket.on("authenticated", () => {
+   console.log("Conectado na Via Expressa do Chat!");
+   
+   // Declarando Digitação Online aos colegas
+   socket.emit("typing:start", { conversaId: 99 });
+});
+
+// Escuta passiva sem Long-polling 
+socket.on("message:new", (messageData) => {
+   alert(`Você recebeu uma notificação! do autor ID: ${messageData.senderId}`);
+});</code></pre>
+        </div>
+    </template>
+
+    <template id="tpl-advanced-deploy">
+        <h1 class="gradient-text font-display">Deploy Avançado na Prática</h1>
+        <p class="lead">Dominando os Workflows se o simples "Docker compose up" das documentações base não suprir seu
+            nível de escalabilidade e balanceamento.</p>
+
+        <h2 class="mt-8">Balanceadores Nginx & Proxy Reverso</h2>
+        <p>Se você orquestrar mais de 2 maquinas Nodes PM2, lembre-se das travas do Socket.IO. Faça <strong>IP
+                Hashing</strong> (Sticky Sessions). Se o frontend logou na porta X da máquina Y, o Upgrade via WS não
+            pode cair numa máquina sem contexto em RAM do estado dessa conexão.</p>
+    </template>
+
+    <!-- Fallback / Placeholder Template -->
+    <template id="tpl-coming-soon">
+        <div class="coming-soon glass text-center p-16 radius-xl">
+            <i class="ph-duotone ph-cone" style="font-size: 5rem; color: var(--text-muted); opacity: 0.5;"></i>
+            <h1 class="mt-6 mb-2">Artigo em Construção</h1>
+            <p class="text-muted">Nossa equipe de documentação está terminando de polir este guia técnico. Acompanhe na
+                próxima atualização.</p>
+        </div>
+    </template>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>

@@ -152,7 +152,7 @@
     </aside>
     
     <!-- Center Panel: Chat List -->
-    <section :class="['flex-shrink-0 flex flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-colors duration-300 w-full md:w-[360px]', chatStore.activeConversation ? 'hidden md:flex' : 'flex']">
+    <section :class="['flex-shrink-0 flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-all duration-300 ease-in-out w-full max-w-full md:w-[360px] md:max-w-[360px] absolute md:relative h-full left-0', chatStore.activeConversation ? '-translate-x-[20%] opacity-0 pointer-events-none md:translate-x-0 md:opacity-100 md:pointer-events-auto flex' : 'translate-x-0 opacity-100 flex']">
       <div class="p-5 pb-2 pt-6">
         <div class="flex justify-between items-end mb-4">
           <div class="flex items-center">
@@ -170,22 +170,23 @@
                 </div>
               </div>
             </h2>
+          <div class="flex items-center gap-2">
+            <button 
+              @click="themeStore.toggleTheme()"
+              class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-amber-500/20 hover:text-amber-500 flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0"
+              :title="themeStore.isDark ? 'Modo Claro' : 'Modo Escuro'"
+            >
+              <span class="material-symbols-outlined text-lg">{{ themeStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
+            </button>
+            <button 
+              id="tour-new-chat"
+              @click="showNewChatModal = true"
+              class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white shrink-0"
+              title="Nova Conversa ou Grupo"
+            >
+              <span class="material-symbols-outlined text-lg">edit_square</span>
+            </button>
           </div>
-          <button 
-            @click="themeStore.toggleTheme()"
-            class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-amber-500/20 hover:text-amber-500 flex items-center justify-center transition-colors text-gray-600 dark:text-white"
-            :title="themeStore.isDark ? 'Modo Claro' : 'Modo Escuro'"
-          >
-            <span class="material-symbols-outlined text-lg">{{ themeStore.isDark ? 'light_mode' : 'dark_mode' }}</span>
-          </button>
-          <button 
-            id="tour-new-chat"
-            @click="showNewChatModal = true"
-            class="size-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-primary/20 hover:text-primary flex items-center justify-center transition-colors text-gray-600 dark:text-white"
-            title="Nova Conversa ou Grupo"
-          >
-            <span class="material-symbols-outlined text-lg">edit_square</span>
-          </button>
         </div>
         
         <!-- Search Bar -->
@@ -344,7 +345,7 @@
     </section>
     
     <!-- Right Panel: Active Chat -->
-    <main :class="['flex-1 flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-colors duration-300 w-full', chatStore.activeConversation ? 'flex' : 'hidden md:flex']">
+    <main :class="['flex-1 flex-col bg-white dark:bg-background-dark/30 backdrop-blur-sm relative min-w-0 transition-transform duration-500 w-full absolute md:relative inset-0 md:inset-auto h-full z-20', chatStore.activeConversation ? 'translate-x-0 flex' : 'translate-x-full pointer-events-none opacity-0 md:opacity-100 md:translate-x-0 md:pointer-events-auto flex']" style="transition-timing-function: cubic-bezier(0.25, 1, 0.5, 1);">
       
       <!-- Foco Total Banner Overlay -->
       <div v-if="isDeepWorkMode" class="absolute top-0 inset-x-0 z-20 bg-amber-500 text-white text-xs font-bold py-1.5 flex justify-center items-center gap-2 shadow-lg animate-fade-in-down">
@@ -384,23 +385,36 @@
 
           <div id="tour-actions" class="flex items-center gap-1 md:gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
             <!-- AI Insights Buttons -->
-            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
+            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 hidden md:flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
               <span class="material-symbols-outlined text-xl">insights</span>
             </button>
-            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
+            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
               <span class="material-symbols-outlined text-[22px]">checklist</span>
             </button>
-            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 flex items-center justify-center transition-colors" title="Criar enquete">
+            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 hidden md:flex items-center justify-center transition-colors" title="Criar enquete">
               <span class="material-symbols-outlined text-xl">poll</span>
             </button>
-            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
+            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
               <span class="material-symbols-outlined text-xl">event</span>
             </button>
+
+            <!-- Mobile Actions Dropdown -->
+            <div class="relative flex items-center md:hidden">
+               <button @click="showMobileHeaderActions = !showMobileHeaderActions" class="size-10 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-slate-300 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-xl">more_vert</span>
+               </button>
+               <div v-if="showMobileHeaderActions" class="absolute top-12 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-[110] min-w-[200px] origin-top-right animate-fade-in-down">
+                 <button @click="fetchInsights('summarize'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-amber-500 text-[18px]">insights</span> Resumo IA</button>
+                 <button @click="fetchInsights('extract_tasks'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-green-500 text-[18px]">checklist</span> Extrair Tarefas</button>
+                 <button @click="showPollModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-violet-500 text-[18px]">poll</span> Nova Enquete</button>
+                 <button @click="showMeetingModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião</button>
+               </div>
+            </div>
             
             <!-- P2P Call Buttons -->
             <button 
               @click="startP2PCall('screen')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 flex items-center justify-center transition-colors"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 hidden md:flex items-center justify-center transition-colors"
               title="Apresentar Tela"
             >
               <span class="material-symbols-outlined text-xl">present_to_all</span>
@@ -424,22 +438,35 @@
           <!-- GROUP Call Buttons -->
           <div class="flex items-center gap-1 md:gap-2" v-if="chatStore.activeConversation.isGroup">
             <!-- AI Insights Buttons -->
-            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
+            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 hidden md:flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
               <span class="material-symbols-outlined text-xl">insights</span>
             </button>
-            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
+            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
               <span class="material-symbols-outlined text-[22px]">checklist</span>
             </button>
-            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 flex items-center justify-center transition-colors" title="Criar enquete">
+            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 hidden md:flex items-center justify-center transition-colors" title="Criar enquete">
               <span class="material-symbols-outlined text-xl">poll</span>
             </button>
-            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
+            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
               <span class="material-symbols-outlined text-xl">event</span>
             </button>
+
+            <!-- Mobile Actions Dropdown -->
+            <div class="relative flex items-center md:hidden">
+               <button @click="showMobileHeaderActions = !showMobileHeaderActions" class="size-10 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-slate-300 flex items-center justify-center transition-colors">
+                 <span class="material-symbols-outlined text-xl">more_vert</span>
+               </button>
+               <div v-if="showMobileHeaderActions" class="absolute top-12 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-[110] min-w-[200px] origin-top-right animate-fade-in-down">
+                 <button @click="fetchInsights('summarize'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-amber-500 text-[18px]">insights</span> Resumo IA</button>
+                 <button @click="fetchInsights('extract_tasks'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-green-500 text-[18px]">checklist</span> Extrair Tarefas</button>
+                 <button @click="showPollModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-violet-500 text-[18px]">poll</span> Nova Enquete</button>
+                 <button @click="showMeetingModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião</button>
+               </div>
+            </div>
             
             <button 
               @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'screen')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 flex items-center justify-center transition-colors"
+              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 hidden md:flex items-center justify-center transition-colors"
               title="Apresentar Tela"
               :disabled="groupCallStore.callState !== 'idle'"
             >
@@ -509,7 +536,7 @@
 
         <!-- Messages -->
         <div ref="messagesContainer" 
-          class="flex-1 overflow-y-auto p-6 flex flex-col bg-gray-50 dark:bg-transparent relative"
+          class="flex-1 overflow-y-auto w-full p-3 md:p-6 flex flex-col bg-gray-50 dark:bg-transparent relative"
           @dragover.prevent="isDraggingFile = true"
           @dragleave.prevent="isDraggingFile = false"
           @drop.prevent="handleFileDrop"
@@ -797,16 +824,21 @@
                 </div>
 
                 <div class="flex items-center gap-1">
-                  <!-- Quick Reactions (expanded) -->
-                  <div class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-0.5 mr-2 transition-opacity bg-gray-100 dark:bg-black/30 rounded-full px-1 py-0.5 border border-gray-200 dark:border-white/10">
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '👍')" title="Curtir">👍</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '❤️')" title="Amar">❤️</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '😂')" title="Rir">😂</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '🔥')" title="Fogo">🔥</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '😮')" title="Surpreso">😮</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm" @click="toggleReaction(msg.id, '🙏')" title="Obrigado">🙏</span>
-                     <span class="cursor-pointer hover:scale-125 transition-transform text-sm border-l border-gray-300 dark:border-white/10 pl-1 ml-0.5 text-gray-400" @click="openReactionPicker(msg.id)" title="Mais emojis">+</span>
+                  <!-- Quick Reactions (Desktop expanded on hover) -->
+                  <div class="hidden md:group-hover:flex opacity-0 md:opacity-100 flex-nowrap gap-0.5 mr-2 transition-opacity bg-gray-100 dark:bg-black/30 rounded-full px-1.5 py-0.5 border border-gray-200 dark:border-white/10 shadow-sm relative z-10">
+                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '👍')" title="Curtir">👍</button>
+                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '❤️')" title="Amar">❤️</button>
+                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '😂')" title="Rir">😂</button>
+                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '🔥')" title="Fogo">🔥</button>
+                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '😮')" title="Surpreso">😮</button>
+                     <button class="flex items-center justify-center p-0.5 border-l border-gray-300 dark:border-white/10 pl-1.5 ml-0.5 text-gray-500 hover:scale-110 transition-transform active:scale-95 focus:outline-none" @click="openReactionPicker(msg.id)" title="Mais emojis">
+                        <span class="material-symbols-outlined text-sm">add</span>
+                     </button>
                   </div>
+                  <!-- Mobile 'Add Reaction' trigger (always visible but small) -->
+                  <button class="md:hidden flex items-center justify-center size-6 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-500 mr-2 hover:bg-gray-200 transition-colors" @click="openReactionPicker(msg.id)">
+                     <span class="material-symbols-outlined text-[14px]">add_reaction</span>
+                  </button>
 
                   <span v-if="msg.expiresAt" class="material-symbols-outlined text-[12px] text-red-400 mr-1" title="Mensagem temporária">timer</span>
                   <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
@@ -860,21 +892,25 @@
           <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex flex-col gap-2 shadow-lg relative" :class="editingMessageId ? 'rounded-tl-none rounded-tr-none' : ''">
             <div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none hidden dark:block"></div>
             <!-- Respostas Rápidas IA -->
-            <div class="flex items-center gap-2 mb-2 ml-[44px] max-w-full overflow-x-auto no-scrollbar" v-if="!isRecording">
-              <button v-if="!smartReplies.length" @click="generateSmartReplies" :disabled="isGeneratingReplies" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all whitespace-nowrap disabled:opacity-50" title="Ler a última mensagem recebida e gerar dicas de respostas curtas">
-                <span class="material-symbols-outlined text-[14px]" :class="isGeneratingReplies ? 'animate-spin' : ''">
-                  {{ isGeneratingReplies ? 'progress_activity' : 'smart_toy' }}
-                </span>
-                {{ isGeneratingReplies ? 'Analisando...' : 'Sugerir Respostas com IA' }}
-              </button>
-              <template v-else>
-                <button v-for="(reply, idx) in smartReplies" :key="idx" @click="useSmartReply(reply)" class="flex items-center gap-1 px-4 py-1.5 rounded-full bg-white dark:bg-glass-surface text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all whitespace-nowrap shadow-sm">
-                  {{ reply }}
+            <!-- Respostas Rápidas IA -->
+            <div class="relative w-full overflow-hidden" v-if="!isRecording">
+              <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-glass-surface to-transparent z-10 pointer-events-none"></div>
+              <div class="flex items-center gap-2 mb-2 ml-[44px] max-w-full overflow-x-auto no-scrollbar snap-x snap-mandatory pr-8">
+                <button v-if="!smartReplies.length" @click="generateSmartReplies" :disabled="isGeneratingReplies" class="snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all whitespace-nowrap disabled:opacity-50" title="Ler a última mensagem recebida e gerar dicas de respostas curtas">
+                  <span class="material-symbols-outlined text-[14px]" :class="isGeneratingReplies ? 'animate-spin' : ''">
+                    {{ isGeneratingReplies ? 'progress_activity' : 'smart_toy' }}
+                  </span>
+                  {{ isGeneratingReplies ? 'Analisando...' : 'Sugerir Respostas com IA' }}
                 </button>
-                <button @click="smartReplies = []" class="size-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Fechar">
-                  <span class="material-symbols-outlined text-[16px]">close</span>
-                </button>
-              </template>
+                <template v-else>
+                  <button v-for="(reply, idx) in smartReplies" :key="idx" @click="useSmartReply(reply)" class="snap-start flex items-center gap-1 px-4 py-1.5 rounded-full bg-white dark:bg-glass-surface text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all whitespace-nowrap shadow-sm">
+                    {{ reply }}
+                  </button>
+                  <button @click="smartReplies = []" class="snap-start size-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Fechar">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                </template>
+              </div>
             </div>
             
             <div class="flex items-end gap-1 md:gap-2 w-full relative">
@@ -888,39 +924,69 @@
               accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
             />
             
-            <button 
-              id="tour-attachment"
-              @click="$refs.fileInput.click()"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
-              :disabled="editingMessageId"
-              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-            >
-              <span class="material-symbols-outlined transform rotate-45">attach_file</span>
-            </button>
-            <button 
-              @click="showWhiteboardModal = true"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
-              title="Lousa Criativa (Desenho livre)"
-              :disabled="editingMessageId"
-              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-            >
-              <span class="material-symbols-outlined">draw</span>
-            </button>
-            <button 
-              @click="showMeetingModal = true"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
-              title="Agendar Reunião"
-              :disabled="editingMessageId"
-              :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-            >
-              <span class="material-symbols-outlined">event</span>
-            </button>
-            <select v-model="messageExpiresIn" class="mb-1 ml-1 text-xs bg-transparent border-none text-gray-500 dark:text-slate-400 p-1 cursor-pointer outline-none ring-0 w-16" title="Temporizador de Autodestruição">
-                <option :value="null">Off</option>
-                <option :value="60">1m</option>
-                <option :value="600">10m</option>
-                <option :value="3600">1h</option>
-            </select>
+            <!-- Desktop Layout Tools -->
+            <div class="hidden md:flex items-center">
+              <button 
+                id="tour-attachment"
+                @click="$refs.fileInput.click()"
+                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
+                :disabled="editingMessageId"
+                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
+              >
+                <span class="material-symbols-outlined transform rotate-45">attach_file</span>
+              </button>
+              <button 
+                @click="showWhiteboardModal = true"
+                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
+                title="Lousa Criativa (Desenho livre)"
+                :disabled="editingMessageId"
+                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
+              >
+                <span class="material-symbols-outlined">draw</span>
+              </button>
+              <button 
+                @click="showMeetingModal = true"
+                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
+                title="Agendar Reunião"
+                :disabled="editingMessageId"
+                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
+              >
+                <span class="material-symbols-outlined">event</span>
+              </button>
+              <select v-model="messageExpiresIn" class="mb-1 ml-1 text-xs bg-transparent border-none text-gray-500 dark:text-slate-400 p-1 cursor-pointer outline-none ring-0 w-16" title="Temporizador de Autodestruição">
+                  <option :value="null">Off</option>
+                  <option :value="60">1m</option>
+                  <option :value="600">10m</option>
+                  <option :value="3600">1h</option>
+              </select>
+            </div>
+
+            <!-- Mobile Layout Tools -->
+            <div class="md:hidden relative flex items-end">
+              <button @click="showComposerActions = !showComposerActions" class="size-10 rounded-full text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center transition-all duration-300 mb-0.5 shrink-0" :class="showComposerActions ? 'rotate-45 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'rotate-0'">
+                <span class="material-symbols-outlined font-bold">add</span>
+              </button>
+              <div v-if="showComposerActions" class="absolute bottom-12 left-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-50 min-w-[180px] origin-bottom-left animate-fade-in-up">
+                <button @click="$refs.fileInput.click(); showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
+                  <span class="material-symbols-outlined text-primary text-[18px]">attach_file</span> Anexar
+                </button>
+                <button @click="showWhiteboardModal = true; showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
+                  <span class="material-symbols-outlined text-orange-500 text-[18px]">draw</span> Lousa Explicativa
+                </button>
+                <button @click="showMeetingModal = true; showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
+                  <span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião
+                </button>
+                <div class="px-3 py-2 border-t border-gray-100 dark:border-white/10 mt-1">
+                  <label class="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider">Temporizador</label>
+                  <select v-model="messageExpiresIn" class="w-full text-xs font-semibold bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 rounded-lg text-gray-700 dark:text-white outline-none">
+                      <option :value="null">Off (Permanente)</option>
+                      <option :value="60">1 Minuto</option>
+                      <option :value="600">10 Minutos</option>
+                      <option :value="3600">1 Hora</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             
             <div class="flex-1 min-h-[44px] py-2.5 flex items-center gap-2">
               <span v-if="isRecording" class="flex items-center gap-2 text-red-500 animate-pulse text-sm font-medium px-2">
@@ -2078,6 +2144,9 @@ let callTimerInterval = null
 
 const remoteVideoEl = ref(null)
 const pipEl = ref(null)
+
+const showMobileHeaderActions = ref(false)
+const showComposerActions = ref(false)
 
 const searchQuery = ref('')
 const newMessage = ref('')
