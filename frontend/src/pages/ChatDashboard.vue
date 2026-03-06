@@ -170,6 +170,7 @@
                 </div>
               </div>
             </h2>
+          </div>
           <div class="flex items-center gap-2">
             <button 
               @click="themeStore.toggleTheme()"

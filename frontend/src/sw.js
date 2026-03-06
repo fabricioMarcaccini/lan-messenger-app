@@ -3,7 +3,7 @@
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.3/workbox-sw.js');
 
 if (workbox) {
-    workbox.precaching.precacheAndRoute(self.__WB_MANIFEST || []);
+    workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
 }
 
 const CACHE = "lanly-offline";
@@ -57,7 +57,7 @@ self.addEventListener('push', function (event) {
         return;
     }
 
-    const data = event.data?.json() ?? {};
+    const data = (event.data && event.data.json) ? event.data.json() : {};
 
     const title = data.title || "Nova mensagem no Lanly";
     const options = {

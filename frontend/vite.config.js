@@ -8,7 +8,7 @@ export default defineConfig({
         vue(),
         VitePWA({
             strategies: 'injectManifest',
-            srcDir: 'public',
+            srcDir: 'src',
             filename: 'sw.js',
             registerType: 'autoUpdate',
             manifest: {
