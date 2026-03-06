@@ -223,6 +223,78 @@ export const createUserWithSeatLock = async (companyId, userData) => {
     });
 };
 
+// Helper: Create multiple users within a seat-locked transaction (ACID-safe)
+export const createBulkUsersWithSeatLock = async (companyId, usersData) => {
+    return db.transaction(async (client) => {
+        // 1. Lock the company row
+        const companyResult = await client.query(
+            'SELECT max_seats FROM companies WHERE id = $1 FOR UPDATE',
+            [companyId]
+        );
+
+        if (companyResult.rows.length === 0) {
+            throw Object.assign(new Error('Empresa não encontrada'), { status: 404, code: 'COMPANY_NOT_FOUND' });
+        }
+
+        const maxSeats = companyResult.rows[0].max_seats || 5;
+
+        // 2. Count active users (locked)
+        const usersResult = await client.query(
+            'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND is_active = true',
+            [companyId]
+        );
+        const activeUsers = parseInt(usersResult.rows[0].count, 10);
+
+        // 3. Block if capacity exceeded
+        const attemptingToAdd = usersData.length;
+        if (activeUsers + attemptingToAdd > maxSeats) {
+            throw Object.assign(
+                new Error(`Limite de ${maxSeats} usuários seria excedido. Você tem ${activeUsers} ativos e está tentando adicionar ${attemptingToAdd}.`),
+                { status: 403, code: 'SEAT_LIMIT_REACHED', maxSeats, activeUsers, attemptingToAdd }
+            );
+        }
+
+        // 4. Check for duplicates (emails or usernames)
+        const emails = usersData.map(u => u.email);
+        const usernames = usersData.map(u => u.username);
+
+        const existingResult = await client.query(
+            'SELECT username, email FROM users WHERE company_id = $1 AND (email = ANY($2::text[]) OR username = ANY($3::text[]))',
+            [companyId, emails, usernames]
+        );
+
+        if (existingResult.rows.length > 0) {
+            const conflicts = existingResult.rows.map(r => r.email).join(', ');
+            throw Object.assign(
+                new Error(`Os seguintes e-mails/usuários já existem: ${conflicts}`),
+                { status: 409, code: 'USERS_ALREADY_EXIST', conflicts: existingResult.rows }
+            );
+        }
+
+        // 5. INSERT all users
+        const createdUsers = [];
+        for (const userData of usersData) {
+            const { username, email, passwordHash, fullName, role, department, position } = userData;
+            const insertResult = await client.query(
+                `INSERT INTO users (company_id, username, email, password_hash, full_name, role, department, position)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING id, username, email, full_name, role`,
+                [companyId, username, email, passwordHash, fullName || username, role || 'user', department || null, position || null]
+            );
+            createdUsers.push(insertResult.rows[0]);
+        }
+
+        return {
+            users: createdUsers,
+            seatInfo: {
+                maxSeats,
+                activeUsers: activeUsers + attemptingToAdd,
+                seatsRemaining: maxSeats - (activeUsers + attemptingToAdd)
+            }
+        };
+    });
+};
+
 export const generateTokens = (user) => {
     const accessToken = jwt.sign(
         {
