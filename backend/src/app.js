@@ -34,6 +34,8 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import stickersRoutes from './routes/stickers.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
+import tasksRoutes from './routes/tasks.routes.js';
+import wikiRoutes from './routes/wiki.routes.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 import { auditMiddleware } from './middlewares/audit.middleware.js';
 
@@ -234,6 +236,8 @@ router.use('/api/analytics', analyticsRoutes.routes());
 router.use('/api/audit', auditRoutes.routes());
 router.use('/api/stickers', stickersRoutes.routes());
 router.use('/api/notifications', notificationsRoutes.routes());
+router.use('/api/tasks', tasksRoutes.routes());
+router.use('/api/wiki', wikiRoutes.routes());
 
 app.use(router.routes());
 app.use(router.allowedMethods());
@@ -542,6 +546,53 @@ httpServer.listen(PORT, async () => {
             `);
             await db.write('CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)');
             console.log('✅ Tabela de Notificações Push (Web Push) sincronizada!');
+
+            // 🚀 FEATURE: PRODUTIVIDADE (KANBAN & TAREFAS)
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS task_columns (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                    title VARCHAR(255) NOT NULL,
+                    position INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_task_columns_conversation ON task_columns(conversation_id)');
+
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    column_id UUID REFERENCES task_columns(id) ON DELETE CASCADE,
+                    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                    creator_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    source_message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+                    position INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_tasks_conversation ON tasks(conversation_id)');
+
+            // 🚀 FEATURE: WIKI DA EQUIPE (NOTION-LIKE)
+            await db.write(`
+                CREATE TABLE IF NOT EXISTS wiki_pages (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+                    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+                    author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                    title VARCHAR(255) NOT NULL,
+                    content TEXT,
+                    emoji VARCHAR(20) DEFAULT '📄',
+                    parent_id UUID REFERENCES wiki_pages(id) ON DELETE CASCADE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            await db.write('CREATE INDEX IF NOT EXISTS idx_wiki_pages_conversation ON wiki_pages(conversation_id)');
+            console.log('✅ Tabelas de Kanban e Wiki sincronizadas!');
         }
     } catch (err) {
         console.error('❌ Aviso: Falha ao sincronizar esquema automático:', err.message);

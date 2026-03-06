@@ -492,6 +492,32 @@
           </div>
         </header>
         
+        <!-- Chat Tabs (Sub-Header) -->
+        <div class="h-12 border-b border-gray-200 dark:border-glass-border bg-gray-50 dark:bg-black/10 flex items-center px-4 md:px-6 gap-6 z-10 shrink-0">
+          <button 
+            @click="currentChatTab = 'chat'"
+            :class="['h-full border-b-2 text-sm font-bold flex items-center gap-2 transition-colors', currentChatTab === 'chat' ? 'border-primary text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']"
+          >
+            <span class="material-symbols-outlined text-[18px]">chat</span> Chat
+          </button>
+          <button 
+            @click="currentChatTab = 'kanban'"
+            :class="['h-full border-b-2 text-sm font-bold flex items-center gap-2 transition-colors', currentChatTab === 'kanban' ? 'border-primary text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']"
+            v-if="chatStore.activeConversation?.isGroup"
+          >
+            <span class="material-symbols-outlined text-[18px]">view_kanban</span> Tarefas
+          </button>
+          <button 
+            @click="currentChatTab = 'wiki'"
+            :class="['h-full border-b-2 text-sm font-bold flex items-center gap-2 transition-colors', currentChatTab === 'wiki' ? 'border-primary text-gray-900 dark:text-white' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200']"
+            v-if="chatStore.activeConversation?.isGroup"
+          >
+            <span class="material-symbols-outlined text-[18px]">description</span> Wiki
+          </button>
+        </div>
+        
+        <div v-show="currentChatTab === 'chat'" class="flex flex-col flex-1 overflow-hidden relative">
+
         <!-- Active Group Call Banner -->
         <div v-if="groupCallStore.activeCallInfo && groupCallStore.callState === 'idle'"
           class="mx-4 mt-3 mb-0 px-4 py-3 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 flex items-center justify-between gap-3 animate-pulse">
@@ -1128,6 +1154,14 @@
             </div>
           </div>
         </div>
+        </div>
+        
+        <!-- Tab: Kanban -->
+        <KanbanBoard v-if="currentChatTab === 'kanban'" :conversationId="chatStore.activeConversationId" />
+
+        <!-- Tab: Wiki -->
+        <WikiCanvas v-if="currentChatTab === 'wiki'" :conversationId="chatStore.activeConversationId" />
+
       </template>
       
       <!-- ★ Premium Empty State -->
@@ -1907,8 +1941,11 @@ import CopilotPanel from '@/components/CopilotPanel.vue';
 import MeetingModal from '@/components/MeetingModal.vue';
 import WhiteboardModal from '@/components/WhiteboardModal.vue';
 import StickerPicker from '@/components/StickerPicker.vue';
+import KanbanBoard from '@/components/KanbanBoard.vue';
+import WikiCanvas from '@/components/WikiCanvas.vue';
 
 const router = useRouter()
+const currentChatTab = ref('chat')
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const networkStore = useNetworkStore()
@@ -2322,6 +2359,7 @@ async function joinChannel(channelId) {
 }
 
 async function selectConversation(id) {
+  currentChatTab.value = 'chat'
   const cached = await loadCachedMessages(id)
   if (cached.length > 0) {
     chatStore.hydrateConversationMessages(id, cached)
