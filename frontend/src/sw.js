@@ -22,25 +22,31 @@ self.addEventListener("install", function (event) {
 
 self.addEventListener("fetch", function (event) {
     if (event.request.method !== "GET") return;
+    
+    // Prevent caching API calls, socket.io or external non-http urls
+    const urlStr = event.request.url || '';
+    if (urlStr.includes('/api/') || urlStr.includes('socket.io') || !urlStr.startsWith('http')) {
+        return;
+    }
 
     event.respondWith(
         fetch(event.request)
             .then(function (response) {
-                console.log("[SW] add page to offline cache: " + response.url);
-
-                event.waitUntil(
-                    caches.open(CACHE).then(function (cache) {
-                        return cache.put(event.request, response.clone());
-                    })
-                );
-
+                // Must clone synchronously before passing response back to the browser
+                if (response && response.status === 200 && response.type === 'basic') {
+                    const responseToCache = response.clone();
+                    event.waitUntil(
+                        caches.open(CACHE).then(function (cache) {
+                            cache.put(event.request, responseToCache).catch(err => console.error("Cache Put Error:", err));
+                        })
+                    );
+                }
                 return response;
             })
             .catch(function (error) {
-                console.log("[SW] Network request Failed. Serving content from cache: " + error);
                 return caches.open(CACHE).then(function (cache) {
                     return cache.match(event.request).then(function (matching) {
-                        if (!matching || matching.status === 404) {
+                        if (!matching) {
                             return cache.match(offlineFallbackPage);
                         } else {
                             return matching;
