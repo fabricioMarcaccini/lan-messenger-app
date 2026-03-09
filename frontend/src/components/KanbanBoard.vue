@@ -143,7 +143,7 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useChatStore } from '../stores/chat';
-import axios from 'axios';
+import { api } from '../stores/auth';
 
 const props = defineProps({
   conversationId: { type: String, required: true }
@@ -178,9 +178,7 @@ watch(() => props.conversationId, (newId) => {
 const fetchBoard = async () => {
   loading.value = true;
   try {
-    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/tasks/${props.conversationId}/board`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    const { data } = await api.get(`/tasks/${props.conversationId}/board`);
     columns.value = data.data.columns || [];
     tasks.value = data.data.tasks || [];
   } catch (err) {
@@ -202,9 +200,7 @@ const openCreateColumnModal = () => {
 const saveColumn = async () => {
   if (!columnForm.value.title) return;
   try {
-    const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/api/tasks/${props.conversationId}/columns`, columnForm.value, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    const { data } = await api.post(`/tasks/${props.conversationId}/columns`, columnForm.value);
     columns.value.push(data.data);
     showingColumnModal.value = false;
   } catch (err) { console.error(err); }
@@ -213,9 +209,7 @@ const saveColumn = async () => {
 const deleteColumn = async (id) => {
   if(!confirm('Apagar essa coluna e TODAS as tarefas nela?')) return;
   try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/tasks/columns/${id}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    await api.delete(`/tasks/columns/${id}`);
     columns.value = columns.value.filter(c => c.id !== id);
     tasks.value = tasks.value.filter(t => t.column_id !== id);
   } catch (err) { console.error(err); }
@@ -234,12 +228,12 @@ const saveTask = async () => {
   try {
     if (taskForm.value.id) {
        const reqObj = { title: taskForm.value.title, description: taskForm.value.description, assigneeId: taskForm.value.assigneeId };
-       const { data } = await axios.put(`${import.meta.env.VITE_API_URL}/api/tasks/${taskForm.value.id}`, reqObj, { headers: { Authorization: `Bearer ${authStore.token}` } });
+       const { data } = await api.put(`/tasks/${taskForm.value.id}`, reqObj);
        const idx = tasks.value.findIndex(t => t.id === taskForm.value.id);
        if(idx > -1) tasks.value[idx] = data.data;
     } else {
        const reqObj = { columnId: taskForm.value.columnId, title: taskForm.value.title, description: taskForm.value.description, assigneeId: taskForm.value.assigneeId };
-       const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/api/tasks/${props.conversationId}`, reqObj, { headers: { Authorization: `Bearer ${authStore.token}` } });
+       const { data } = await api.post(`/tasks/${props.conversationId}`, reqObj);
        tasks.value.unshift(data.data);
     }
     showingTaskModal.value = false;
@@ -248,9 +242,7 @@ const saveTask = async () => {
 const deleteTask = async (id) => {
   if(!confirm('Apagar essa tarefa permanentemente?')) return;
   try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/tasks/${id}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    await api.delete(`/tasks/${id}`);
     tasks.value = tasks.value.filter(t => t.id !== id);
   } catch (err) { console.error(err); }
 }
@@ -280,7 +272,7 @@ const onDropOnColumn = async (e, columnId) => {
 
   // Persist
   try {
-    await axios.put(`${import.meta.env.VITE_API_URL}/api/tasks/${draggedTask.id}`, { columnId }, { headers: { Authorization: `Bearer ${authStore.token}` } });
+    await api.put(`/tasks/${draggedTask.id}`, { columnId });
   } catch (err) {
     // Revert if error
     draggedTask.column_id = oldColumnId;

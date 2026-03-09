@@ -105,7 +105,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
-import axios from 'axios';
+import { api } from '../stores/auth';
 
 const props = defineProps({
   conversationId: { type: String, required: true }
@@ -132,9 +132,7 @@ watch(() => props.conversationId, (newId) => {
 const fetchPages = async () => {
   loading.value = true;
   try {
-    const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/api/wiki/${props.conversationId}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    const { data } = await api.get(`/wiki/${props.conversationId}`);
     pages.value = data.data || [];
   } catch (err) {
     console.error('Wiki Error', err);
@@ -172,21 +170,21 @@ const autoSave = () => {
     
     try {
       if (activePage.value.id) {
-        await axios.put(`${import.meta.env.VITE_API_URL}/api/wiki/pages/${activePage.value.id}`, {
+        await api.put(`/wiki/pages/${activePage.value.id}`, {
           title: activePage.value.title,
           content: activePage.value.content,
           emoji: activePage.value.emoji
-        }, { headers: { Authorization: `Bearer ${authStore.token}` } });
+        });
         
         // Update list
         const idx = pages.value.findIndex(p => p.id === activePage.value.id);
         if(idx > -1) pages.value[idx] = { ...activePage.value };
       } else {
-        const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/api/wiki/${props.conversationId}`, {
+        const { data } = await api.post(`/wiki/${props.conversationId}`, {
           title: activePage.value.title || 'Sem Título',
           content: activePage.value.content,
           emoji: activePage.value.emoji
-        }, { headers: { Authorization: `Bearer ${authStore.token}` } });
+        });
         
         activePage.value.id = data.data.id;
         pages.value.unshift(data.data);
@@ -202,9 +200,7 @@ const autoSave = () => {
 const deletePage = async (id) => {
   if(!confirm('Deletar essa página permanentemente?')) return;
   try {
-    await axios.delete(`${import.meta.env.VITE_API_URL}/api/wiki/pages/${id}`, {
-      headers: { Authorization: `Bearer ${authStore.token}` }
-    });
+    await api.delete(`/wiki/pages/${id}`);
     pages.value = pages.value.filter(p => p.id !== id);
     if(activePage.value?.id === id) activePage.value = null;
   } catch(err) { console.error(err) }
