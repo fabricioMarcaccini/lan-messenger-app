@@ -480,7 +480,7 @@ async function handleRegister() {
       localStorage.setItem('refreshToken', refreshToken)
 
       socketStore.connect()
-      router.push('/')
+      router.push('/pricing')
     } else {
       error.value = response.data.message
     }

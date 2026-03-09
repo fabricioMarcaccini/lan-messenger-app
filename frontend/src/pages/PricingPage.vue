@@ -112,10 +112,16 @@
         {{ subStore.error }}
       </div>
 
-      <!-- Logout link -->
-      <div class="mt-8 text-center">
-        <button @click="handleLogout" class="text-sm text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors">
-          <span class="material-symbols-outlined text-sm align-middle mr-1">logout</span>
+      <!-- Footer Actions -->
+      <div class="mt-8 flex flex-col items-center gap-4">
+        <!-- Skip to Dashboard (Trial Active) -->
+        <button v-if="subStore.currentPlan === 'trial' && !isTrialExpired" @click="router.push('/')" class="text-sm font-bold text-gray-900 dark:text-white hover:text-primary transition-colors flex items-center gap-2 bg-white dark:bg-white/5 px-6 py-2.5 rounded-full shadow-sm border border-gray-200 dark:border-white/10 hover:shadow-md">
+          Continuar Teste Grátis (7 dias)
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+
+        <button @click="handleLogout" class="text-sm text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center">
+          <span class="material-symbols-outlined text-sm align-middle mr-1.5">logout</span>
           {{ locale.t.pricing.logout }}
         </button>
       </div>

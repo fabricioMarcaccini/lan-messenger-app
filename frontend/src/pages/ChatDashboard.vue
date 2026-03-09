@@ -742,7 +742,7 @@
                         </div>
                         <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300 bg-gray-50 dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
                            <span class="material-symbols-outlined text-[16px] text-gray-400">schedule</span>
-                           <span class="font-medium">{{ formatTimeObj(parseMeeting(msg.content)?.startAt) || formatMeetingDate(parseMeeting(msg.content)?.startAt) }}</span>
+                           <span class="font-medium">{{ formatMeetingDate(parseMeeting(msg.content)?.startAt) }}</span>
                         </div>
                         <p v-if="parseMeeting(msg.content)?.description" class="text-xs text-gray-500 italic px-1 line-clamp-2">"{{ parseMeeting(msg.content)?.description }}"</p>
                         <a v-if="parseMeeting(msg.content)?.meetingLink" :href="parseMeeting(msg.content)?.meetingLink" target="_blank" class="mt-1 w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-colors">

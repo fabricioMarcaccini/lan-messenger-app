@@ -1,7 +1,7 @@
 import Router from 'koa-router';
 import Stripe from 'stripe';
 import { db } from '../config/database.js';
-import { authMiddleware } from '../middlewares/auth.js';
+import { authMiddleware, adminMiddleware } from '../middlewares/auth.js';
 import { writeAuditLog } from '../middlewares/audit.middleware.js';
 import dotenv from 'dotenv';
 
@@ -29,7 +29,7 @@ const PLAN_NAMES = {
 
 // ─── POST /create-checkout-session ──────────────────────────────────────────
 // Creates a Stripe Checkout Session for subscription (Per-Seat model)
-router.post('/create-checkout-session', authMiddleware, async (ctx) => {
+router.post('/create-checkout-session', authMiddleware, adminMiddleware, async (ctx) => {
     try {
         const { planId, seats, ref } = ctx.request.body;
 
@@ -173,7 +173,7 @@ router.post('/create-checkout-session', authMiddleware, async (ctx) => {
 
 // ─── POST /create-portal-session ────────────────────────────────────────────
 // Creates a Stripe Customer Portal session for self-service management
-router.post('/create-portal-session', authMiddleware, async (ctx) => {
+router.post('/create-portal-session', authMiddleware, adminMiddleware, async (ctx) => {
     try {
         const user = ctx.state.user;
         const companyId = user.companyId;
@@ -215,7 +215,7 @@ router.post('/create-portal-session', authMiddleware, async (ctx) => {
 
 // ─── POST /upgrade-seats ────────────────────────────────────────────────────
 // Smart upgrade: modifies existing subscription OR redirects to checkout
-router.post('/upgrade-seats', authMiddleware, async (ctx) => {
+router.post('/upgrade-seats', authMiddleware, adminMiddleware, async (ctx) => {
     try {
         const { seats, planId: rawPlanId } = ctx.request.body;
         // Normalize: trial/free → starter (they don't have Stripe prices)

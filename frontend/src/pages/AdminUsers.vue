@@ -136,9 +136,9 @@
             </div>
             <div class="flex items-center gap-3">
               <span class="text-2xl font-bold" :class="seatBarColor.text">{{ seatUsagePercent }}%</span>
-              <button v-if="seatUsagePercent >= 80" @click="showUpsellModal = true" class="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-primary to-blue-500 text-white text-xs font-bold rounded-lg shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 active:scale-95 transition-all">
-                <span class="material-symbols-outlined text-sm">upgrade</span>
-                Ampliar Plano
+              <button v-if="seatUsagePercent >= 80 || subscriptionStore.currentPlan === 'trial' || subscriptionStore.currentPlan === 'free'" @click="showUpsellModal = true" :class="['hidden sm:flex items-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-lg shadow-md transition-all', subscriptionStore.currentPlan === 'trial' || subscriptionStore.currentPlan === 'free' ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/20 hover:shadow-amber-500/30' : 'bg-gradient-to-r from-primary to-blue-500 shadow-primary/20 hover:shadow-primary/30 active:scale-95']">
+                <span class="material-symbols-outlined text-sm">rocket_launch</span>
+                {{ (subscriptionStore.currentPlan === 'trial' || subscriptionStore.currentPlan === 'free') ? 'Assinar Agora' : 'Ampliar Plano' }}
               </button>
             </div>
           </div>
