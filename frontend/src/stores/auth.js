@@ -7,6 +7,54 @@ const API_URL = import.meta.env.PROD ? 'https://lan-messenger-backend.onrender.c
 // Export axios instance directly
 export const api = axios.create({ baseURL: API_URL })
 
+// --- Offline Queue Handling ---
+const OFFLINE_QUEUE_KEY = 'lanly_offline_queue';
+
+function getOfflineQueue() {
+    try {
+        return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY)) || [];
+    } catch {
+        return [];
+    }
+}
+
+function saveToOfflineQueue(config) {
+    const queue = getOfflineQueue();
+    queue.push({
+        url: config.url,
+        method: config.method,
+        data: config.data,
+        params: config.params
+    });
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    console.warn('📶 [Offline] Requisição mutável salva na fila (Sync em segundo plano ativado):', config.url);
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', async () => {
+        const queue = getOfflineQueue();
+        if (queue.length === 0) return;
+        
+        console.log(`📶 [Online] Conexão restaurada. Processando fila de sincronização (${queue.length} operações)...`);
+        localStorage.removeItem(OFFLINE_QUEUE_KEY);
+        
+        for (const req of queue) {
+            try {
+                await api.request({
+                    url: req.url,
+                    method: req.method,
+                    data: req.data,
+                    params: req.params
+                });
+                console.log('✅ [Sync] Sucesso ao enviar requisição offline:', req.url);
+            } catch (err) {
+                console.error('❌ [Sync] Erro ao sincronizar a requisição:', req.url, err);
+            }
+        }
+    });
+}
+// ------------------------------
+
 api.interceptors.request.use((config) => {
     const accessToken = localStorage.getItem('accessToken')
     if (accessToken) {
@@ -39,6 +87,18 @@ api.interceptors.response.use(
     response => response,
     async error => {
         const originalRequest = error.config
+
+        // Check for Network Error (Offline)
+        if (!error.response && error.message === 'Network Error') {
+            const method = originalRequest.method?.toLowerCase() || '';
+            if (['post', 'put', 'patch', 'delete'].includes(method)) {
+                saveToOfflineQueue(originalRequest);
+                // We reject the promise so the UI knows it didn't complete immediately,
+                // but we add a custom flag so the UI can optionally show an "Offline Sync" toast instead of an Error toast
+                error.isOfflineQueued = true;
+                error.message = 'Modo offline: Sua alteração foi salva localmente e será sincronizada quando a conexão retornar.';
+            }
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry) {
             console.error('❌ [API] 401 Unauthorized:', error.config.url)
@@ -184,6 +244,29 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function googleAuth(credential) {
+        loading.value = true
+        error.value = null
+        try {
+            const response = await api.post('/auth/google', { token: credential })
+            const { data } = response.data
+
+            user.value = data.user
+            accessToken.value = data.accessToken
+            refreshToken.value = data.refreshToken
+
+            localStorage.setItem('accessToken', data.accessToken)
+            localStorage.setItem('refreshToken', data.refreshToken)
+
+            return { success: true }
+        } catch(err) {
+            error.value = err.response?.data?.message || 'Erro ao fazer login com Google'
+            return { success: false, message: error.value }
+        } finally {
+            loading.value = false
+        }
+    }
+
     async function register(userData) {
         loading.value = true
         error.value = null
@@ -297,6 +380,7 @@ export const useAuthStore = defineStore('auth', () => {
         isAuthenticated,
         isAdmin,
         login,
+        googleAuth,
         verify2FA,
         register,
         logout,

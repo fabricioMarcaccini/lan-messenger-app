@@ -21,6 +21,38 @@ async function checkAccess(ctx, conversationId) {
     return true;
 }
 
+// Middleware for checking conversation admin access (to edit structures like columns)
+async function checkAdminAccess(ctx, conversationId) {
+    const userId = ctx.state.user.id;
+    const userRole = ctx.state.user.role;
+
+    // System admins bypass this check
+    if (userRole === 'admin') return true;
+
+    const convCheck = await db.write(
+        'SELECT id, creator_id, group_admins FROM conversations WHERE id = $1 AND $2 = ANY(participant_ids)',
+        [conversationId, userId]
+    );
+
+    if (convCheck.rows.length === 0) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Acesso negado à conversa' };
+        return false;
+    }
+
+    const conv = convCheck.rows[0];
+    const isCreator = conv.creator_id === userId;
+    const isGroupAdmin = conv.group_admins && conv.group_admins.includes(userId);
+
+    if (!isCreator && !isGroupAdmin) {
+        ctx.status = 403;
+        ctx.body = { success: false, message: 'Privilégios insuficientes para alterar a estrutura do Kanban' };
+        return false;
+    }
+
+    return true;
+}
+
 // GET /api/tasks/:conversationId/board
 // Get all columns and their tasks
 router.get('/:conversationId/board', async (ctx) => {
@@ -71,7 +103,7 @@ router.post('/:conversationId/columns', async (ctx) => {
     }
 
     const { title, position } = value;
-    if (!(await checkAccess(ctx, conversationId))) return;
+    if (!(await checkAdminAccess(ctx, conversationId))) return;
 
     const result = await db.write(
         'INSERT INTO task_columns (conversation_id, title, position) VALUES ($1, $2, $3) RETURNING *',
@@ -112,7 +144,7 @@ router.put('/columns/:id', async (ctx) => {
         return;
     }
     const conversationId = columnCheck.rows[0].conversation_id;
-    if (!(await checkAccess(ctx, conversationId))) return;
+    if (!(await checkAdminAccess(ctx, conversationId))) return;
 
     const updates = [];
     const values = [];
@@ -157,7 +189,7 @@ router.delete('/columns/:id', async (ctx) => {
         return;
     }
     const conversationId = columnCheck.rows[0].conversation_id;
-    if (!(await checkAccess(ctx, conversationId))) return;
+    if (!(await checkAdminAccess(ctx, conversationId))) return;
 
     await db.write('DELETE FROM task_columns WHERE id = $1', [id]);
 

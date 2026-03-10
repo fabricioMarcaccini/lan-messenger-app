@@ -439,6 +439,114 @@ router.post('/login', loginRateLimit, async (ctx) => {
     }
 });
 
+// POST /api/auth/google
+router.post('/google', loginRateLimit, async (ctx) => {
+    const { token } = ctx.request.body;
+    
+    if (!token) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Token Google é obrigatório' };
+        return;
+    }
+
+    try {
+        const { OAuth2Client } = await import('google-auth-library');
+        // Usamos um client fake ou pego da ENV. Mas como o token JWT do Google tem tudo, vamos usar ele.
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'SEU_CLIENT_ID_AQUI_GOOGlE');
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID || 'SEU_CLIENT_ID_AQUI_GOOGlE',
+        });
+        const payload = ticket.getPayload();
+        
+        const googleEmail = payload.email;
+        const googleName = payload.name;
+        const googleAvatar = payload.picture;
+        
+        let userResult = await db.write('SELECT * FROM users WHERE email = $1 AND is_active = true', [googleEmail]);
+        let user = userResult.rows[0];
+
+        if (!user) {
+            // Conta nova, vamos criar uma nova empresa trial B2B e adicionar esse owner.
+            const username = googleEmail.split('@')[0];
+            const passwordHash = await bcrypt.hash(Math.random().toString(36), 12);
+            
+            const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); 
+            const companyResult = await db.write(
+                `INSERT INTO companies (name, plan_id, subscription_status, max_seats, trial_ends_at)
+                 VALUES ($1, 'trial', 'trialing', 5, $2)
+                 RETURNING id`,
+                [`${googleName} Workspace`, trialEndsAt.toISOString()]
+            );
+            const companyId = companyResult.rows[0].id;
+            
+            const newUserResult = await db.write(
+                `INSERT INTO users (company_id, username, email, password_hash, full_name, role, avatar_url)
+                 VALUES ($1, $2, $3, $4, $5, 'admin', $6)
+                 RETURNING *`,
+                [companyId, username, googleEmail, passwordHash, googleName, googleAvatar]
+            );
+            user = newUserResult.rows[0];
+            console.log('🆕 Criado usuário e empresa via Google Auth para', googleEmail);
+        } else {
+            console.log('✅ Usuário existente logado via Google Auth', googleEmail);
+        }
+
+        if (user.is_two_factor_enabled) {
+             const tempToken = jwt.sign(
+                 { id: user.id, is2FA: true },
+                 process.env.JWT_SECRET || 'fallback_secret',
+                 { expiresIn: '5m' }
+             );
+             ctx.body = { success: true, message: '2FA necessário', data: { requires2FA: true, tempToken, userId: user.id } };
+             return;
+        }
+
+        await db.write('UPDATE users SET last_seen_at = NOW() WHERE id = $1', [user.id]);
+        
+        const tokens = generateTokens(user);
+        await cache.set(`session:${user.id}`, { userId: user.id, loginAt: Date.now() }, 86400 * 7);
+        await cache.setPresence(user.id, 'online');
+
+        let planId = 'free';
+        let subscriptionStatus = 'inactive';
+        let trialEndsAt = null;
+        if (user.company_id) {
+            const companyResult = await db.write('SELECT plan_id, subscription_status, trial_ends_at FROM companies WHERE id = $1', [user.company_id]);
+            if (companyResult.rows[0]) {
+                planId = companyResult.rows[0].plan_id || 'free';
+                subscriptionStatus = companyResult.rows[0].subscription_status || 'inactive';
+                trialEndsAt = companyResult.rows[0].trial_ends_at || null;
+            }
+        }
+
+        ctx.body = {
+            success: true,
+            message: 'Login com Google realizado',
+            data: {
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    fullName: user.full_name,
+                    avatarUrl: user.avatar_url,
+                    role: user.role,
+                    companyId: user.company_id,
+                    planId,
+                    subscriptionStatus,
+                    trialEndsAt,
+                },
+                ...tokens,
+            },
+        };
+
+    } catch (error) {
+        console.error('❌ Google Auth Error:', error.message);
+        ctx.status = 500;
+        ctx.body = { success: false, message: 'Falha na verificação com o Google.' };
+    }
+});
+
 // POST /api/auth/logout
 router.post('/logout', async (ctx) => {
     const authHeader = ctx.headers.authorization;

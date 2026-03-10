@@ -87,6 +87,20 @@
             <span v-if="!loading" class="material-symbols-outlined text-xl">arrow_forward</span>
           </div>
         </button>
+
+        <div class="flex items-center gap-3 my-2">
+            <div class="h-px flex-1 bg-gray-200 dark:bg-white/10"></div>
+            <span class="text-xs text-gray-400 font-medium">OU</span>
+            <div class="h-px flex-1 bg-gray-200 dark:bg-white/10"></div>
+        </div>
+
+        <GoogleLogin :callback="handleGoogleLogin" >
+          <button type="button" class="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a2125] text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-white/5 transition-all shadow-sm">
+             <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="Google" class="w-5 h-5"/>
+             Entrar com Google
+          </button>
+        </GoogleLogin>
+
       </form>
 
       <!-- Register Form -->
@@ -323,6 +337,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore, api } from '@/stores/auth'
 import { useSocketStore } from '@/stores/socket'
 import { useLocaleStore } from '@/stores/locale'
+import { decodeCredential } from 'vue3-google-login'
+
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -440,6 +456,34 @@ async function handle2FAVerify() {
     error2FA.value = result.message
   }
   loading.value = false
+}
+
+async function handleGoogleLogin(response) {
+  loading.value = true
+  error.value = ''
+  
+  try {
+     const credential = response.credential
+     if (!credential) {
+         error.value = 'Ocorreu um erro ao comunicar com a janela do Google.'
+         return
+     }
+     
+     // Send this Token over to backend
+     const result = await authStore.googleAuth(credential)
+     
+     if (result.success) {
+        socketStore.connect()
+        router.push('/')
+     } else {
+        error.value = result.message || 'Falha ao autenticar com o Google.'
+     }
+  } catch(err) {
+     console.error(err)
+     error.value = 'Erro ao processar login com Google.'
+  } finally {
+     loading.value = false
+  }
 }
 
 async function handleRegister() {

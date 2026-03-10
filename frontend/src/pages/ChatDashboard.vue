@@ -1915,12 +1915,16 @@
         </div>
       </div>
     </div>
+    
+    <!-- Injected Global Modals -->
+    <CommandPalette ref="commandPaletteRef" @openPremium="val => upsellModalRef?.open(val)" />
+    <PremiumUpsellModal ref="upsellModalRef" />
 
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, api } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
@@ -1941,8 +1945,13 @@ import CopilotPanel from '@/components/CopilotPanel.vue';
 import MeetingModal from '@/components/MeetingModal.vue';
 import WhiteboardModal from '@/components/WhiteboardModal.vue';
 import StickerPicker from '@/components/StickerPicker.vue';
-import KanbanBoard from '@/components/KanbanBoard.vue';
-import WikiCanvas from '@/components/WikiCanvas.vue';
+const KanbanBoard = defineAsyncComponent(() => import('@/components/KanbanBoard.vue'));
+const WikiCanvas = defineAsyncComponent(() => import('@/components/WikiCanvas.vue'));
+import CommandPalette from '@/components/CommandPalette.vue';
+import PremiumUpsellModal from '@/components/PremiumUpsellModal.vue';
+
+const commandPaletteRef = ref(null);
+const upsellModalRef = ref(null);
 
 const router = useRouter()
 const currentChatTab = ref('chat')

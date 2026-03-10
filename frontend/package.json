@@ -16,7 +16,8 @@
         "pinia": "^2.3.0",
         "socket.io-client": "^4.7.5",
         "vue": "^3.5.13",
-        "vue-router": "^4.5.0"
+        "vue-router": "^4.5.0",
+        "vue3-google-login": "^2.0.37"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^5.2.1",
@@ -31,5 +32,10 @@
         "workbox-precaching": "^7.4.0",
         "workbox-routing": "^7.4.0",
         "workbox-window": "^7.4.0"
-    }
+    },
+    "main": "postcss.config.js",
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "description": ""
 }

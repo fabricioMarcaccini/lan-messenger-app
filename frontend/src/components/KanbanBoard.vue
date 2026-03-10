@@ -86,11 +86,86 @@
       <div v-if="loading" class="flex items-center justify-center flex-1">
          <span class="material-symbols-outlined text-4xl text-indigo-500/50 animate-spin">progress_activity</span>
       </div>
-      <div v-if="!loading && columns.length === 0" class="flex-1 flex flex-col items-center justify-center text-center opacity-70 mt-10">
-         <span class="material-symbols-outlined text-6xl text-gray-400 dark:text-slate-600 mb-4 block animate-bounce">view_kanban</span>
-         <p class="text-gray-800 dark:text-slate-200 font-bold mb-1">Nenhuma coluna configurada</p>
-         <p class="text-xs text-gray-500 max-w-[250px] mx-auto">Crie a primeira coluna para iniciar o rastreio de tarefas neste projeto!</p>
-         <button @click="openCreateColumnModal" class="mt-4 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/30">Criar Coluna</button>
+      <div v-if="!loading && columns.length === 0" class="flex-1 flex flex-col items-start justify-center text-left py-10 px-8 w-full max-w-5xl mx-auto h-full overflow-y-auto min-h-min scrollbar-hide">
+         <div class="mb-10 animate-fade-in-down w-full border-b border-gray-200 dark:border-white/10 pb-6">
+           <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-widest mb-4">
+             <span class="material-symbols-outlined text-[14px]">rocket_launch</span> Início Rápido
+           </span>
+           <h2 class="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight mb-3">Escolha um Template</h2>
+           <p class="text-base text-gray-500 dark:text-slate-400 max-w-xl font-medium">Acelere a produtividade da sua equipe com um framework de fluxo de trabalho testado e aprovado.</p>
+         </div>
+
+         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full relative z-10 perspective-1000">
+            <!-- Template 1: Software -->
+            <div @click="applyTemplate(['Backlog', 'Planejado', 'Em Andamento', 'Code Review', 'QA', 'Finalizado'])" 
+                 class="group relative flex flex-col p-6 rounded-[24px] bg-white dark:bg-[#1A2325] border border-gray-200 dark:border-white/10 shadow-lg hover:shadow-2xl hover:border-indigo-400/50 dark:hover:border-indigo-500/50 transition-all duration-500 cursor-pointer overflow-hidden transform hover:-translate-y-2">
+               <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+               <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity duration-500">
+                  <span class="material-symbols-outlined text-4xl text-indigo-500">terminal</span>
+               </div>
+               <div class="size-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6 shrink-0 relative z-10">
+                  <span class="material-symbols-outlined text-2xl text-indigo-600 dark:text-indigo-400">code_blocks</span>
+               </div>
+               <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 relative z-10">Software & TI</h3>
+               <p class="text-sm text-gray-500 dark:text-slate-400 mb-6 flex-1 relative z-10">Fluxo ágil padrão da indústria para equipes de engenharia e produto.</p>
+               <div class="flex gap-2 flex-wrap relative z-10">
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-indigo-500/20 transition-colors">In Progress</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-indigo-500/20 transition-colors">Code Review</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400">+ 4 colunas</span>
+               </div>
+            </div>
+
+            <!-- Template 2: Vendas/CRM -->
+            <div @click="applyTemplate(['Lead Entrante', 'Qualificação', 'Reunião Agendada', 'Negociação', 'Fechado/Ganho', 'Fechado/Perdido'])" 
+                 class="group relative flex flex-col p-6 rounded-[24px] bg-white dark:bg-[#1A2325] border border-gray-200 dark:border-white/10 shadow-lg hover:shadow-2xl hover:border-emerald-400/50 dark:hover:border-emerald-500/50 transition-all duration-500 cursor-pointer overflow-hidden transform hover:-translate-y-2">
+               <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+               <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity duration-500">
+                  <span class="material-symbols-outlined text-4xl text-emerald-500">monetization_on</span>
+               </div>
+               <div class="size-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6 shrink-0 relative z-10">
+                  <span class="material-symbols-outlined text-2xl text-emerald-600 dark:text-emerald-400">payments</span>
+               </div>
+               <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 relative z-10">Vendas / CRM</h3>
+               <p class="text-sm text-gray-500 dark:text-slate-400 mb-6 flex-1 relative z-10">Pipeline otimizado para fechar negócios, follow-ups e métricas de vendas.</p>
+               <div class="flex gap-2 flex-wrap relative z-10">
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-emerald-500/20 transition-colors">Qualificação</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-emerald-500/20 transition-colors">Fechado/Ganho</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400">+ 4 colunas</span>
+               </div>
+            </div>
+
+            <!-- Template 3: Marketing -->
+            <div @click="applyTemplate(['Ideias / Backlog', 'Criação', 'Revisão', 'Agendado', 'Publicado'])" 
+                 class="group relative flex flex-col p-6 rounded-[24px] bg-white dark:bg-[#1A2325] border border-gray-200 dark:border-white/10 shadow-lg hover:shadow-2xl hover:border-rose-400/50 dark:hover:border-rose-500/50 transition-all duration-500 cursor-pointer overflow-hidden transform hover:-translate-y-2">
+               <div class="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+               <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity duration-500">
+                  <span class="material-symbols-outlined text-4xl text-rose-500">campaign</span>
+               </div>
+               <div class="size-12 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-6 shrink-0 relative z-10">
+                  <span class="material-symbols-outlined text-2xl text-rose-600 dark:text-rose-400">campaign</span>
+               </div>
+               <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2 relative z-10">Marketing & Conteúdo</h3>
+               <p class="text-sm text-gray-500 dark:text-slate-400 mb-6 flex-1 relative z-10">Ideal para gestão de redes sociais, pautas, blogs e campanhas publicitárias.</p>
+               <div class="flex gap-2 flex-wrap relative z-10">
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-rose-500/20 transition-colors">Ideias</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400 border border-transparent group-hover:border-rose-500/20 transition-colors">Em Criação</span>
+                  <span class="px-2 py-1 rounded-md bg-gray-100 dark:bg-black/30 text-[10px] font-bold text-gray-600 dark:text-gray-400">+ 3 colunas</span>
+               </div>
+            </div>
+         </div>
+         
+         <!-- Blank state fallback directly -->
+         <div class="mt-8 text-center w-full max-w-xl mx-auto flex items-center justify-center gap-4">
+            <span class="h-px bg-gray-200 dark:bg-white/10 flex-1"></span>
+            <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">ou</span>
+            <span class="h-px bg-gray-200 dark:bg-white/10 flex-1"></span>
+         </div>
+         
+         <div class="text-center w-full mt-6 flex justify-center pb-6">
+            <button @click="openCreateColumnModal" class="px-6 py-3 bg-white dark:bg-black border-2 border-dashed border-gray-300 dark:border-white/20 hover:border-indigo-500 dark:hover:border-indigo-500 hover:text-indigo-600 text-gray-600 dark:text-gray-300 rounded-2xl text-sm font-bold shadow-sm hover:shadow-lg transition-all flex items-center justify-center gap-2 group">
+              <span class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-300">add</span> Criar Quadro Vazio do Zero
+            </button>
+         </div>
       </div>
 
     </div>
@@ -246,6 +321,27 @@ const deleteTask = async (id) => {
     tasks.value = tasks.value.filter(t => t.id !== id);
   } catch (err) { console.error(err); }
 }
+
+const applyTemplate = async (colNames) => {
+   loading.value = true;
+   try {
+      // Loop creating sequentially to keep order
+      for (let i = 0; i < colNames.length; i++) {
+         const { data } = await api.post(`/tasks/${props.conversationId}/columns`, {
+            title: colNames[i],
+            position: i
+         });
+         columns.value.push(data.data);
+      }
+   } catch (err) {
+      if (err.response?.status === 403) {
+         alert('Acesso negado: Você precisa ser criador ou Admin do grupo para aplicar templates ou criar colunas.');
+      }
+      console.error('Template Apply Error', err);
+   } finally {
+      loading.value = false;
+   }
+};
 
 // Drag functionality
 let draggedTask = null;
