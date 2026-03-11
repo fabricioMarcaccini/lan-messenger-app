@@ -4,6 +4,7 @@ import ratelimit from 'koa-ratelimit';
 import { db, cache } from '../config/database.js';
 import { generateTokens, verifyRefreshToken, authMiddleware } from '../middlewares/auth.js';
 import { writeAuditLog } from '../middlewares/audit.middleware.js';
+import jwt from 'jsonwebtoken';
 
 const router = new Router();
 
@@ -451,11 +452,12 @@ router.post('/google', loginRateLimit, async (ctx) => {
 
     try {
         const { OAuth2Client } = await import('google-auth-library');
-        // Usamos um client fake ou pego da ENV. Mas como o token JWT do Google tem tudo, vamos usar ele.
-        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'SEU_CLIENT_ID_AQUI_GOOGlE');
+        // Usamos um client fake ou pego da ENV. O fallback real foi pego do VITE_GOOGLE_CLIENT_ID front
+        const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '722758149135-onjg5g352a5kdvpvq7tff145bbmvvrfs.apps.googleusercontent.com';
+        const client = new OAuth2Client(GOOGLE_CLIENT_ID);
         const ticket = await client.verifyIdToken({
             idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID || 'SEU_CLIENT_ID_AQUI_GOOGlE',
+            audience: GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
         
