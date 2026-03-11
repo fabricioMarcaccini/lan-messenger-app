@@ -158,7 +158,7 @@ app.use(koaBody({
 app.use(helmet({
     crossOriginResourcePolicy: false,
     crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: false,
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
     contentSecurityPolicy: false,
 }));
 
