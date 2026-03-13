@@ -1324,6 +1324,7 @@ const {
   isNotificationSupported,
   notificationPermission,
   requestPermission: requestNotificationPermission,
+  requestFcmToken,
 } = useChatNotifications()
 
 const showNotificationPermissionBanner = computed(
@@ -1331,7 +1332,10 @@ const showNotificationPermissionBanner = computed(
 )
 
 async function handleRequestNotifications() {
-  await requestNotificationPermission()
+  const result = await requestNotificationPermission()
+  if (result === 'granted') {
+    await requestFcmToken()
+  }
 }
 
 const showCopilotPanel = ref(false)
