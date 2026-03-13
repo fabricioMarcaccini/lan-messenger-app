@@ -74,7 +74,15 @@ export const forgotPasswordSchema = z.object({
 export const adminResetPasswordSchema = z.object({
     userId: z.string({ required_error: 'userId e newPassword são obrigatórios' }).min(1, 'userId e newPassword são obrigatórios'),
     newPassword: z.string({ required_error: 'userId e newPassword são obrigatórios' }).min(1, 'userId e newPassword são obrigatórios'),
-}).strip();
+}).strip().superRefine((data, ctx) => {
+    const passwordTrimmedLength = data.newPassword.trim().length;
+    if (passwordTrimmedLength < 6 || data.newPassword.length > 72) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Senha deve ter entre 6 e 72 caracteres válidos',
+        });
+    }
+});
 
 export const twoFactorTokenSchema = z.object({
     token: z.string({ required_error: 'Código inválido' }).min(1, 'Código inválido'),

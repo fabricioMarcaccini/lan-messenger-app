@@ -69,16 +69,16 @@
             :placeholder="locale.t.chat.search"
             class="block w-full pl-10 pr-8 py-2.5 border-none rounded-xl leading-5 bg-white dark:bg-black/20 text-gray-900 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white dark:focus:bg-black/30 sm:text-sm transition-all shadow-sm dark:shadow-inner"
           />
-          <button v-if="searchQuery" @click="searchQuery = ''; chatStore.clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+          <button v-if="searchQuery" @click="clearSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
             <span class="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
         
         <!-- Message Search Results -->
-        <div v-if="chatStore.searchResults.length > 0" class="mt-2 bg-white dark:bg-black/30 rounded-xl border border-gray-200 dark:border-white/10 max-h-60 overflow-y-auto shadow-lg">
-          <p class="px-3 py-1.5 text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider border-b border-gray-100 dark:border-white/5">Mensagens encontradas ({{ chatStore.searchResults.length }})</p>
+        <div v-if="searchResults.length > 0" class="mt-2 bg-white dark:bg-black/30 rounded-xl border border-gray-200 dark:border-white/10 max-h-60 overflow-y-auto shadow-lg">
+          <p class="px-3 py-1.5 text-[10px] text-gray-400 dark:text-slate-500 font-bold uppercase tracking-wider border-b border-gray-100 dark:border-white/5">Mensagens encontradas ({{ searchResults.length }})</p>
           <div 
-            v-for="result in chatStore.searchResults" :key="result.id"
+            v-for="result in searchResults" :key="result.id"
             @click="jumpToSearchResult(result)"
             class="px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer border-b border-gray-50 dark:border-white/5 last:border-0"
           >
@@ -90,7 +90,7 @@
             <p class="text-xs text-gray-600 dark:text-slate-300 truncate">{{ result.content }}</p>
           </div>
         </div>
-        <div v-if="chatStore.isSearching" class="mt-2 text-center py-3">
+        <div v-if="isSearching" class="mt-2 text-center py-3">
           <span class="material-symbols-outlined text-primary animate-spin text-lg">progress_activity</span>
         </div>
       </div>
@@ -325,11 +325,11 @@
             <p class="text-primary/60 text-sm">Imagens, vídeos, documentos...</p>
           </div>
           <!-- Load older messages indicator -->
-          <div v-if="chatStore.loadingOlder" class="flex items-center justify-center py-3 gap-2">
+          <div v-if="isLoadingOlder" class="flex items-center justify-center py-3 gap-2">
             <span class="material-symbols-outlined text-primary animate-spin text-lg">progress_activity</span>
             <span class="text-xs text-gray-400">Carregando mensagens anteriores...</span>
           </div>
-          <div v-else-if="chatStore.hasMoreMessages[chatStore.activeConversationId]" class="flex justify-center py-2">
+          <div v-else-if="hasMoreMessages" class="flex justify-center py-2">
             <span class="text-[10px] text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-white/5 px-3 py-1 rounded-full">↑ Role para cima para ver mais</span>
           </div>
 
@@ -348,7 +348,7 @@
           <!-- ★ Scroll-to-bottom button (no new messages, just far from bottom) -->
           <Transition name="slide-up">
             <button
-              v-if="newMessagesCount === 0 && !isNearBottom && chatStore.activeMessages.length > 10"
+              v-if="newMessagesCount === 0 && !isNearBottom && messages.length > 10"
               @click="scrollToBottomSmooth"
               class="fixed bottom-28 right-8 md:right-auto md:left-1/2 md:-translate-x-1/2 z-30 size-10 rounded-full bg-white dark:bg-glass-surface text-gray-500 dark:text-slate-400 shadow-lg border border-gray-200 dark:border-white/10 hover:text-primary hover:border-primary/30 hover:shadow-primary/20 active:scale-90 transition-all flex items-center justify-center"
             >
@@ -356,7 +356,7 @@
             </button>
           </Transition>
 
-          <template v-for="(msg, msgIndex) in chatStore.activeMessages" :key="msg.id">
+          <template v-for="(msg, msgIndex) in messages" :key="msg.id">
             <!-- ★ Date separator between different days -->
             <div v-if="shouldShowDateSeparator(msgIndex) && msg.contentType !== 'call'" class="flex items-center justify-center my-4">
               <div class="bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-slate-400 text-[11px] font-semibold px-4 py-1 rounded-full">
@@ -413,11 +413,11 @@
           @cancel-edit-or-reply="cancelEditOrReply"
           @generate-smart-replies="generateSmartReplies"
           @use-smart-reply="useSmartReply"
-          @clear-smart-replies="smartReplies = []"
+          @clear-smart-replies="clearSmartReplies"
           @file-selected="handleFileUpload"
           @open-whiteboard="showWhiteboardModal = true"
           @open-meeting="showMeetingModal = true"
-          @apply-magic-text="applyMagicText"
+          @apply-magic-text="handleApplyMagicText"
           @send-sticker="sendStickerMessage"
           @start-recording="startRecording"
           @stop-recording="stopRecording"
@@ -1198,13 +1198,21 @@ import { useRouter } from 'vue-router'
 import { useAuthStore, api } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useNetworkStore } from '@/stores/network'
-import { useSocketStore } from '@/stores/socket'
 import { useUsersStore } from '@/stores/users'
 import { useLocaleStore } from '@/stores/locale'
 import { useWebRTCStore } from '@/stores/webrtc'
 import { useGroupCallStore } from '@/stores/groupCall'
 import { useThemeStore } from '@/stores/theme'
 import { useStickerStore } from '@/stores/stickers'
+import { useChatSockets } from '@/composables/useChatSockets'
+import { useChatMessages } from '@/composables/useChatMessages'
+import { useChatUploads } from '@/composables/useChatUploads'
+import { useChatPresence } from '@/composables/useChatPresence'
+import { useChatSearch } from '@/composables/useChatSearch'
+import { useChatAI } from '@/composables/useChatAI'
+import { useChatPolls } from '@/composables/useChatPolls'
+import { useChatMeetings } from '@/composables/useChatMeetings'
+import { useChatWebRTC } from '@/composables/useChatWebRTC'
 import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
@@ -1229,7 +1237,6 @@ const currentChatTab = ref('chat')
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const networkStore = useNetworkStore()
-const socketStore = useSocketStore()
 const usersStore = useUsersStore()
 const locale = useLocaleStore()
 const webrtcStore = useWebRTCStore()
@@ -1243,6 +1250,55 @@ function toggleDeepWork() {
   isDeepWorkMode.value = !isDeepWorkMode.value
   localStorage.setItem('isDeepWorkMode', isDeepWorkMode.value)
 }
+
+const {
+  messages,
+  isLoadingOlder,
+  hasMoreMessages,
+  messagesContainer,
+  isNearBottom,
+  newMessagesCount,
+  handleMessagesScroll,
+  scrollToBottomSmooth,
+  scrollToBottom,
+  hydrateMessagesFromCache,
+} = useChatMessages({ chatStore })
+
+const {
+  uploadAndSendFile,
+  uploadAndSendWhiteboard,
+  uploadDroppedFiles,
+  uploadAudioBlob,
+} = useChatUploads({ chatStore })
+
+const {
+  isConnected: isSocketConnected,
+  joinConversation,
+  sendTyping,
+  getTypingUsers,
+  disconnect: disconnectSocket,
+} = useChatSockets({
+  chatStore,
+  authStore,
+  isDeepWorkMode,
+  onScrollToBottom: scrollToBottom,
+})
+
+const {
+  unreadCount,
+  getOtherUserOnline,
+  getGroupOnlineCount,
+} = useChatPresence({ chatStore, authStore })
+
+const {
+  searchQuery,
+  handleSearchInput,
+  clearSearch,
+  filteredChannels,
+  filteredDirectMessages,
+  searchResults,
+  isSearching,
+} = useChatSearch({ chatStore })
 
 const showCopilotPanel = ref(false)
 
@@ -1282,36 +1338,10 @@ const groupCallGridClass = computed(() => {
   return 'grid-cols-4'
 })
 
-// ====== Presence Helpers ======
-function getOtherUserOnline(conv) {
-  const other = conv.participants?.find(p => p.id !== authStore.user?.id)
-  if (!other) return false
-  return chatStore.isUserOnline(other.id)
-}
-
-function getGroupOnlineCount(conv) {
-  if (!conv.participants) return 0
-  return conv.participants.filter(p => chatStore.isUserOnline(p.id)).length
-}
-
-// ====== Message Search with Debounce ======
-let searchDebounceTimer = null
-function handleSearchInput() {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-  searchDebounceTimer = setTimeout(() => {
-    if (searchQuery.value && searchQuery.value.trim().length >= 3) {
-      chatStore.searchMessages(searchQuery.value)
-    } else {
-      chatStore.clearSearch()
-    }
-  }, 400)
-}
-
 function jumpToSearchResult(result) {
   // Navigate to that conversation and scroll to message
   selectConversation(result.conversationId)
-  searchQuery.value = ''
-  chatStore.clearSearch()
+  clearSearch()
   // After messages load, try to scroll to the message
   setTimeout(() => {
     const msgEl = document.getElementById(`msg-${result.id}`)
@@ -1321,41 +1351,6 @@ function jumpToSearchResult(result) {
       setTimeout(() => msgEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2'), 2500)
     }
   }, 500)
-}
-
-// ====== Infinite Scroll — Load Older Messages ======
-const isNearBottom = ref(true)
-const newMessagesCount = ref(0)
-
-async function handleMessagesScroll(event) {
-  const el = event.target
-  
-  // Track if user is near the bottom
-  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-  isNearBottom.value = distanceFromBottom < 120
-  
-  // Reset new messages count when user scrolls to bottom
-  if (isNearBottom.value) {
-    newMessagesCount.value = 0
-  }
-  
-  // Trigger loading older messages when near top
-  if (el.scrollTop < 80 && chatStore.activeConversationId) {
-    const prevHeight = el.scrollHeight
-    const loaded = await chatStore.fetchOlderMessages(chatStore.activeConversationId)
-    if (loaded) {
-      await nextTick()
-      el.scrollTop = el.scrollHeight - prevHeight
-    }
-  }
-}
-
-function scrollToBottomSmooth() {
-  if (messagesContainer.value) {
-    messagesContainer.value.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: 'smooth' })
-    newMessagesCount.value = 0
-    isNearBottom.value = true
-  }
 }
 
 // ====== Message Grouping (Slack/WhatsApp style) ======
@@ -1405,19 +1400,7 @@ async function handleFileDrop(event) {
   isDraggingFile.value = false
   const files = event.dataTransfer?.files
   if (!files || files.length === 0 || !chatStore.activeConversationId) return
-
-  for (const file of files) {
-    try {
-      const uploadResult = await chatStore.uploadFile(file)
-      if (uploadResult?.success && uploadResult?.data?.url) {
-        const url = uploadResult.data.url
-        const ct = uploadResult.data.contentType || 'file'
-        await chatStore.sendMessage(chatStore.activeConversationId, url, ct)
-      }
-    } catch (err) {
-      console.error('Drop upload failed:', err)
-    }
-  }
+  await uploadDroppedFiles(files, { conversationId: chatStore.activeConversationId })
 }
 
 // ====== Reaction Picker (open full emoji picker for a specific message) ======
@@ -1448,58 +1431,74 @@ function getParticipantName(userId) {
   return p?.full_name || p?.username || 'Desconhecido'
 }
 
-// WebRTC reactive local state
-const isMuted = ref(false)
-const isCamOff = ref(false)
-const incomingOffer = ref(null)
-const callSeconds = ref(0)
-const callDuration = computed(() => {
-  const m = Math.floor(callSeconds.value / 60).toString().padStart(2, '0')
-  const s = (callSeconds.value % 60).toString().padStart(2, '0')
-  return `${m}:${s}`
-})
-let callTimerInterval = null
-
 const remoteVideoEl = ref(null)
 const pipEl = ref(null)
 
 const showComposerActions = ref(false)
 
-const searchQuery = ref('')
 const newMessage = ref('')
-const messagesContainer = ref(null)
 const showNewChatModal = ref(false)
 const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const showMobileSidebar = ref(false)
 const lightboxImageUrl = ref('')
 const showStickerPicker = ref(false)
-const showPollModal = ref(false)
-const showMeetingModal = ref(false)
 const showWhiteboardModal = ref(false)
-const pollForm = ref({
-  question: '',
-  options: ['', ''],
-  multiChoice: false,
-})
-const meetingForm = ref({
-  title: '',
-  description: '',
-  startAt: '',
-  endAt: '',
-  meetingLink: '',
-})
 
 const showMagicMenu = ref(false)
-const isProcessingMagic = ref(false)
+const {
+  smartReplies,
+  isGeneratingReplies,
+  isProcessingMagic,
+  showInsightsModal,
+  insightsType,
+  isProcessingInsights,
+  insightsResult,
+  applyMagicText,
+  fetchInsights,
+  generateSmartReplies,
+  clearSmartReplies,
+  useSmartReply,
+  translateMessage,
+  transcribeAudio,
+  requestLanlyReply,
+} = useChatAI({
+  api,
+  chatStore,
+  authStore,
+  formatTime,
+  newMessage,
+  autoResize,
+})
 
-// AI Functionalities State
-const smartReplies = ref([])
-const isGeneratingReplies = ref(false)
-const showInsightsModal = ref(false)
-const insightsType = ref('summarize')
-const isProcessingInsights = ref(false)
-const insightsResult = ref('')
+const {
+  showPollModal,
+  pollForm,
+  parsePoll,
+  getPollVotesCount,
+  isOptionSelected,
+  voteInPoll,
+  createPollMessage,
+} = useChatPolls({ chatStore, authStore, onScrollToBottom: scrollToBottom })
+
+const {
+  showMeetingModal,
+  meetingForm,
+  parseMeeting,
+  formatMeetingDate,
+  createMeetingMessage,
+} = useChatMeetings({ api, chatStore })
+
+const {
+  isMuted,
+  isCamOff,
+  incomingOffer,
+  callDuration,
+  startP2PCall,
+  toggleMuteVideo,
+  toggleCamera,
+  toggleScreenShare,
+} = useChatWebRTC({ webrtcStore, chatStore, authStore })
 
 const editingMessageId = ref(null)
 const replyingToMessage = ref(null)
@@ -1518,90 +1517,6 @@ const groupName = ref('')
 const groupDescription = ref('')
 const selectedUsers = ref([])
 const showGroupInfo = ref(false)
-
-const unreadCount = computed(() => 
-  chatStore.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
-)
-// ... computed properties ...
-
-const CACHE_DB_NAME = 'lanly-chat-cache'
-const CACHE_STORE_NAME = 'conversation_messages'
-
-function openCacheDb() {
-  return new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      resolve(null)
-      return
-    }
-
-    const request = window.indexedDB.open(CACHE_DB_NAME, 1)
-    request.onupgradeneeded = () => {
-      const db = request.result
-      if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
-        db.createObjectStore(CACHE_STORE_NAME, { keyPath: 'conversationId' })
-      }
-    }
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error)
-  })
-}
-
-async function saveCachedMessages(conversationId, msgs) {
-  if (!conversationId || !Array.isArray(msgs)) return
-  try {
-    const db = await openCacheDb()
-    if (!db) return
-
-    // JSON round-trip strips Vue reactive proxies and non-cloneable objects (Date, etc.)
-    const plainMsgs = JSON.parse(JSON.stringify(msgs.slice(-50)))
-
-    const tx = db.transaction(CACHE_STORE_NAME, 'readwrite')
-    const store = tx.objectStore(CACHE_STORE_NAME)
-    store.put({
-      conversationId,
-      messages: plainMsgs,
-      updatedAt: Date.now(),
-    })
-  } catch (e) {
-    console.warn('Cache save failed (non-critical):', e.message)
-  }
-}
-
-async function loadCachedMessages(conversationId) {
-  if (!conversationId) return []
-  const db = await openCacheDb()
-  if (!db) return []
-
-  return new Promise((resolve) => {
-    const tx = db.transaction(CACHE_STORE_NAME, 'readonly')
-    const store = tx.objectStore(CACHE_STORE_NAME)
-    const request = store.get(conversationId)
-    request.onsuccess = () => resolve(request.result?.messages || [])
-    request.onerror = () => resolve([])
-  })
-}
-
-const filteredChannels = computed(() => {
-  if (!searchQuery.value) return chatStore.conversations.filter(c => c.isGroup)
-  const query = searchQuery.value.toLowerCase()
-  return chatStore.conversations.filter(c => 
-    c.isGroup && (
-      c.name?.toLowerCase().includes(query) ||
-      c.participants.some(p => p.full_name?.toLowerCase().includes(query))
-    )
-  )
-})
-
-const filteredDirectMessages = computed(() => {
-  if (!searchQuery.value) return chatStore.conversations.filter(c => !c.isGroup)
-  const query = searchQuery.value.toLowerCase()
-  return chatStore.conversations.filter(c => 
-    !c.isGroup && (
-      c.name?.toLowerCase().includes(query) ||
-      c.participants.some(p => p.full_name?.toLowerCase().includes(query))
-    )
-  )
-})
 
 const recentDevices = computed(() => {
   const devs = [...networkStore.devices]
@@ -1659,12 +1574,9 @@ async function joinChannel(channelId) {
 
 async function selectConversation(id) {
   currentChatTab.value = 'chat'
-  const cached = await loadCachedMessages(id)
-  if (cached.length > 0) {
-    chatStore.hydrateConversationMessages(id, cached)
-  }
+  await hydrateMessagesFromCache(id)
   chatStore.setActiveConversation(id)
-  socketStore.joinConversation(id)
+  joinConversation(id)
   await chatStore.fetchPinnedMessage(id)
   await chatStore.fetchConversationFiles(id)
 }
@@ -1719,7 +1631,7 @@ async function sendMessage() {
   // Stop typing indicator immediately
   if (typingTimeout) clearTimeout(typingTimeout)
   if (chatStore.activeConversationId) {
-    socketStore.sendTyping(chatStore.activeConversationId, false)
+    sendTyping(chatStore.activeConversationId, false)
   }
 
   if (editingMessageId.value) {
@@ -1734,7 +1646,7 @@ async function sendMessage() {
     })
 
     // Fallback bot reply when socket is unavailable
-    if (mentionsLanly && !socketStore.connected) {
+    if (mentionsLanly && !isSocketConnected.value) {
       await requestLanlyReply(textToSend)
     }
   }
@@ -1803,38 +1715,6 @@ function showStickerActions(msg) {
   saveStickerToFavorites(msg.content);
 }
 
-async function requestLanlyReply(messageText) {
-  try {
-    const context = chatStore.activeMessages.slice(-10).map((m) => ({
-      senderUsername: m.senderUsername,
-      senderName: m.senderName,
-      content: m.content,
-    }))
-    const response = await api.post('/ai/bot-reply', {
-      message: messageText,
-      context,
-      conversationId: chatStore.activeConversationId,
-    })
-
-    if (response.data?.success && response.data?.data?.reply) {
-      chatStore.addMessage(chatStore.activeConversationId, {
-        id: `bot-local-${Date.now()}`,
-        conversationId: chatStore.activeConversationId,
-        senderId: 'lanly-bot',
-        senderUsername: 'lanly',
-        senderName: 'Lanly Bot',
-        senderAvatar: null,
-        content: response.data.data.reply,
-        contentType: 'text',
-        createdAt: response.data.data.createdAt || new Date().toISOString(),
-        reactions: {},
-      })
-    }
-  } catch (error) {
-    console.warn('Lanly fallback reply failed:', error.message)
-  }
-}
-
 function startEdit(msg) {
   editingMessageId.value = msg.id
   newMessage.value = msg.content
@@ -1859,7 +1739,7 @@ function cancelEditOrReply() {
 
   if (typingTimeout) clearTimeout(typingTimeout)
   if (chatStore.activeConversationId) {
-    socketStore.sendTyping(chatStore.activeConversationId, false)
+    sendTyping(chatStore.activeConversationId, false)
   }
 
   requestAnimationFrame(() => {
@@ -1915,7 +1795,6 @@ async function startRecording() {
       }
 
       const actualMime = mediaRecorder.mimeType || mimeType || 'audio/webm'
-      const ext = actualMime.includes('mp4') ? 'mp4' : 'webm'
       const audioBlob = new Blob(audioChunks, { type: actualMime })
       audioChunks = []
       
@@ -1925,22 +1804,10 @@ async function startRecording() {
       }
       
       if (chatStore.activeConversationId) {
-        const file = new File([audioBlob], `audio-${Date.now()}.${ext}`, { type: actualMime })
-        try {
-          const uploadResult = await chatStore.uploadFile(file)
-          // uploadResult = { success, data: { url, contentType, ... } }
-          const fileUrl = uploadResult.data?.url || uploadResult.url
-          if (!fileUrl) {
-            console.error('Upload returned no URL:', uploadResult)
-            alert('Erro ao enviar áudio: URL não retornada')
-            return
-          }
-          await chatStore.sendMessage(chatStore.activeConversationId, fileUrl, 'audio')
+        const sent = await uploadAudioBlob(audioBlob, { conversationId: chatStore.activeConversationId })
+        if (sent) {
           await nextTick()
           scrollToBottom()
-        } catch (err) {
-          console.error('Audio upload failed:', err)
-          alert('Erro ao enviar áudio: ' + (err.response?.data?.message || err.message || 'Erro desconhecido'))
         }
       }
     }
@@ -2068,17 +1935,17 @@ function handleTyping(event) {
 
   if (!chatStore.activeConversationId) return;
   
-  socketStore.sendTyping(chatStore.activeConversationId, true)
+  sendTyping(chatStore.activeConversationId, true)
   
   if (typingTimeout) clearTimeout(typingTimeout)
   typingTimeout = setTimeout(() => {
-    socketStore.sendTyping(chatStore.activeConversationId, false)
+    sendTyping(chatStore.activeConversationId, false)
   }, 2000)
 }
 
 const typingUserNames = computed(() => {
   if (!chatStore.activeConversationId) return [];
-  const typersIds = socketStore.getTypingUsers(chatStore.activeConversationId) || [];
+  const typersIds = getTypingUsers(chatStore.activeConversationId) || [];
   const participants = chatStore.activeConversation?.participants || [];
   
   return typersIds
@@ -2096,40 +1963,17 @@ async function handleFileUpload(event) {
   const file = event.target.files[0]
   if (!file) return
 
-  // Security: Block potentially malicious file types
-  const blockedExtensions = ['.exe', '.bat', '.cmd', '.msi', '.ps1', '.vbs', '.js', '.jar', '.scr', '.pif']
-  const fileExt = '.' + file.name.split('.').pop().toLowerCase()
-  
-  if (blockedExtensions.includes(fileExt)) {
-    alert('Tipo de arquivo não permitido por segurança')
-    event.target.value = ''
-    return
-  }
-
-  // Max 50MB
-  const maxSize = 50 * 1024 * 1024
-  if (file.size > maxSize) {
-    alert('Arquivo muito grande. Máximo permitido: 50MB')
-    event.target.value = ''
-    return
-  }
-
   try {
-    console.log('📤 Uploading file:', file.name, file.type, file.size)
-    const uploadedFile = await chatStore.uploadFile(file)
-    console.log('✅ Upload success:', uploadedFile)
-    
-    // Send message with file URL
-    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType, {
-        replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
-        expiresIn: messageExpiresIn.value
+    const sent = await uploadAndSendFile(file, {
+      conversationId: chatStore.activeConversationId,
+      replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
+      expiresIn: messageExpiresIn.value,
     })
-    replyingToMessage.value = null
-    await nextTick()
-    scrollToBottom()
-  } catch (error) {
-    console.error('❌ Upload failed:', error)
-    alert('Erro ao enviar arquivo: ' + (error.response?.data?.message || error.message || 'Erro desconhecido'))
+    if (sent) {
+      replyingToMessage.value = null
+      await nextTick()
+      scrollToBottom()
+    }
   } finally {
     event.target.value = '' // Reset input
   }
@@ -2139,18 +1983,15 @@ async function handleSendWhiteboard(file) {
   showWhiteboardModal.value = false
   if (!file) return
 
-  try {
-    const uploadedFile = await chatStore.uploadFile(file)
-    await chatStore.sendMessage(chatStore.activeConversationId, uploadedFile.data.url, uploadedFile.data.contentType, {
-        replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
-        expiresIn: messageExpiresIn.value
-    })
+  const sent = await uploadAndSendWhiteboard(file, {
+    conversationId: chatStore.activeConversationId,
+    replyTo: replyingToMessage.value ? replyingToMessage.value.id : null,
+    expiresIn: messageExpiresIn.value,
+  })
+  if (sent) {
     replyingToMessage.value = null
     await nextTick()
     scrollToBottom()
-  } catch (error) {
-    console.error('❌ Upload whiteboard failed:', error)
-    alert('Erro ao enviar lousa: ' + (error.response?.data?.message || error.message || 'Erro desconhecido'))
   }
 }
 
@@ -2166,243 +2007,9 @@ function onEmojiClick(event) {
   newMessage.value += emoji
 }
 
-async function applyMagicText(action) {
-  if (!newMessage.value.trim()) return
-  
-  isProcessingMagic.value = true
+function handleApplyMagicText(action) {
   showMagicMenu.value = false
-  
-  try {
-    const response = await api.post('/ai/magic-text', {
-      text: newMessage.value,
-      action: action
-    })
-    
-    if (response.data.success) {
-      newMessage.value = response.data.data.result
-    } else {
-      alert(response.data.message || 'Erro ao processar texto com IA')
-    }
-  } catch (error) {
-    console.error('Magic AI error:', error)
-    alert('Ops! Houve um erro ao se comunicar com a IA. Tente novamente mais tarde.')
-  } finally {
-    isProcessingMagic.value = false
-    // Auto resize after applying new text
-    nextTick(() => {
-      const textarea = document.querySelector('textarea')
-      if (textarea) autoResize({ target: textarea })
-    })
-  }
-}
-
-async function fetchInsights(type) {
-  insightsType.value = type
-  showInsightsModal.value = true
-  isProcessingInsights.value = true
-  insightsResult.value = ''
-  
-  // Extrai as ultimas 60 mensagens
-  const msgs = chatStore.activeMessages.slice(-60).map(m => {
-     const senderName = m.senderId === authStore.user?.id ? 'Eu' : (m.sender?.fullName || m.sender?.username || 'Sistema')
-     return `[${formatTime(m.createdAt)}] ${senderName}: ${m.content || '[Mídia ' + m.contentType + ']'}`;
-  }).join('\n')
-  
-  try {
-     const response = await api.post('/ai/analyze-chat', { textLog: msgs, action: type })
-     if(response.data.success) {
-        insightsResult.value = response.data.result
-     } else {
-        insightsResult.value = '❌ Não foi possível gerar o resumo. Verifique a conexão com a API.'
-     }
-  } catch(e) {
-     insightsResult.value = 'Houve um erro de comunicação intermitente com a Inteligência Artificial.'
-  } finally {
-     isProcessingInsights.value = false
-  }
-}
-
-async function generateSmartReplies() {
-  const lastOtherMsg = [...chatStore.activeMessages].reverse().find(m => m.senderId !== authStore.user?.id && m.contentType === 'text')
-  if(!lastOtherMsg || !lastOtherMsg.content) {
-    alert("Você precisa receber uma mensagem de texto primeiro para sugerirmos respostas!")
-    return
-  }
-  
-  isGeneratingReplies.value = true
-  smartReplies.value = []
-  
-  try {
-     const res = await api.post('/ai/smart-replies', { contextText: lastOtherMsg.content })
-     if(res.data.success && res.data.replies && Array.isArray(res.data.replies)) {
-        smartReplies.value = res.data.replies
-     } else {
-        alert("A Inteligência Artificial não retornou opções no formato esperado.")
-     }
-  } catch(e) {
-     console.error(e)
-     alert("Erro ao pedir sugestão de respostas.")
-  } finally {
-     isGeneratingReplies.value = false
-  }
-}
-
-function useSmartReply(replyText) {
-  newMessage.value = replyText
-  smartReplies.value = []
-  nextTick(() => {
-    const textarea = document.querySelector('textarea')
-    if (textarea) autoResize({ target: textarea })
-  })
-}
-
-async function translateMessage(msg) {
-  msg.isTranslating = true
-  try {
-    const res = await api.post('/ai/translate-message', {
-      text: msg.content,
-      targetLanguage: navigator.language.startsWith('pt') ? 'pt-BR' : 'en' 
-    })
-    if(res.data.success) {
-      msg.aiTranslation = res.data.translation
-    }
-  } catch(e) {
-    alert("Erro ao tentar traduzir a mensagem. O servidor de IA pode estar fora.")
-  } finally {
-    msg.isTranslating = false
-  }
-}
-
-async function transcribeAudio(msg) {
-  msg.isTranscribing = true
-  // extract file id from url string
-  // Ex: "https://url.com/api/uploads/d822df-12d.../file"
-  let fileId = msg.content
-  if (msg.content && msg.content.includes('/api/uploads/')) {
-     const parts = msg.content.split('/api/uploads/')
-     if (parts.length > 1) {
-        fileId = parts[1].split('/')[0]
-     }
-  } else if (msg.content && msg.content.startsWith('/uploads/')) {
-     fileId = msg.content.replace('/uploads/', '').split('.')[0]
-  }
-
-  try {
-    const res = await api.post('/ai/transcribe-audio', { fileId: fileId })
-    if(res.data.success) {
-      msg.aiTranscription = res.data.summary || res.data.transcript
-    }
-  } catch(e) {
-    alert("Erro ao transcrever o áudio. (Verifique as API Keys no Servidor)")
-  } finally {
-    msg.isTranscribing = false
-  }
-}
-
-function parsePoll(content) {
-  try {
-    const parsed = JSON.parse(content || '{}')
-    return {
-      question: parsed.question || 'Enquete',
-      options: Array.isArray(parsed.options) ? parsed.options : [],
-      multiChoice: !!parsed.multiChoice,
-    }
-  } catch {
-    return { question: 'Enquete', options: [], multiChoice: false }
-  }
-}
-
-function getPollVotesCount(msg, optionIndex) {
-  const results = msg.pollResults || []
-  const found = results.find(r => Number(r.optionIndex) === Number(optionIndex))
-  return found?.userIds?.length || 0
-}
-
-function isOptionSelected(msg, optionIndex) {
-  const results = msg.pollResults || []
-  const found = results.find(r => Number(r.optionIndex) === Number(optionIndex))
-  return !!found?.userIds?.includes(authStore.user?.id)
-}
-
-async function voteInPoll(msg, optionIndex) {
-  try {
-    const pollResults = await chatStore.votePoll(msg.id, optionIndex)
-    chatStore.updatePollResults(msg.conversationId || chatStore.activeConversationId, msg.id, pollResults)
-  } catch (error) {
-    alert(error.response?.data?.message || 'Não foi possível registrar seu voto.')
-  }
-}
-
-async function createPollMessage() {
-  if (!chatStore.activeConversationId) return
-
-  const validOptions = pollForm.value.options.map(o => o.trim()).filter(Boolean)
-  if (!pollForm.value.question.trim() || validOptions.length < 2) {
-    alert('Informe uma pergunta e pelo menos 2 opções.')
-    return
-  }
-
-  try {
-    const created = await chatStore.createPoll(chatStore.activeConversationId, {
-      question: pollForm.value.question.trim(),
-      options: validOptions,
-      multiChoice: pollForm.value.multiChoice,
-    })
-    if (created) {
-      chatStore.addMessage(chatStore.activeConversationId, created)
-    }
-    showPollModal.value = false
-    pollForm.value = { question: '', options: ['', ''], multiChoice: false }
-    nextTick(scrollToBottom)
-  } catch (error) {
-    alert(error.response?.data?.message || 'Erro ao criar enquete.')
-  }
-}
-
-function parseMeeting(content) {
-  try {
-    const parsed = JSON.parse(content || '{}')
-    return {
-      meetingId: parsed.meetingId || null,
-      title: parsed.title || 'Reunião',
-      description: parsed.description || '',
-      startAt: parsed.startAt || null,
-      endAt: parsed.endAt || null,
-      meetingLink: parsed.meetingLink || '',
-    }
-  } catch {
-    return { meetingId: null, title: 'Reunião', description: '', startAt: null, endAt: null, meetingLink: '' }
-  }
-}
-
-function formatMeetingDate(dateStr) {
-  if (!dateStr) return 'Sem horário definido'
-  const dt = new Date(dateStr)
-  return dt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-async function createMeetingMessage() {
-  if (!chatStore.activeConversationId) return
-  if (!meetingForm.value.title.trim() || !meetingForm.value.startAt) {
-    alert('Título e início da reunião são obrigatórios.')
-    return
-  }
-
-  try {
-    await api.post('/meetings', {
-      conversationId: chatStore.activeConversationId,
-      title: meetingForm.value.title.trim(),
-      description: meetingForm.value.description?.trim() || '',
-      startAt: new Date(meetingForm.value.startAt).toISOString(),
-      endAt: meetingForm.value.endAt ? new Date(meetingForm.value.endAt).toISOString() : null,
-      meetingLink: meetingForm.value.meetingLink?.trim() || '',
-    })
-
-    showMeetingModal.value = false
-    meetingForm.value = { title: '', description: '', startAt: '', endAt: '', meetingLink: '' }
-  } catch (error) {
-    alert(error.response?.data?.message || 'Erro ao criar reunião.')
-  }
+  applyMagicText(action)
 }
 
 async function togglePin(messageId) {
@@ -2439,18 +2046,6 @@ function getFileName(path) {
 
 function openImageLightbox(url) {
   lightboxImageUrl.value = url
-}
-
-function scrollToBottom(force) {
-  if (messagesContainer.value) {
-    // If user is scrolled up, don't auto-scroll — show floating button instead
-    if (!force && !isNearBottom.value) {
-      newMessagesCount.value++
-      return
-    }
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    newMessagesCount.value = 0
-  }
 }
 
 function getMessageSnippet(id) {
@@ -2503,10 +2098,6 @@ function formatTime(dateStr) {
   return date.toLocaleDateString()
 }
 
-watch(() => chatStore.activeMessages.length, () => {
-  nextTick(scrollToBottom)
-})
-
 watch(() => chatStore.activeConversationId, async (conversationId) => {
   if (!conversationId) {
     chatStore.pinnedMessage = null
@@ -2516,40 +2107,8 @@ watch(() => chatStore.activeConversationId, async (conversationId) => {
   await chatStore.fetchConversationFiles(conversationId)
 })
 
-// Process read receipts when active conversation changes or new messages arrive
-watch(() => chatStore.activeMessages, (messages) => {
-  if (!messages || messages.length === 0) return;
-  
-  const unreadOwnMessages = messages.filter(m => !m.isRead && m.senderId !== authStore.user?.id)
-  if (unreadOwnMessages.length > 0) {
-    // Need to timeout to avoid hammering the API if multiple arrive at once
-    setTimeout(() => {
-      unreadOwnMessages.forEach(m => {
-        if (!m.isRead) {
-          chatStore.markAsRead(m.id)
-          m.isRead = true; // Optimistic UI local update
-        }
-      })
-    }, 500)
-    
-    // Clear unread badge in list immediately
-    const conv = chatStore.conversations.find(c => c.id === chatStore.activeConversationId)
-    if (conv) conv.unreadCount = 0
-  }
-}, { deep: true })
-
-watch(
-  () => [chatStore.activeConversationId, chatStore.activeMessages.length],
-  () => {
-    if (chatStore.activeConversationId) {
-      saveCachedMessages(chatStore.activeConversationId, chatStore.activeMessages)
-    }
-  },
-  { deep: false }
-)
-
 async function handleLogout() {
-  socketStore.disconnect()
+  disconnectSocket()
   webrtcStore.endCallLocally()
   await authStore.logout()
   router.push('/login')
@@ -2559,66 +2118,6 @@ async function handleQuickScan() {
   await networkStore.scanNetwork()
   await networkStore.fetchStats()
 }
-
-// ==== WEBRTC Logic ====
-function startP2PCall(type) {
-  const targetUser = chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)
-  if (!targetUser) return;
-  webrtcStore.startCall(
-    targetUser.id,
-    targetUser.full_name || targetUser.username,
-    targetUser.avatar_url,
-    type
-  )
-}
-
-function toggleMuteVideo() {
-  isMuted.value = webrtcStore.toggleMute()
-}
-
-function toggleCamera() {
-  isCamOff.value = webrtcStore.toggleVideo()
-}
-
-function toggleScreenShare() {
-  webrtcStore.toggleScreenShare()
-}
-
-// Call timer + auto-log when P2P call ends
-let _callType = 'audio'
-let _callWasConnected = false
-
-watch(() => webrtcStore.callState, (state, oldState) => {
-  if (state === 'connected') {
-    _callWasConnected = true
-    _callType = webrtcStore.isScreenSharing ? 'screen' : webrtcStore.isVideoCall ? 'video' : 'audio'
-    callSeconds.value = 0
-    callTimerInterval = setInterval(() => { callSeconds.value++ }, 1000)
-  } else if (state === 'idle' && oldState !== 'idle') {
-    const duration = callSeconds.value
-    const convId = chatStore.activeConversationId
-
-    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null }
-    callSeconds.value = 0
-    isMuted.value = false
-    isCamOff.value = false
-
-    // Save call log if there's an active conversation
-    if (convId) {
-      let status = 'missed'
-      if (_callWasConnected) status = 'completed'
-      else if (oldState === 'receiving') status = 'declined'
-
-      chatStore.saveCallLog(convId, _callType, duration, status)
-    }
-    _callWasConnected = false
-  } else {
-    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null }
-    callSeconds.value = 0
-    isMuted.value = false
-    isCamOff.value = false
-  }
-})
 
 // Group call auto-log when call ends
 let _groupCallWasConnected = false
@@ -2638,6 +2137,20 @@ watch(() => groupCallStore.callState, (state, oldState) => {
     _groupCallWasConnected = false
   }
 })
+
+const handleGroupCallIncoming = (e) => groupCallStore.handleIncomingGroupCall(e.detail)
+const handleGroupCallExistingParticipants = (e) => groupCallStore.handleExistingParticipants(e.detail)
+const handleGroupCallParticipantJoined = (e) => groupCallStore.handleParticipantJoined(e.detail)
+const handleGroupCallOffer = (e) => groupCallStore.handleGroupOffer(e.detail)
+const handleGroupCallAnswer = (e) => groupCallStore.handleGroupAnswer(e.detail)
+const handleGroupCallIceCandidate = (e) => groupCallStore.handleGroupIceCandidate(e.detail)
+const handleGroupCallParticipantLeft = (e) => groupCallStore.handleParticipantLeft(e.detail)
+const handleGroupCallFull = (e) => {
+  alert(`A chamada em grupo está lotada (máximo ${e.detail.max} participantes). Tente novamente mais tarde.`)
+  groupCallStore.endCall()
+}
+const handleGroupCallActive = (e) => groupCallStore.handleActiveCall(e.detail)
+const handleGroupCallHandRaise = (e) => groupCallStore.handleHandRaise(e.detail)
 
 // PiP dragging (mouse)
 function startPipDrag(e) {
@@ -2692,181 +2205,6 @@ async function toggleReaction(messageId, emoji) {
 
 
 
-// Handle new message from socket
-let notifAudioCtx = null
-function playNotificationSound() {
-  if (isDeepWorkMode.value) return; // Mute se Foco Total estiver ativo
-  try {
-    if (!notifAudioCtx) notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)()
-    const ctx = notifAudioCtx
-    if (ctx.state === 'suspended') ctx.resume()
-
-    // Pleasant double-beep notification
-    const now = ctx.currentTime
-    for (let i = 0; i < 2; i++) {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.setValueAtTime(880, now + i * 0.18)
-      gain.gain.setValueAtTime(0, now + i * 0.18)
-      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.18 + 0.04)
-      gain.gain.linearRampToValueAtTime(0, now + i * 0.18 + 0.14)
-      osc.start(now + i * 0.18)
-      osc.stop(now + i * 0.18 + 0.15)
-    }
-  } catch (e) { /* ignore audio errors */ }
-}
-
-// Handle presence change from socket
-function handlePresenceChange(event) {
-  const { userId, status } = event.detail || {}
-  if (userId && status) {
-    chatStore.updatePresence(userId, status)
-  }
-}
-
-function handleNewMessage(event) {
-  const message = event.detail
-  if (message && message.conversationId) {
-    chatStore.addMessage(message.conversationId, message)
-    
-    if (chatStore.activeConversationId === message.conversationId) {
-      nextTick(scrollToBottom)
-      // Send read receipt if we are looking at this chat
-      if (message.senderId !== authStore.user?.id) {
-        chatStore.markAsRead(message.id)
-      }
-    }
-    
-    // Notification for messages in other conversations
-    if (chatStore.activeConversationId !== message.conversationId && message.senderId !== authStore.user?.id) {
-      // 🔊 Play notification sound (always)
-      playNotificationSound()
-
-      // Desktop notification (if permission granted)
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Nova mensagem', {
-          body: `${message.senderName || message.senderUsername}: ${message.content}`,
-          icon: '/vite.svg'
-        })
-      }
-    }
-  }
-}
-
-function handleMessageEdited(event) {
-  const data = event.detail;
-  if (data?.conversationId && data?.messageId) {
-    chatStore.updateMessageEdited(data.conversationId, data.messageId, data.content, data.editedAt)
-  }
-}
-
-function handleMessageReaction(event) {
-  const data = event.detail;
-  if (data?.conversationId && data?.messageId) {
-    chatStore.updateMessageReaction(data.conversationId, data.messageId, data.reactions)
-  }
-}
-
-function handleMessageDeleted(event) {
-  const data = event.detail;
-  if (data?.conversationId && data?.messageId) {
-    chatStore.updateMessageDeleted(data.conversationId, data.messageId)
-  }
-}
-
-function handleMessageRead(event) {
-  const data = event.detail;
-  if (data?.conversationId && data?.messageId) {
-    chatStore.updateMessageRead(data.conversationId, data.messageId, data.readBy)
-  }
-}
-
-function handleMessagePinned(event) {
-  const data = event.detail
-  if (!data?.conversationId) return
-
-  if (data.conversationId === chatStore.activeConversationId) {
-    chatStore.fetchPinnedMessage(data.conversationId)
-  }
-  chatStore.setPinnedMessage(data)
-}
-
-function handlePollUpdated(event) {
-  const data = event.detail
-  if (data?.conversationId && data?.messageId) {
-    chatStore.updatePollResults(data.conversationId, data.messageId, data.pollResults || [])
-  }
-}
-
-function handleMentionNew(event) {
-  const data = event.detail || {}
-  chatStore.unreadMentions += 1
-
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('Você foi mencionado', {
-      body: `${data.mentionerName || data.mentionerUsername || 'Alguém'}: ${data.content || ''}`,
-      icon: '/lanly-logo.png'
-    })
-  }
-}
-
-function handleBotReply(event) {
-  const message = event.detail
-  if (!message?.conversationId) return
-  chatStore.addMessage(message.conversationId, message)
-  if (message.conversationId === chatStore.activeConversationId) {
-    nextTick(scrollToBottom)
-  }
-}
-
-function handleUserStatusChanged(event) {
-  const data = event.detail || {}
-  const { userId } = data
-  if (!userId) return
-
-  chatStore.conversations.forEach((conv) => {
-    conv.participants?.forEach((p) => {
-      if (p.id === userId) {
-        p.custom_status_text = data.customStatusText || null
-        p.custom_status_emoji = data.customStatusEmoji || null
-        p.custom_status_expires_at = data.customStatusExpiresAt || null
-        p.ooo_until = data.oooUntil || null
-        p.ooo_message = data.oooMessage || null
-      }
-    })
-  })
-}
-
-// Handle WebRTC Call Signaling
-function handleCallOffer(event) {
-  const data = event.detail
-  if (data && data.offer) {
-    incomingOffer.value = data.offer
-    webrtcStore.handleIncomingCall(data.callerId, data.callerName, data.callerAvatar, data.isVideo)
-  }
-}
-
-function handleCallAnswer(event) {
-  const data = event.detail
-  if (data && data.answer) {
-    webrtcStore.handleAnswer(data.answer)
-  }
-}
-
-function handleIceCandidateEvent(event) {
-  const data = event.detail
-  if (data && data.candidate) {
-    webrtcStore.handleIceCandidate(data.candidate)
-  }
-}
-
-function handleCallEnd(event) {
-  webrtcStore.endCallLocally()
-}
-
 onMounted(async () => {
   await chatStore.fetchConversations()
   await networkStore.fetchDevices()
@@ -2874,50 +2212,19 @@ onMounted(async () => {
   await chatStore.fetchOnlineUsers()
   await chatStore.fetchMentions()
   
-  // Refresh online status periodically (every 30s)
-  const presenceInterval = setInterval(() => chatStore.fetchOnlineUsers(), 30000)
-  window._presenceInterval = presenceInterval
-  
   document.addEventListener('emoji-click', onEmojiClick)
-  
-  window.addEventListener('socket:message', handleNewMessage)
-  window.addEventListener('socket:message:edited', handleMessageEdited)
-  window.addEventListener('socket:message:deleted', handleMessageDeleted)
-  window.addEventListener('socket:message:reaction', handleMessageReaction)
-  window.addEventListener('socket:message:read', handleMessageRead)
-  window.addEventListener('socket:message:pinned', handleMessagePinned)
-  window.addEventListener('socket:poll:updated', handlePollUpdated)
-  window.addEventListener('socket:mention:new', handleMentionNew)
-  window.addEventListener('socket:bot:reply', handleBotReply)
-  window.addEventListener('socket:user:status-changed', handleUserStatusChanged)
-  
-  window.addEventListener('socket:call:offer', handleCallOffer)
-  window.addEventListener('socket:call:answer', handleCallAnswer)
-  window.addEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
-  window.addEventListener('socket:call:end', handleCallEnd)
 
   // Group call events
-  window.addEventListener('socket:group-call:incoming', (e) => groupCallStore.handleIncomingGroupCall(e.detail))
-  window.addEventListener('socket:group-call:existing-participants', (e) => groupCallStore.handleExistingParticipants(e.detail))
-  window.addEventListener('socket:group-call:participant-joined', (e) => groupCallStore.handleParticipantJoined(e.detail))
-  window.addEventListener('socket:group-call:offer', (e) => groupCallStore.handleGroupOffer(e.detail))
-  window.addEventListener('socket:group-call:answer', (e) => groupCallStore.handleGroupAnswer(e.detail))
-  window.addEventListener('socket:group-call:ice-candidate', (e) => groupCallStore.handleGroupIceCandidate(e.detail))
-  window.addEventListener('socket:group-call:participant-left', (e) => groupCallStore.handleParticipantLeft(e.detail))
-  window.addEventListener('socket:group-call:full', (e) => {
-    alert(`A chamada em grupo está lotada (máximo ${e.detail.max} participantes). Tente novamente mais tarde.`)
-    groupCallStore.endCall()
-  })
-  window.addEventListener('socket:group-call:active', (e) => groupCallStore.handleActiveCall(e.detail))
-  window.addEventListener('socket:group-call:hand-raise', (e) => groupCallStore.handleHandRaise(e.detail))
-
-  // Presence events (online/offline in real-time)
-  window.addEventListener('socket:presence', handlePresenceChange)
-
-  // Request notification permission early
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission()
-  }
+  window.addEventListener('socket:group-call:incoming', handleGroupCallIncoming)
+  window.addEventListener('socket:group-call:existing-participants', handleGroupCallExistingParticipants)
+  window.addEventListener('socket:group-call:participant-joined', handleGroupCallParticipantJoined)
+  window.addEventListener('socket:group-call:offer', handleGroupCallOffer)
+  window.addEventListener('socket:group-call:answer', handleGroupCallAnswer)
+  window.addEventListener('socket:group-call:ice-candidate', handleGroupCallIceCandidate)
+  window.addEventListener('socket:group-call:participant-left', handleGroupCallParticipantLeft)
+  window.addEventListener('socket:group-call:full', handleGroupCallFull)
+  window.addEventListener('socket:group-call:active', handleGroupCallActive)
+  window.addEventListener('socket:group-call:hand-raise', handleGroupCallHandRaise)
 
   // Run Onboarding Tour
   if (localStorage.getItem('lan_tour_completed') !== 'true') {
@@ -2947,24 +2254,22 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('emoji-click', onEmojiClick)
-  window.removeEventListener('socket:message', handleNewMessage)
-  window.removeEventListener('socket:message:edited', handleMessageEdited)
-  window.removeEventListener('socket:message:deleted', handleMessageDeleted)
-  window.removeEventListener('socket:message:reaction', handleMessageReaction)
-  window.removeEventListener('socket:message:read', handleMessageRead)
-  window.removeEventListener('socket:message:pinned', handleMessagePinned)
-  window.removeEventListener('socket:poll:updated', handlePollUpdated)
-  window.removeEventListener('socket:mention:new', handleMentionNew)
-  window.removeEventListener('socket:bot:reply', handleBotReply)
-  window.removeEventListener('socket:user:status-changed', handleUserStatusChanged)
-  
-  window.removeEventListener('socket:call:offer', handleCallOffer)
-  window.removeEventListener('socket:call:answer', handleCallAnswer)
-  window.removeEventListener('socket:call:ice-candidate', handleIceCandidateEvent)
-  window.removeEventListener('socket:call:end', handleCallEnd)
-  window.removeEventListener('socket:presence', handlePresenceChange)
 
-  if (window._presenceInterval) clearInterval(window._presenceInterval)
+  window.removeEventListener('socket:group-call:incoming', handleGroupCallIncoming)
+  window.removeEventListener('socket:group-call:existing-participants', handleGroupCallExistingParticipants)
+  window.removeEventListener('socket:group-call:participant-joined', handleGroupCallParticipantJoined)
+  window.removeEventListener('socket:group-call:offer', handleGroupCallOffer)
+  window.removeEventListener('socket:group-call:answer', handleGroupCallAnswer)
+  window.removeEventListener('socket:group-call:ice-candidate', handleGroupCallIceCandidate)
+  window.removeEventListener('socket:group-call:participant-left', handleGroupCallParticipantLeft)
+  window.removeEventListener('socket:group-call:full', handleGroupCallFull)
+  window.removeEventListener('socket:group-call:active', handleGroupCallActive)
+  window.removeEventListener('socket:group-call:hand-raise', handleGroupCallHandRaise)
+
+  if (typingTimeout) {
+    clearTimeout(typingTimeout)
+    typingTimeout = null
+  }
 
   // Cleanup group call
   if (groupCallStore.callState !== 'idle') groupCallStore.endCall()

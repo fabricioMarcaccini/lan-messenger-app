@@ -379,7 +379,7 @@ router.get('/me', async (ctx) => {
 });
 
 // GET /api/auth/password-reset-requests - Get pending password reset requests (Admin only)
-router.get('/password-reset-requests', async (ctx) => {
+router.get('/password-reset-requests', authMiddleware, async (ctx) => {
     const authHeader = ctx.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -421,7 +421,7 @@ router.post('/forgot-password', strictRateLimit, async (ctx) => {
 });
 
 // PUT /api/auth/admin-reset-password - Admin resets user password
-router.put('/admin-reset-password', async (ctx) => {
+router.put('/admin-reset-password', authMiddleware, async (ctx) => {
     const authHeader = ctx.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

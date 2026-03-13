@@ -24,7 +24,12 @@ import {
 import { createTrialCompany, getPlanInfo } from '../repositories/company.repository.js';
 import { getInviteForJoin, getInviteWithCompanyByCode, incrementInviteUses } from '../repositories/invite.repository.js';
 
-const TWO_FACTOR_TEMP_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET não definido. Configure a variável de ambiente antes de iniciar o serviço.');
+}
+
+const TWO_FACTOR_TEMP_SECRET = JWT_SECRET;
 
 export class AuthError extends Error {
     constructor(message, status = 500, code = null) {
@@ -177,17 +182,12 @@ export async function joinInvite(code, payload, { io } = {}) {
 export async function login(payload, { ipAddress = null, userAgent = null } = {}) {
     const { username, password } = payload;
 
-    console.log('Login attempt:', { username, passwordLength: password?.length });
-
     const user = await findActiveByUsernameOrEmail(username);
     if (!user) {
         throw new AuthError('Credenciais inválidas', 401);
     }
 
-    console.log('User found:', user.username, 'Role:', user.role);
-
     const validPassword = await bcrypt.compare(password, user.password_hash);
-    console.log('Password valid:', validPassword);
 
     if (!validPassword) {
         throw new AuthError('Credenciais inválidas', 401);
@@ -260,9 +260,6 @@ export async function loginWithGoogle(payload) {
             fullName: googleName,
             avatarUrl: googleAvatar,
         });
-        console.log('Criado usuario e empresa via Google Auth para', googleEmail);
-    } else {
-        console.log('Usuario existente logado via Google Auth', googleEmail);
     }
 
     if (user.is_two_factor_enabled) {
@@ -358,7 +355,12 @@ export async function getMe(token) {
 }
 
 export async function listPasswordResetRequests(token) {
-    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    let decoded;
+    try {
+        decoded = jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        throw new AuthError('Token inválido ou expirado', 401);
+    }
     if (decoded.role !== 'admin') {
         throw new AuthError('Apenas administradores podem ver solicitações', 403);
     }
@@ -406,7 +408,12 @@ export async function requestPasswordReset(payload, { io } = {}) {
 }
 
 export async function adminResetPassword(token, payload) {
-    const decoded = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+    let decoded;
+    try {
+        decoded = jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        throw new AuthError('Token inválido ou expirado', 401);
+    }
     if (decoded.role !== 'admin') {
         throw new AuthError('Apenas administradores podem resetar senhas', 403);
     }
