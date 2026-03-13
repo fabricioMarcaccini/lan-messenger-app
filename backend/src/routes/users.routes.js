@@ -73,6 +73,25 @@ router.get('/me/mentions', async (ctx) => {
     };
 });
 
+// POST /api/users/me/fcm-token - Save FCM device token
+router.post('/me/fcm-token', async (ctx) => {
+    const userId = ctx.state.user.id;
+    const { token } = ctx.request.body || {};
+
+    if (!token || typeof token !== 'string' || token.length < 20 || token.length > 4096) {
+        ctx.status = 400;
+        ctx.body = { success: false, message: 'Token FCM inválido' };
+        return;
+    }
+
+    await db.write(
+        'UPDATE users SET fcm_token = $2, updated_at = NOW() WHERE id = $1',
+        [userId, token]
+    );
+
+    ctx.body = { success: true };
+});
+
 // PUT /api/users/me/custom-status - Custom status + OOO
 router.put('/me/custom-status', async (ctx) => {
     const userId = ctx.state.user.id;

@@ -101,15 +101,6 @@ onMounted(async () => {
   // Connect socket if authenticated
   if (authStore.isAuthenticated) {
     socketStore.connect()
-    
-    // Request notification permission early
-    if ('Notification' in window && Notification.permission === 'default') {
-      try {
-        await Notification.requestPermission()
-      } catch (e) {
-        console.warn('Notification permission request failed', e)
-      }
-    }
   }
 
   window.addEventListener('beforeinstallprompt', handleInstallPrompt)

@@ -147,6 +147,10 @@ const steps = [
         run: () => db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS ooo_message VARCHAR(255)'),
     },
     {
+        name: 'users-add-fcm-token',
+        run: () => db.write('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT'),
+    },
+    {
         name: 'poll-votes-create-table',
         run: () => db.write(`
             CREATE TABLE IF NOT EXISTS poll_votes (

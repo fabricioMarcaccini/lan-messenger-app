@@ -11,17 +11,33 @@ export default defineConfig({
             srcDir: 'src',
             filename: 'sw.js',
             registerType: 'autoUpdate',
+            manifestFilename: 'manifest.json',
+            includeAssets: ['lanly-logo.png', 'icon.svg'],
             manifest: {
-                name: 'Lanly',
+                name: 'Lanly Messenger',
                 short_name: 'Lanly',
-                description: 'Enterprise Lanly Web App',
+                description: 'Comunicação corporativa em tempo real',
                 theme_color: '#0f2023',
                 background_color: '#ffffff',
+                display: 'standalone',
+                start_url: '/',
+                scope: '/',
                 icons: [
                     {
                         src: '/lanly-logo.png',
                         sizes: '192x192',
-                        type: 'image/png'
+                        type: 'image/png',
+                    },
+                    {
+                        src: '/lanly-logo.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                    },
+                    {
+                        src: '/lanly-logo.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'maskable',
                     }
                 ]
             }

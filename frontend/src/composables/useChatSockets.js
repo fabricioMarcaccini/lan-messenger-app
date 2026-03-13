@@ -1,9 +1,11 @@
 import { computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useSocketStore } from '@/stores/socket'
+import { useChatNotifications } from '@/composables/useChatNotifications'
 
 export function useChatSockets({ chatStore, authStore, isDeepWorkMode, onScrollToBottom }) {
   const socketStore = useSocketStore()
   const isConnected = computed(() => socketStore.connected)
+  const { notifyNewMessage } = useChatNotifications()
 
   function joinConversation(conversationId) {
     if (!conversationId) return
@@ -73,14 +75,13 @@ export function useChatSockets({ chatStore, authStore, isDeepWorkMode, onScrollT
         }
       }
 
-      if (chatStore.activeConversationId !== message.conversationId && message.senderId !== authStore.user?.id) {
+      const isFromSelf = message.senderId === authStore.user?.id
+      const isBackground = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+      const isDifferentConversation = chatStore.activeConversationId !== message.conversationId
+
+      if (!isFromSelf && (isBackground || isDifferentConversation)) {
         playNotificationSound()
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Nova mensagem', {
-            body: `${message.senderName || message.senderUsername}: ${message.content}`,
-            icon: '/vite.svg',
-          })
-        }
+        notifyNewMessage(message, message.senderName || message.senderUsername)
       }
     }
   }
@@ -133,12 +134,39 @@ export function useChatSockets({ chatStore, authStore, isDeepWorkMode, onScrollT
   function handleMentionNew(event) {
     const data = event.detail || {}
     chatStore.unreadMentions += 1
+    if (Array.isArray(chatStore.mentions)) {
+      const exists = chatStore.mentions.some(m => m.messageId === data.messageId)
+      if (!exists) {
+        chatStore.mentions.unshift({
+          id: `mention-${data.messageId}`,
+          messageId: data.messageId,
+          conversationId: data.conversationId,
+          isRead: false,
+          mentionedAt: data.createdAt || new Date().toISOString(),
+          content: data.content || '',
+          mentioner: {
+            username: data.mentionerUsername,
+            fullName: data.mentionerName,
+          },
+        })
+      }
+    }
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Você foi mencionado', {
-        body: `${data.mentionerName || data.mentionerUsername || 'Alguém'}: ${data.content || ''}`,
-        icon: '/lanly-logo.png',
-      })
+    const mentionConversationId = data.conversationId
+    const isBackground = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+    const isDifferentConversation =
+      mentionConversationId && chatStore.activeConversationId !== mentionConversationId
+
+    if (isBackground || isDifferentConversation) {
+      playNotificationSound()
+      notifyNewMessage(
+        { content: data.content || '' },
+        data.mentionerName || data.mentionerUsername || 'Alguém',
+        {
+          title: 'Você foi mencionado',
+          body: `${data.mentionerName || data.mentionerUsername || 'Alguém'}: ${data.content || ''}`,
+        }
+      )
     }
   }
 
@@ -184,9 +212,6 @@ export function useChatSockets({ chatStore, authStore, isDeepWorkMode, onScrollT
     window.addEventListener('socket:user:status-changed', handleUserStatusChanged)
     window.addEventListener('socket:presence', handlePresenceChange)
 
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
   })
 
   onUnmounted(() => {

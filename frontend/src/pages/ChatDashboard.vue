@@ -222,6 +222,25 @@
         <button @click="toggleDeepWork" class="underline hover:text-amber-100 ml-2">Desativar</button>
       </div>
 
+      <!-- Desktop Notifications Banner -->
+      <div
+        v-if="showNotificationPermissionBanner"
+        class="mx-4 mt-3 mb-2 px-4 py-3 rounded-xl bg-blue-50 dark:bg-white/5 border border-blue-200 dark:border-white/10 flex items-center justify-between gap-4 shadow-sm"
+      >
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="material-symbols-outlined text-blue-500 text-[20px]">notifications_active</span>
+          <p class="text-xs text-blue-700 dark:text-slate-200 font-medium truncate">
+            Ative as notificações de área de trabalho para não perder mensagens.
+          </p>
+        </div>
+        <button
+          @click="handleRequestNotifications"
+          class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors shrink-0"
+        >
+          Ativar
+        </button>
+      </div>
+
       <template v-if="chatStore.activeConversation">
         <!-- Chat Header -->
         <ChatHeader
@@ -1209,6 +1228,7 @@ import { useChatMessages } from '@/composables/useChatMessages'
 import { useChatUploads } from '@/composables/useChatUploads'
 import { useChatPresence } from '@/composables/useChatPresence'
 import { useChatSearch } from '@/composables/useChatSearch'
+import { useChatNotifications } from '@/composables/useChatNotifications'
 import { useChatAI } from '@/composables/useChatAI'
 import { useChatPolls } from '@/composables/useChatPolls'
 import { useChatMeetings } from '@/composables/useChatMeetings'
@@ -1299,6 +1319,20 @@ const {
   searchResults,
   isSearching,
 } = useChatSearch({ chatStore })
+
+const {
+  isNotificationSupported,
+  notificationPermission,
+  requestPermission: requestNotificationPermission,
+} = useChatNotifications()
+
+const showNotificationPermissionBanner = computed(
+  () => isNotificationSupported.value && notificationPermission.value === 'default'
+)
+
+async function handleRequestNotifications() {
+  await requestNotificationPermission()
+}
 
 const showCopilotPanel = ref(false)
 

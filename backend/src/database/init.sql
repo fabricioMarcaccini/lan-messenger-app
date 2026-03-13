@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
     status_message VARCHAR(255),
     is_active BOOLEAN DEFAULT true,
     last_seen_at TIMESTAMP,
+    fcm_token TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

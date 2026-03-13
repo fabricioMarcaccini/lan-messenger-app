@@ -1,8 +1,13 @@
 import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { useChatNotifications } from '@/composables/useChatNotifications'
 
 export function useChatPresence({ chatStore, authStore }) {
+  const { updateBadge } = useChatNotifications()
   const unreadCount = computed(() =>
     chatStore.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+  )
+  const totalUnreadCount = computed(
+    () => unreadCount.value + (chatStore.unreadMentions || 0)
   )
 
   function getOtherUserOnline(conv) {
@@ -42,6 +47,37 @@ export function useChatPresence({ chatStore, authStore }) {
       }
     },
     { deep: false }
+  )
+
+  watch(
+    totalUnreadCount,
+    (count) => {
+      updateBadge(count)
+    },
+    { immediate: true }
+  )
+
+  function clearMentionsForConversation(conversationId) {
+    if (!conversationId || !Array.isArray(chatStore.mentions)) return
+    const unreadMentions = chatStore.mentions.filter(
+      m => m.conversationId === conversationId && !m.isRead
+    )
+    if (unreadMentions.length === 0) return
+
+    unreadMentions.forEach(m => {
+      m.isRead = true
+    })
+
+    if (typeof chatStore.unreadMentions === 'number') {
+      chatStore.unreadMentions = Math.max(0, chatStore.unreadMentions - unreadMentions.length)
+    }
+  }
+
+  watch(
+    () => chatStore.activeConversationId,
+    (conversationId) => {
+      clearMentionsForConversation(conversationId)
+    }
   )
 
   let presenceInterval = null

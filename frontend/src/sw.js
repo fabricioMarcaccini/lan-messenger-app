@@ -1,6 +1,7 @@
 // pwabuilder-sw.js
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.3/workbox-sw.js');
+importScripts('/firebase-messaging-sw.js');
 
 if (workbox) {
     workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
