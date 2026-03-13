@@ -1,155 +1,22 @@
 <template>
   <div class="flex h-screen w-screen overflow-hidden bg-gray-50 dark:bg-background-dark transition-colors duration-300 relative">
-    <!-- Mobile Sidebar Overlay -->
-    <div v-if="showMobileSidebar" class="fixed inset-0 bg-black/50 z-30 md:hidden" @click="showMobileSidebar = false"></div>
-    
-    <!-- Left Sidebar -->
-    <aside :class="['flex-shrink-0 flex flex-col glass-panel border-r border-gray-200 dark:border-glass-border h-full bg-white dark:bg-[#131c1e] md:dark:bg-transparent w-[280px] absolute md:relative z-40 transition-transform duration-300', showMobileSidebar ? 'translate-x-0' : '-translate-x-full md:translate-x-0']">
-      <!-- User Profile -->
-      <div class="p-6 border-b border-gray-100 dark:border-glass-border">
-        <div class="flex items-center gap-4">
-          <div class="relative">
-            <div 
-              class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 ring-2 ring-primary/20"
-              :style="{ backgroundImage: `url(${authStore.user?.avatarUrl || defaultAvatar})` }"
-            ></div>
-            <div class="absolute bottom-0 right-0 size-3 bg-green-500 rounded-full border-2 border-white dark:border-background-dark"></div>
-            <div v-if="authStore.user?.customStatusEmoji" class="absolute -top-1 -right-1 size-5 rounded-full bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 flex items-center justify-center text-[11px]">
-              {{ authStore.user.customStatusEmoji }}
-            </div>
-          </div>
-          <div class="flex flex-col">
-            <h1 class="text-gray-900 dark:text-white text-base font-bold leading-tight tracking-tight">{{ authStore.user?.fullName || authStore.user?.username }}</h1>
-            <span class="text-primary text-xs font-medium tracking-wide">{{ locale.t.profile.connected }}</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Navigation -->
-      <nav class="flex-1 flex flex-col gap-2 p-4 overflow-y-auto">
-        <div class="flex flex-col gap-1">
-          <router-link to="/network" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <img src="/lanly-logo.png" alt="Lanly Logo" class="h-6 w-6 object-contain filter grayscale group-hover:grayscale-0 transition-all" />
-            <span class="text-sm font-medium">{{ locale.t.nav.network }}</span>
-          </router-link>
-          
-          <a class="flex items-center gap-3 px-3 py-3 rounded-xl bg-primary/10 text-gray-900 dark:text-white border border-primary/20 shadow-sm dark:shadow-neon" href="#">
-            <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">chat</span>
-            <span class="text-sm font-medium">{{ locale.t.nav.chat }}</span>
-            <div class="ml-auto flex items-center gap-1">
-              <span v-if="chatStore.unreadMentions > 0" class="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full" :title="`${chatStore.unreadMentions} menções não lidas`">
-                @{{ chatStore.unreadMentions }}
-              </span>
-              <span v-if="unreadCount > 0" class="bg-primary text-white dark:text-background-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full">{{ unreadCount }}</span>
-            </div>
-          </a>
-          
-          <router-link to="/settings" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-accent transition-colors">settings</span>
-            <span class="text-sm font-medium">{{ locale.t.nav.settings }}</span>
-          </router-link>
-
-          <button @click="toggleDeepWork" :class="['flex items-center gap-3 px-3 py-3 rounded-xl transition-colors group text-left', isDeepWorkMode ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5']">
-            <span class="material-symbols-outlined transition-colors" :class="isDeepWorkMode ? 'text-amber-500' : 'group-hover:text-amber-400'">notifications_paused</span>
-            <span class="text-sm font-medium flex-1">Foco Total</span>
-            <div class="w-8 h-4 rounded-full relative transition-colors" :class="isDeepWorkMode ? 'bg-amber-500' : 'bg-gray-200 dark:bg-white/10'">
-              <div class="absolute w-3 h-3 rounded-full bg-white top-0.5 transition-transform" :class="isDeepWorkMode ? 'left-4.5 translate-x-3.5' : 'left-0.5'"></div>
-            </div>
-          </button>
-          
-          <router-link v-if="authStore.isAdmin" to="/admin/users" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-purple-400 transition-colors">admin_panel_settings</span>
-            <span class="text-sm font-medium">{{ locale.t.nav.admin }}</span>
-          </router-link>
-          
-          <router-link v-if="authStore.isAdmin" to="/admin/analytics" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-blue-400 transition-colors">insights</span>
-            <span class="text-sm font-medium">Analytics</span>
-          </router-link>
-
-          <router-link v-if="authStore.isAdmin" to="/admin/audit" class="flex items-center gap-3 px-3 py-3 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-            <span class="material-symbols-outlined group-hover:text-rose-400 transition-colors">local_police</span>
-            <span class="text-sm font-medium">Auditoria</span>
-          </router-link>
-        </div>
-        
-        <!-- Network Scanner Section -->
-        <div class="h-6"></div>
-        <div class="flex flex-col gap-2">
-          <p class="px-3 text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">{{ locale.t.nav.scannerTools }}</p>
-          <details class="group bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5" open>
-            <summary class="flex cursor-pointer items-center justify-between gap-2 px-3 py-2.5 select-none hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary text-lg">radar</span>
-                <span class="text-gray-700 dark:text-slate-200 text-sm font-medium">{{ locale.t.nav.scanner }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <!-- Mini counter -->
-                <span v-if="networkStore.devices.length > 0" class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                  {{ networkStore.stats.onlineDevices }}/{{ networkStore.stats.totalDevices }}
-                </span>
-                <span class="material-symbols-outlined text-gray-400 dark:text-slate-500 group-open:rotate-180 transition-transform text-lg">expand_more</span>
-              </div>
-            </summary>
-            <div class="px-3 pb-3 pt-1 flex flex-col gap-1.5">
-              <!-- Quick scan button -->
-              <button 
-                @click="handleQuickScan"
-                :disabled="networkStore.scanning"
-                class="flex items-center justify-center gap-1.5 w-full py-1.5 text-[11px] font-semibold bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors disabled:opacity-50 mb-1"
-              >
-                <span :class="['material-symbols-outlined text-sm', networkStore.scanning ? 'animate-spin' : '']">{{ networkStore.scanning ? 'progress_activity' : 'sync' }}</span>
-                {{ networkStore.scanning ? 'Escaneando...' : 'Escanear Rede' }}
-              </button>
-
-              <!-- Device list -->
-              <template v-if="recentDevices.length > 0">
-                <div 
-                  v-for="device in recentDevices" 
-                  :key="device.ipAddress"
-                  class="flex items-center gap-2 text-xs p-2 rounded-lg bg-gray-100 dark:bg-black/20 hover:bg-gray-200 dark:hover:bg-black/40 border border-transparent hover:border-primary/20 transition-colors"
-                >
-                  <span :class="['size-1.5 rounded-full shrink-0', device.isOnline ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]' : 'bg-gray-400 dark:bg-slate-600']"></span>
-                  <div class="flex-1 min-w-0">
-                    <p class="font-medium text-gray-700 dark:text-slate-200 truncate text-[11px]">{{ device.hostname || device.ipAddress }}</p>
-                    <p v-if="device.hostname" class="font-mono text-[10px] text-gray-400 dark:text-slate-500">{{ device.ipAddress }}</p>
-                  </div>
-                  <span class="font-mono text-[10px] text-gray-400 dark:text-slate-500 shrink-0">
-                    {{ device.isOnline && device.latencyMs ? `${device.latencyMs}ms` : '' }}
-                  </span>
-                </div>
-              </template>
-
-              <!-- Empty state -->
-              <div v-else-if="!networkStore.scanning" class="text-center py-3">
-                <span class="material-symbols-outlined text-gray-300 dark:text-slate-600 text-2xl mb-1">wifi_tethering_off</span>
-                <p class="text-[10px] text-gray-400 dark:text-slate-500">Nenhum dispositivo encontrado</p>
-              </div>
-
-              <router-link to="/network" class="text-[11px] text-primary hover:underline text-center mt-1 font-medium">{{ locale.t.nav.viewAll }} →</router-link>
-            </div>
-          </details>
-        </div>
-      </nav>
-      
-      <!-- Bottom Info -->
-      <div class="p-4 border-t border-gray-100 dark:border-glass-border flex flex-col gap-3">
-        <button 
-          @click="handleLogout"
-          class="flex items-center justify-center gap-2 w-full px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors text-sm font-medium"
-        >
-          <span class="material-symbols-outlined text-[18px]">logout</span>
-          <span>{{ locale.t.auth?.logout || 'Sign Out' }}</span>
-        </button>
-        <div class="flex items-center justify-between text-xs text-gray-400 dark:text-slate-500">
-          <span>v3.0.0 (Stable)</span>
-          <div class="flex items-center gap-1">
-            <div class="size-2 rounded-full bg-primary/50"></div>
-            <span>LAN Secure</span>
-          </div>
-        </div>
-      </div>
-    </aside>
+    <ChatSidebar
+      v-model:showMobileSidebar="showMobileSidebar"
+      :auth-user="authStore.user"
+      :is-admin="authStore.isAdmin"
+      :default-avatar="defaultAvatar"
+      :locale="locale"
+      :unread-count="unreadCount"
+      :unread-mentions="chatStore.unreadMentions"
+      :is-deep-work-mode="isDeepWorkMode"
+      :recent-devices="recentDevices"
+      :network-stats="networkStore.stats"
+      :network-device-count="networkStore.devices.length"
+      :network-scanning="networkStore.scanning"
+      @toggle-deep-work="toggleDeepWork"
+      @quick-scan="handleQuickScan"
+      @logout="handleLogout"
+    />
     
     <!-- Center Panel: Chat List -->
     <section :class="['flex-shrink-0 flex-col bg-gray-50 dark:bg-glass-surface-lighter backdrop-blur-md border-r border-gray-200 dark:border-glass-border z-10 transition-all duration-300 ease-in-out w-full max-w-full md:w-[360px] md:max-w-[360px] absolute md:relative h-full left-0', chatStore.activeConversation ? '-translate-x-[20%] opacity-0 pointer-events-none md:translate-x-0 md:opacity-100 md:pointer-events-auto flex' : 'translate-x-0 opacity-100 flex']">
@@ -357,140 +224,22 @@
 
       <template v-if="chatStore.activeConversation">
         <!-- Chat Header -->
-        <header class="h-20 border-b border-gray-200 dark:border-glass-border bg-white dark:bg-glass-surface backdrop-blur-md flex items-center justify-between px-4 md:px-6 z-20 shrink-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-          <div class="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-            <!-- Back Button for Mobile -->
-            <button @click="chatStore.setActiveConversation(null)" class="md:hidden size-8 mr-1 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 text-gray-600 dark:text-white flex items-center justify-center flex-shrink-0">
-              <span class="material-symbols-outlined text-lg">arrow_back</span>
-            </button>
-            <div 
-              @click="showGroupInfo = true"
-              class="bg-center bg-no-repeat bg-cover rounded-full size-10 ring-2 ring-primary/20 flex-shrink-0"
-              :style="{ backgroundImage: `url(${chatStore.activeConversation.isGroup ? defaultAvatar : (chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.avatar_url || defaultAvatar)})` }"
-            ></div>
-            <div @click="showGroupInfo = true" class="flex-1 min-w-0 mr-2">
-              <h2 class="text-gray-900 dark:text-white text-lg font-bold leading-none mb-1">
-                {{ chatStore.activeConversation.name || chatStore.activeConversation.participants.filter(p => p.id !== authStore.user?.id).map(p => p.full_name || p.username).join(', ') }}
-              </h2>
-              <div class="flex items-center gap-2 text-xs" v-if="!chatStore.activeConversation.isGroup">
-                <span :class="['flex size-2 rounded-full', getOtherUserOnline(chatStore.activeConversation) ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-400']" ></span>
-                <span :class="getOtherUserOnline(chatStore.activeConversation) ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-400 dark:text-slate-500 font-medium'">{{ getOtherUserOnline(chatStore.activeConversation) ? locale.t.chat.online : 'Offline' }}</span>
-                <span v-if="chatStore.activeConversation.participants.find(p => p.id !== authStore.user?.id)?.ooo_until" class="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 text-[10px] font-bold">OOO / Fora do Escritório</span>
-              </div>
-              <div class="flex items-center gap-2 text-xs" v-else>
-                <span class="flex size-2 bg-green-500 rounded-full"></span>
-                <span class="text-gray-500 dark:text-slate-400 font-medium">{{ getGroupOnlineCount(chatStore.activeConversation) }}/{{ chatStore.activeConversation.participants.length }} online · clique para ver info</span>
-              </div>
-            </div>
-          </div>
-
-          <div id="tour-actions" class="flex items-center gap-1 md:gap-2" v-if="!chatStore.activeConversation.isGroup && chatStore.activeConversation.participants.length > 0">
-            <!-- AI Insights Buttons -->
-            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 hidden md:flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
-              <span class="material-symbols-outlined text-xl">insights</span>
-            </button>
-            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
-              <span class="material-symbols-outlined text-[22px]">checklist</span>
-            </button>
-            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 hidden md:flex items-center justify-center transition-colors" title="Criar enquete">
-              <span class="material-symbols-outlined text-xl">poll</span>
-            </button>
-            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
-              <span class="material-symbols-outlined text-xl">event</span>
-            </button>
-
-            <!-- Mobile Actions Dropdown -->
-            <div class="relative flex items-center md:hidden">
-               <button @click="showMobileHeaderActions = !showMobileHeaderActions" class="size-10 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-slate-300 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-xl">more_vert</span>
-               </button>
-               <div v-if="showMobileHeaderActions" class="absolute top-12 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-[110] min-w-[200px] origin-top-right animate-fade-in-down">
-                 <button @click="fetchInsights('summarize'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-amber-500 text-[18px]">insights</span> Resumo IA</button>
-                 <button @click="fetchInsights('extract_tasks'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-green-500 text-[18px]">checklist</span> Extrair Tarefas</button>
-                 <button @click="showPollModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-violet-500 text-[18px]">poll</span> Nova Enquete</button>
-                 <button @click="showMeetingModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião</button>
-               </div>
-            </div>
-            
-            <!-- P2P Call Buttons -->
-            <button 
-              @click="startP2PCall('screen')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 hidden md:flex items-center justify-center transition-colors"
-              title="Apresentar Tela"
-            >
-              <span class="material-symbols-outlined text-xl">present_to_all</span>
-            </button>
-            <button 
-              @click="startP2PCall('audio')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors"
-              title="Ligar (Apenas Áudio)"
-            >
-              <span class="material-symbols-outlined text-xl">call</span>
-            </button>
-            <button 
-              @click="startP2PCall('video')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors relative group"
-              title="Chamada de Vídeo ao vivo"
-            >
-              <span class="material-symbols-outlined text-xl">videocam</span>
-              <span class="absolute -top-1 -right-1 text-[10px] bg-primary text-white rounded-full w-3.5 h-3.5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">?</span>
-            </button>
-          </div>
-          <!-- GROUP Call Buttons -->
-          <div class="flex items-center gap-1 md:gap-2" v-if="chatStore.activeConversation.isGroup">
-            <!-- AI Insights Buttons -->
-            <button @click="fetchInsights('summarize')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-amber-500 hidden md:flex items-center justify-center transition-colors" title="Resumir Conversa com IA">
-              <span class="material-symbols-outlined text-xl">insights</span>
-            </button>
-            <button @click="fetchInsights('extract_tasks')" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Extrair Tarefas com IA">
-              <span class="material-symbols-outlined text-[22px]">checklist</span>
-            </button>
-            <button @click="showPollModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-violet-500 hidden md:flex items-center justify-center transition-colors" title="Criar enquete">
-              <span class="material-symbols-outlined text-xl">poll</span>
-            </button>
-            <button @click="showMeetingModal = true" class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 hidden md:flex items-center justify-center transition-colors mr-1 md:mr-2 border-r border-gray-200 dark:border-white/10 pr-2" title="Agendar reunião">
-              <span class="material-symbols-outlined text-xl">event</span>
-            </button>
-
-            <!-- Mobile Actions Dropdown -->
-            <div class="relative flex items-center md:hidden">
-               <button @click="showMobileHeaderActions = !showMobileHeaderActions" class="size-10 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-slate-300 flex items-center justify-center transition-colors">
-                 <span class="material-symbols-outlined text-xl">more_vert</span>
-               </button>
-               <div v-if="showMobileHeaderActions" class="absolute top-12 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-[110] min-w-[200px] origin-top-right animate-fade-in-down">
-                 <button @click="fetchInsights('summarize'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-amber-500 text-[18px]">insights</span> Resumo IA</button>
-                 <button @click="fetchInsights('extract_tasks'); showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-green-500 text-[18px]">checklist</span> Extrair Tarefas</button>
-                 <button @click="showPollModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-violet-500 text-[18px]">poll</span> Nova Enquete</button>
-                 <button @click="showMeetingModal = true; showMobileHeaderActions=false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium"><span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião</button>
-               </div>
-            </div>
-            
-            <button 
-              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'screen')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-blue-500 hidden md:flex items-center justify-center transition-colors"
-              title="Apresentar Tela"
-              :disabled="groupCallStore.callState !== 'idle'"
-            >
-              <span class="material-symbols-outlined text-xl">present_to_all</span>
-            </button>
-            <button 
-              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'audio')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-green-500 flex items-center justify-center transition-colors"
-              title="Chamada em Grupo (Áudio)"
-              :disabled="groupCallStore.callState !== 'idle'"
-            >
-              <span class="material-symbols-outlined text-xl">call</span>
-            </button>
-            <button 
-              @click="groupCallStore.startGroupCall(chatStore.activeConversationId, 'video')"
-              class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors"
-              title="Chamada em Grupo (Vídeo)"
-              :disabled="groupCallStore.callState !== 'idle'"
-            >
-              <span class="material-symbols-outlined text-xl">videocam</span>
-            </button>
-          </div>
-        </header>
+        <ChatHeader
+          :conversation="chatStore.activeConversation"
+          :auth-user-id="authStore.user?.id"
+          :default-avatar="defaultAvatar"
+          :locale="locale"
+          :is-other-user-online="getOtherUserOnline(chatStore.activeConversation)"
+          :group-online-count="getGroupOnlineCount(chatStore.activeConversation)"
+          :can-start-group-call="groupCallStore.callState === 'idle'"
+          @back="chatStore.setActiveConversation(null)"
+          @open-group-info="showGroupInfo = true"
+          @fetch-insights="fetchInsights"
+          @open-poll="showPollModal = true"
+          @open-meeting="showMeetingModal = true"
+          @start-p2p-call="startP2PCall"
+          @start-group-call="mode => groupCallStore.startGroupCall(chatStore.activeConversationId, mode)"
+        />
         
         <!-- Chat Tabs (Sub-Header) -->
         <div class="h-12 border-b border-gray-200 dark:border-glass-border bg-gray-50 dark:bg-black/10 flex items-center px-4 md:px-6 gap-6 z-10 shrink-0">
@@ -608,47 +357,6 @@
           </Transition>
 
           <template v-for="(msg, msgIndex) in chatStore.activeMessages" :key="msg.id">
-
-            <!-- ==== CALL LOG MESSAGE ==== -->
-            <div v-if="msg.contentType === 'call'" :id="`msg-${msg.id}`" class="flex justify-center">
-              <div class="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 shadow-sm max-w-xs text-gray-700 dark:text-slate-300">
-                <!-- Icon by call type and status -->
-                <div class="flex-shrink-0">
-                  <template v-if="parseCallLog(msg.content).status === 'missed' || parseCallLog(msg.content).status === 'declined'">
-                    <span class="material-symbols-outlined text-red-400 text-xl">call_missed</span>
-                  </template>
-                  <template v-else-if="parseCallLog(msg.content).callType === 'video'">
-                    <span class="material-symbols-outlined text-primary text-xl">videocam</span>
-                  </template>
-                  <template v-else-if="parseCallLog(msg.content).callType === 'screen'">
-                    <span class="material-symbols-outlined text-blue-400 text-xl">present_to_all</span>
-                  </template>
-                  <template v-else>
-                    <span class="material-symbols-outlined text-green-400 text-xl">call</span>
-                  </template>
-                </div>
-                <div class="flex flex-col min-w-0">
-                  <span class="text-xs font-semibold">
-                    <span v-if="msg.senderId === authStore.user?.id">Você iniciou</span>
-                    <span v-else>{{ msg.senderName || msg.senderUsername }} ligou</span>
-                    —
-                    <span v-if="parseCallLog(msg.content).callType === 'video'">Chamada de vídeo</span>
-                    <span v-else-if="parseCallLog(msg.content).callType === 'screen'">Compartilhamento de tela</span>
-                    <span v-else>Chamada de voz</span>
-                  </span>
-                  <span class="text-[11px] opacity-60 flex items-center gap-1">
-                    <span v-if="parseCallLog(msg.content).status === 'missed'" class="text-red-400">Não atendida</span>
-                    <span v-else-if="parseCallLog(msg.content).status === 'declined'" class="text-red-400">Recusada</span>
-                    <span v-else>
-                      {{ formatCallDuration(parseCallLog(msg.content).duration) }}
-                    </span>
-                    <span class="opacity-40">·</span>
-                    <span>{{ formatTime(msg.createdAt) }}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
             <!-- ★ Date separator between different days -->
             <div v-if="shouldShowDateSeparator(msgIndex) && msg.contentType !== 'call'" class="flex items-center justify-center my-4">
               <div class="bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-slate-400 text-[11px] font-semibold px-4 py-1 rounded-full">
@@ -656,504 +364,65 @@
               </div>
             </div>
 
-            <!-- ==== NORMAL MESSAGE ==== -->
-            <div v-if="msg.contentType !== 'call'" :id="`msg-${msg.id}`" :class="[
-              'flex items-end max-w-[80%] transition-colors duration-500 rounded-2xl',
-              msg.senderId === authStore.user?.id ? 'self-end flex-row-reverse' : '',
-              isGroupedMessage(msgIndex) ? 'mt-0.5' : 'mt-4',
-              isGroupedMessage(msgIndex) ? '' : 'gap-3'
-            ]">
-            <!-- ★ Avatar: hidden for grouped messages (same sender, < 5min apart) -->
-            <div v-if="!isGroupedMessage(msgIndex)"
-              class="bg-center bg-no-repeat bg-cover rounded-full size-8 mb-1 flex-shrink-0 opacity-80"
-              :style="{ backgroundImage: `url(${msg.senderAvatar || defaultAvatar})` }"
-            ></div>
-            <div v-else class="w-8 flex-shrink-0"></div>
-            <div :class="['flex flex-col relative group max-w-full', msg.senderId === authStore.user?.id ? 'items-end' : '', isGroupedMessage(msgIndex) ? 'gap-0' : 'gap-1']">
-              <div :class="['flex items-center gap-2', msg.senderId === authStore.user?.id ? 'flex-row-reverse' : '']">
-                <div :class="[
-                  'rounded-2xl border shadow-sm overflow-hidden min-w-[60px]',
-                  msg.contentType === 'sticker' ? '!bg-transparent !border-transparent !shadow-none' :
-                  msg.senderId === authStore.user?.id 
-                    ? 'bg-primary text-white dark:bg-gradient-to-br dark:from-primary/20 dark:to-blue-600/20 dark:backdrop-blur-md dark:border-primary/30 dark:shadow-neon rounded-br-none border-primary'
-                    : 'bg-white dark:bg-white/10 dark:backdrop-blur-md text-gray-700 dark:text-slate-200 border-gray-200 dark:border-white/5 rounded-bl-none'
-                ]">
-                  <!-- Deleted Message -->
-                  <p v-if="msg.isDeleted || msg.contentType === 'deleted'" class="p-3.5 text-sm italic opacity-70 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[16px]">block</span> {{ msg.content }}
-                  </p>
-                  
-                  <!-- Normal Message (not deleted) -->
-                  <template v-else>
-                    <!-- Reply Context (shown above the content) -->
-                    <div v-if="msg.replyTo" class="px-2.5 py-1.5 mx-2 mt-2 mb-0 bg-black/10 dark:bg-black/20 rounded border-l-[3px] border-black/20 dark:border-white/20 cursor-pointer hover:opacity-80 transition-opacity" @click="scrollToMessage(msg.replyTo)">
-                       <span class="text-[10px] font-bold block opacity-70 leading-none mb-1">Respondendo a</span>
-                       <p class="text-xs truncate italic opacity-90 leading-tight">{{ getMessageSnippet(msg.replyTo) }}</p>
-                    </div>
-                    
-                    <!-- Text Message -->
-                    <div v-if="!msg.contentType || msg.contentType === 'text'" class="flex flex-col">
-                      <p class="p-3.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-lg" :class="msg.replyTo ? 'pt-1' : ''"><span v-html="renderMessageContent(msg.content)"></span></p>
-                      <!-- Link Preview Cards -->
-                      <div v-if="hasLinks(msg.content)" class="px-3 pb-2 flex flex-col gap-1.5">
-                        <LinkPreview v-for="url in extractUrls(msg.content)" :key="url" :url="url" />
-                      </div>
-                      <!-- Translation display -->
-                      <div v-if="msg.aiTranslation" class="mx-3 mb-3 mt-0 p-2.5 bg-blue-50/80 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30 text-xs leading-relaxed text-gray-800 dark:text-gray-300 relative shadow-inner">
-                        <span class="absolute -top-2 -left-2 bg-blue-100 dark:bg-blue-800 size-5 flex items-center justify-center rounded-full text-[10px] shadow-sm border border-blue-200 dark:border-blue-700">🌍</span>
-                        {{ msg.aiTranslation }}
-                      </div>
-                    </div>
-
-                    <!-- Poll Message -->
-                    <div v-else-if="msg.contentType === 'poll'" class="p-3 min-w-[260px] max-w-md">
-                      <div class="rounded-xl border border-violet-300/40 dark:border-violet-500/30 bg-violet-50/70 dark:bg-violet-500/10 p-3">
-                        <p class="text-[11px] font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wide mb-2">Enquete</p>
-                        <p class="text-sm font-semibold text-gray-800 dark:text-slate-100 mb-3">{{ parsePoll(msg.content).question }}</p>
-                        <div class="flex flex-col gap-2">
-                          <button
-                            v-for="(opt, optIdx) in parsePoll(msg.content).options"
-                            :key="`${msg.id}-${optIdx}`"
-                            @click="voteInPoll(msg, optIdx)"
-                            class="w-full text-left px-3 py-2 rounded-lg border transition-colors text-xs"
-                            :class="isOptionSelected(msg, optIdx) ? 'border-violet-500 bg-violet-500/20 text-violet-800 dark:text-violet-100' : 'border-violet-300/40 dark:border-violet-500/20 hover:bg-violet-500/10 text-gray-700 dark:text-slate-200'"
-                          >
-                            <div class="flex items-center justify-between gap-3">
-                              <span class="truncate">{{ opt.text }}</span>
-                              <span class="font-bold text-[10px]">{{ getPollVotesCount(msg, optIdx) }}</span>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Meeting Message -->
-                    <div v-else-if="msg.contentType === 'meeting'" class="w-full max-w-sm rounded-2xl bg-white dark:bg-[#131c1e] border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden mt-1 p-0.5">
-                     <div class="h-1 bg-primary w-full rounded-t-xl"></div>
-                     <div class="p-4 flex flex-col gap-3">
-                        <div class="flex items-center gap-2">
-                           <div class="size-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span class="material-symbols-outlined text-primary text-sm">event</span>
-                           </div>
-                           <div class="flex flex-col flex-1 min-w-0">
-                              <span class="text-sm font-bold text-gray-900 dark:text-white truncate" :title="parseMeeting(msg.content)?.title">{{ parseMeeting(msg.content)?.title || 'Reunião Agendada' }}</span>
-                              <span class="text-[11px] text-gray-500 font-medium truncate">Liderada por {{ msg.senderName || msg.senderUsername }}</span>
-                           </div>
-                        </div>
-                        <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300 bg-gray-50 dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                           <span class="material-symbols-outlined text-[16px] text-gray-400">schedule</span>
-                           <span class="font-medium">{{ formatMeetingDate(parseMeeting(msg.content)?.startAt) }}</span>
-                        </div>
-                        <p v-if="parseMeeting(msg.content)?.description" class="text-xs text-gray-500 italic px-1 line-clamp-2">"{{ parseMeeting(msg.content)?.description }}"</p>
-                        <a v-if="parseMeeting(msg.content)?.meetingLink" :href="parseMeeting(msg.content)?.meetingLink" target="_blank" class="mt-1 w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-colors">
-                           <span class="material-symbols-outlined text-[14px]">videocam</span> Juntar-se à Reunião
-                        </a>
-                        <div v-else class="text-center text-[10px] text-gray-400 mt-1 uppercase tracking-wider font-bold">Sem link de vídeo</div>
-                     </div>
-                  </div>
-                    
-                    <!-- Sticker Message -->
-                    <div v-else-if="msg.contentType === 'sticker'" class="p-1 max-w-[180px] relative group/sticker">
-                      <img 
-                        :src="getApiUrl(msg.content)" 
-                        class="w-full h-auto object-contain drop-shadow-xl select-none scale-100 hover:scale-105 transition-transform cursor-pointer" 
-                        @contextmenu.prevent="showStickerActions(msg)"
-                      />
-                      <!-- Hover action buttons -->
-                      <div class="absolute top-1 right-1 opacity-0 group-hover/sticker:opacity-100 transition-opacity flex gap-1">
-                        <button 
-                          @click.stop="saveStickerToFavorites(msg.content)"
-                          class="size-7 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-yellow-500 transition-colors" 
-                          title="Salvar nos Favoritos"
-                        >
-                          <span class="material-symbols-outlined text-sm">star</span>
-                        </button>
-                        <a 
-                          :href="getApiUrl(msg.content)" 
-                          download 
-                          target="_blank"
-                          class="size-7 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-primary transition-colors" 
-                          title="Baixar Figurinha"
-                          @click.stop
-                        >
-                          <span class="material-symbols-outlined text-sm">download</span>
-                        </a>
-                      </div>
-                    </div>
-                    
-                    <!-- Image Message -->
-                    <div v-else-if="msg.contentType === 'image'" class="p-1">
-                      <img :src="getApiUrl(msg.content)" class="rounded-lg max-w-sm max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity" @click="openImageLightbox(getApiUrl(msg.content))" />
-                    </div>
-
-                    <!-- Audio Message -->
-                    <div v-else-if="msg.contentType === 'audio'" class="p-2 flex flex-col gap-2 relative">
-                      <audio :src="getApiUrl(msg.content)" controls class="h-10 w-full max-w-[200px] custom-audio"></audio>
-                      <button v-if="!msg.aiTranscription" @click="transcribeAudio(msg)" class="self-start text-[10px] flex items-center gap-1 mt-1 px-2 py-1 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold hover:bg-purple-500/20 transition-all border border-purple-500/20" title="Criar resumo da IA para ler rápido sem ouvir">
-                        <span class="material-symbols-outlined text-[12px]" :class="msg.isTranscribing ? 'animate-spin' : ''">{{ msg.isTranscribing ? 'progress_activity' : 'auto_awesome' }}</span> 
-                        {{ msg.isTranscribing ? 'Lendo Áudio...' : 'Anotar c/ IA' }}
-                      </button>
-                      <div v-if="msg.aiTranscription" class="mx-1 mb-1 p-2 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-800/30 text-[11px] leading-tight text-gray-800 dark:text-gray-300">
-                        {{ msg.aiTranscription }}
-                      </div>
-                    </div>
-
-                    <!-- File/PDF/Video Message -->
-                    <div v-else class="p-3 flex items-center gap-3 min-w-[200px]">
-                      <div class="size-10 rounded-lg bg-black/10 dark:bg-white/10 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-2xl" v-if="msg.contentType === 'video'">movie</span>
-                        <span class="material-symbols-outlined text-2xl" v-else-if="msg.contentType === 'pdf'">picture_as_pdf</span>
-                        <span class="material-symbols-outlined text-2xl" v-else>description</span>
-                      </div>
-                      <div class="flex flex-col flex-1 min-w-0">
-                        <span class="text-sm font-medium truncate w-full">{{ getFileName(msg.content) }}</span>
-                        <a 
-                          :href="getApiUrl(msg.content)" 
-                          target="_blank" 
-                          download 
-                          class="text-xs opacity-70 hover:opacity-100 hover:underline flex items-center gap-1"
-                        >
-                          Download <span class="material-symbols-outlined text-[10px]">download</span>
-                        </a>
-                      </div>
-                    </div>
-                  </template>
-                </div>
-
-                <!-- Delete/Edit buttons (Hover) -->
-                <div v-if="!msg.isDeleted && msg.contentType !== 'deleted'" class="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex gap-1 transition-opacity">
-                  <button v-if="(!msg.contentType || msg.contentType === 'text') && !msg.aiTranslation" @click="translateMessage(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-blue-500" title="Traduzir Mensagem (IA)"><span class="material-symbols-outlined text-[14px]" :class="msg.isTranslating ? 'animate-spin' : ''">{{ msg.isTranslating ? 'progress_activity' : 'translate' }}</span></button>
-                  <button @click="startReply(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-cyan-500" title="Responder"><span class="material-symbols-outlined text-[14px]">reply</span></button>
-                  <button @click="togglePin(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-amber-500" title="Fixar/Desfixar">
-                    <span class="material-symbols-outlined text-[14px]">keep</span>
-                  </button>
-                  <button v-if="msg.senderId === authStore.user?.id && (!msg.contentType || msg.contentType === 'text')" @click="startEdit(msg)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"><span class="material-symbols-outlined text-[14px]">edit</span></button>
-                  <button v-if="msg.senderId === authStore.user?.id" @click="deleteMsg(msg.id)" class="p-1.5 rounded-full bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-500"><span class="material-symbols-outlined text-[14px]">delete</span></button>
-                </div>
-              </div>
-
-              <div class="flex items-center gap-1 mt-0.5 px-1 truncate max-w-full justify-end flex-wrap">
-                <!-- Thread Info -->
-                <button 
-                  v-if="msg.replyCount > 0" 
-                  @click="startReply(msg)" 
-                  class="mr-2 text-[11px] font-bold text-primary hover:underline hover:text-cyan-500 transition-colors flex items-center gap-1"
-                >
-                  <span class="material-symbols-outlined text-[14px]">forum</span>
-                  {{ msg.replyCount }} {{ msg.replyCount > 1 ? 'respostas' : 'resposta' }}
-                </button>
-              
-                <!-- Reactions -->
-                <div v-if="msg.reactions && Object.keys(msg.reactions).length > 0" class="flex gap-1 mr-2 bg-gray-100 dark:bg-black/30 rounded-full px-1.5 py-0.5 border border-gray-200 dark:border-white/10">
-                   <div v-for="(users, emoji) in msg.reactions" :key="emoji" @click="toggleReaction(msg.id, emoji)" class="flex items-center gap-1 cursor-pointer text-[10px] hover:scale-110 transition-transform" :class="users.includes(authStore.user?.id) ? 'text-primary' : ''">
-                      <span>{{ emoji }}</span> <span class="font-bold">{{ users.length }}</span>
-                   </div>
-                </div>
-
-                <div class="flex items-center gap-1">
-                  <!-- Quick Reactions (Desktop expanded on hover) -->
-                  <div class="hidden md:group-hover:flex opacity-0 md:opacity-100 flex-nowrap gap-0.5 mr-2 transition-opacity bg-gray-100 dark:bg-black/30 rounded-full px-1.5 py-0.5 border border-gray-200 dark:border-white/10 shadow-sm relative z-10">
-                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '👍')" title="Curtir">👍</button>
-                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '❤️')" title="Amar">❤️</button>
-                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '😂')" title="Rir">😂</button>
-                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '🔥')" title="Fogo">🔥</button>
-                     <button class="flex items-center justify-center p-0.5 hover:scale-125 transition-transform text-sm active:scale-95 focus:outline-none" @click="toggleReaction(msg.id, '😮')" title="Surpreso">😮</button>
-                     <button class="flex items-center justify-center p-0.5 border-l border-gray-300 dark:border-white/10 pl-1.5 ml-0.5 text-gray-500 hover:scale-110 transition-transform active:scale-95 focus:outline-none" @click="openReactionPicker(msg.id)" title="Mais emojis">
-                        <span class="material-symbols-outlined text-sm">add</span>
-                     </button>
-                  </div>
-                  <!-- Mobile 'Add Reaction' trigger (always visible but small) -->
-                  <button class="md:hidden flex items-center justify-center size-6 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-500 mr-2 hover:bg-gray-200 transition-colors" @click="openReactionPicker(msg.id)">
-                     <span class="material-symbols-outlined text-[14px]">add_reaction</span>
-                  </button>
-
-                  <span v-if="msg.expiresAt" class="material-symbols-outlined text-[12px] text-red-400 mr-1" title="Mensagem temporária">timer</span>
-                  <span class="text-[10px] text-gray-400 dark:text-slate-500">{{ formatTime(msg.createdAt) }}</span>
-                  <span v-if="msg.editedAt" class="text-[9px] text-gray-400 dark:text-slate-500 italic ml-1">(editado)</span>
-                  <!-- Read receipts -->
-                  <span v-if="msg.senderId === authStore.user?.id" class="material-symbols-outlined text-[14px] ml-1" :class="msg.isRead ? 'text-blue-500 shadow-blue-500/20' : 'text-gray-400'">{{ msg.isRead ? 'done_all' : 'check' }}</span>
-                  <!-- Seen by tooltip for groups -->
-                  <div v-if="chatStore.activeConversation?.isGroup && msg.senderId === authStore.user?.id && msg.readBy && msg.readBy.length > 0" class="relative group/seen inline-flex ml-1">
-                    <span class="text-[9px] text-blue-400 cursor-help">{{ msg.readBy.length }}👁</span>
-                    <div class="absolute bottom-full right-0 mb-1 hidden group-hover/seen:block bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] px-2 py-1.5 rounded-lg shadow-xl z-50 whitespace-nowrap max-w-48">
-                      <p class="font-bold mb-0.5">Visto por:</p>
-                      <p v-for="uid in msg.readBy.slice(0, 5)" :key="uid" class="leading-relaxed">{{ getParticipantName(uid) }}</p>
-                      <p v-if="msg.readBy.length > 5" class="opacity-60">+{{ msg.readBy.length - 5 }} mais</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            </div>
-
+            <MessageBubble
+              :message="msg"
+              :is-mine="msg.senderId === authStore.user?.id"
+              :is-grouped="isGroupedMessage(msgIndex)"
+              :is-group-conversation="chatStore.activeConversation?.isGroup"
+              :current-user-id="authStore.user?.id"
+              :default-avatar="defaultAvatar"
+              :helpers="messageHelpers"
+              @reply="startReply"
+              @edit="startEdit"
+              @delete="deleteMsg"
+              @pin="togglePin"
+              @translate="translateMessage"
+              @react="({ messageId, emoji }) => toggleReaction(messageId, emoji)"
+              @open-reaction-picker="openReactionPicker"
+              @vote-poll="({ message, optionIndex }) => voteInPoll(message, optionIndex)"
+              @open-image="openImageLightbox"
+              @transcribe-audio="transcribeAudio"
+              @save-sticker="saveStickerToFavorites"
+              @sticker-actions="showStickerActions"
+              @jump-to-message="scrollToMessage"
+            />
           </template>
         </div>
         
         <!-- Input Area -->
-        <div class="p-6 pt-2 shrink-0 z-20 bg-gray-50 dark:bg-transparent relative">
-          <!-- Typing Indicator -->
-          <div v-if="typingUserNames.length > 0" class="absolute -top-6 left-6 text-xs text-gray-500 italic flex items-center gap-1.5 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full dark:bg-black/30">
-             <div class="flex gap-1 pr-1">
-               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.15s"></span>
-               <span class="size-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.3s"></span>
-             </div>
-             <span class="font-medium text-primary">{{ typingUserNames.join(', ') }}</span> 
-             {{ typingUserNames.length > 1 ? 'estão digitando' : 'está digitando' }}...
-          </div>
-
-          <!-- Edit / Reply Banner -->
-          <div v-if="editingMessageId || replyingToMessage" class="absolute -top-10 left-6 right-6 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-4 py-2 rounded-t-xl text-xs font-medium flex justify-between items-center border border-yellow-200 dark:border-yellow-900/50 backdrop-blur-md">
-            <div class="flex items-center gap-2 w-full pr-4 overflow-hidden">
-              <span class="material-symbols-outlined text-[16px]">{{ replyingToMessage ? 'reply' : 'edit' }}</span> 
-              <span class="truncate">{{ replyingToMessage ? `Respondendo: ${getMessageSnippet(replyingToMessage.id)}` : 'Editando mensagem' }}</span>
-            </div>
-            <button @click="cancelEditOrReply" class="text-yellow-600 hover:text-yellow-800 dark:hover:text-yellow-100 shrink-0"><span class="material-symbols-outlined text-sm">close</span></button>
-          </div>
-
-          <!-- Emoji Picker (Absolute positioned) -->
-          <div v-if="showEmojiPicker" class="absolute bottom-20 left-6 z-30 shadow-2xl rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
-            <emoji-picker class="light dark:dark"></emoji-picker>
-          </div>
-
-          <div class="bg-white dark:bg-glass-surface border border-gray-200 dark:border-glass-border rounded-2xl p-2 flex flex-col gap-2 shadow-lg relative" :class="editingMessageId ? 'rounded-tl-none rounded-tr-none' : ''">
-            <div class="absolute -inset-px bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 rounded-2xl opacity-50 pointer-events-none hidden dark:block"></div>
-            <!-- Respostas Rápidas IA -->
-            <!-- Respostas Rápidas IA -->
-            <div class="relative w-full overflow-hidden" v-if="!isRecording">
-              <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-glass-surface to-transparent z-10 pointer-events-none"></div>
-              <div class="flex items-center gap-2 mb-2 ml-[44px] max-w-full overflow-x-auto no-scrollbar snap-x snap-mandatory pr-8">
-                <button v-if="!smartReplies.length" @click="generateSmartReplies" :disabled="isGeneratingReplies" class="snap-start flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold border border-primary/20 hover:bg-primary/20 hover:border-primary/40 transition-all whitespace-nowrap disabled:opacity-50" title="Ler a última mensagem recebida e gerar dicas de respostas curtas">
-                  <span class="material-symbols-outlined text-[14px]" :class="isGeneratingReplies ? 'animate-spin' : ''">
-                    {{ isGeneratingReplies ? 'progress_activity' : 'smart_toy' }}
-                  </span>
-                  {{ isGeneratingReplies ? 'Analisando...' : 'Sugerir Respostas com IA' }}
-                </button>
-                <template v-else>
-                  <button v-for="(reply, idx) in smartReplies" :key="idx" @click="useSmartReply(reply)" class="snap-start flex items-center gap-1 px-4 py-1.5 rounded-full bg-white dark:bg-glass-surface text-gray-700 dark:text-gray-300 text-xs font-medium border border-gray-200 dark:border-white/10 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all whitespace-nowrap shadow-sm">
-                    {{ reply }}
-                  </button>
-                  <button @click="smartReplies = []" class="snap-start size-7 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-white/5 transition-colors shrink-0" title="Fechar">
-                    <span class="material-symbols-outlined text-[16px]">close</span>
-                  </button>
-                </template>
-              </div>
-            </div>
-            
-            <div class="flex items-end gap-1 md:gap-2 w-full relative">
-            
-            <!-- File Upload Input (Hidden) -->
-            <input 
-              type="file" 
-              ref="fileInput" 
-              class="hidden" 
-              @change="handleFileUpload"
-              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
-            />
-            
-            <!-- Desktop Layout Tools -->
-            <div class="hidden md:flex items-center">
-              <button 
-                id="tour-attachment"
-                @click="$refs.fileInput.click()"
-                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-primary flex items-center justify-center transition-colors mb-0.5 shrink-0"
-                :disabled="editingMessageId"
-                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-              >
-                <span class="material-symbols-outlined transform rotate-45">attach_file</span>
-              </button>
-              <button 
-                @click="showWhiteboardModal = true"
-                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
-                title="Lousa Criativa (Desenho livre)"
-                :disabled="editingMessageId"
-                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-              >
-                <span class="material-symbols-outlined">draw</span>
-              </button>
-              <button 
-                @click="showMeetingModal = true"
-                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors mb-0.5 shrink-0"
-                title="Agendar Reunião"
-                :disabled="editingMessageId"
-                :class="editingMessageId ? 'opacity-50 cursor-not-allowed' : ''"
-              >
-                <span class="material-symbols-outlined">event</span>
-              </button>
-              <select v-model="messageExpiresIn" class="mb-1 ml-1 text-xs bg-transparent border-none text-gray-500 dark:text-slate-400 p-1 cursor-pointer outline-none ring-0 w-16" title="Temporizador de Autodestruição">
-                  <option :value="null">Off</option>
-                  <option :value="60">1m</option>
-                  <option :value="600">10m</option>
-                  <option :value="3600">1h</option>
-              </select>
-            </div>
-
-            <!-- Mobile Layout Tools -->
-            <div class="md:hidden relative flex items-end">
-              <button @click="showComposerActions = !showComposerActions" class="size-10 rounded-full text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/10 flex items-center justify-center transition-all duration-300 mb-0.5 shrink-0" :class="showComposerActions ? 'rotate-45 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'rotate-0'">
-                <span class="material-symbols-outlined font-bold">add</span>
-              </button>
-              <div v-if="showComposerActions" class="absolute bottom-12 left-0 bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 dark:border-white/10 p-2 flex flex-col gap-1 z-50 min-w-[180px] origin-bottom-left animate-fade-in-up">
-                <button @click="$refs.fileInput.click(); showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
-                  <span class="material-symbols-outlined text-primary text-[18px]">attach_file</span> Anexar
-                </button>
-                <button @click="showWhiteboardModal = true; showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
-                  <span class="material-symbols-outlined text-orange-500 text-[18px]">draw</span> Lousa Explicativa
-                </button>
-                <button @click="showMeetingModal = true; showComposerActions = false" class="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-white/10 rounded-xl text-gray-700 dark:text-slate-200 transition-colors text-sm font-medium">
-                  <span class="material-symbols-outlined text-indigo-500 text-[18px]">event</span> Agendar Reunião
-                </button>
-                <div class="px-3 py-2 border-t border-gray-100 dark:border-white/10 mt-1">
-                  <label class="text-[10px] text-gray-400 font-bold block mb-1 uppercase tracking-wider">Temporizador</label>
-                  <select v-model="messageExpiresIn" class="w-full text-xs font-semibold bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 p-2 rounded-lg text-gray-700 dark:text-white outline-none">
-                      <option :value="null">Off (Permanente)</option>
-                      <option :value="60">1 Minuto</option>
-                      <option :value="600">10 Minutos</option>
-                      <option :value="3600">1 Hora</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex-1 min-h-[44px] py-2.5 flex items-center gap-2">
-              <span v-if="isRecording" class="flex items-center gap-2 text-red-500 animate-pulse text-sm font-medium px-2">
-                <span class="material-symbols-outlined text-lg">mic</span> Gravando áudio...
-              </span>
-              <textarea 
-                id="tour-input"
-                v-else
-                v-model="newMessage"
-                @keyup.enter.exact="sendMessage"
-                rows="1"
-                @input="handleTyping"
-                :placeholder="locale.t.chat.typeMessage + ' (Shift+Enter para pular linha)'"
-                class="w-full bg-transparent border-none p-0 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 focus:ring-0 resize-none max-h-32"
-                title="Escreva sua mensagem aqui"
-              ></textarea>
-            </div>
-
-            <!-- Mentions Dropdown -->
-            <div v-if="showMentionDropdown && filteredMentionUsers.length > 0" class="absolute bottom-full left-10 mb-2 w-64 bg-white dark:bg-glass-surface border border-gray-200 dark:border-white/10 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-xl max-h-48 overflow-y-auto">
-              <div class="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider border-b border-gray-100 dark:border-white/5">Membros</div>
-              <ul>
-                <li v-for="u in filteredMentionUsers" :key="u.id" 
-                    class="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
-                    @click="selectMention(u)">
-                   <div class="size-6 rounded-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center text-white text-[10px] uppercase shadow-sm shrink-0">
-                      {{ (u.full_name || u.username).substring(0, 2) }}
-                   </div>
-                   <div class="flex flex-col overflow-hidden leading-tight">
-                     <span class="text-xs font-semibold text-gray-900 dark:text-white truncate">{{ u.full_name || u.username }}</span>
-                     <span class="text-[10px] text-gray-500 truncate">@{{ u.username }}</span>
-                   </div>
-                </li>
-              </ul>
-            </div>
-            
-            <div class="flex items-center gap-1 mb-0.5 shrink-0 relative">
-              <!-- Botão Varinha Mágica -->
-              <div class="relative">
-                <button 
-                  id="tour-magic"
-                  @click="showMagicMenu = !showMagicMenu"
-                  class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-purple-500 flex items-center justify-center transition-colors relative"
-                  title="Varinha Mágica (IA)"
-                  v-if="!isRecording"
-                  :disabled="!newMessage.trim() || isProcessingMagic"
-                  :class="(!newMessage.trim() || isProcessingMagic) ? 'opacity-50 cursor-not-allowed' : ''"
-                >
-                  <span v-if="isProcessingMagic" class="material-symbols-outlined text-purple-500 animate-spin">progress_activity</span>
-                  <template v-else>
-                    <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
-                    <span v-if="newMessage.trim()" class="absolute top-1 right-1 size-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse"></span>
-                  </template>
-                </button>
-                
-                <!-- Menu IA -->
-                <div v-if="showMagicMenu" class="absolute bottom-full right-0 md:-left-1/2 mb-2 w-56 bg-white dark:bg-glass-surface border border-gray-200 dark:border-white/10 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-xl">
-                  <div class="p-2 border-b border-gray-100 dark:border-white/5 text-[10px] font-bold text-gray-400 dark:text-slate-500 text-center uppercase tracking-wider flex items-center justify-center gap-1">
-                    <span class="material-symbols-outlined text-xs">auto_awesome</span> Inteligência Artificial
-                  </div>
-                  <button @click="applyMagicText('professional')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
-                    <span class="material-symbols-outlined text-[18px] text-blue-500">work</span>
-                    <div class="flex flex-col leading-tight gap-0.5">
-                      <span class="font-medium">Tom Profissional</span>
-                      <span class="text-[10px] text-gray-400">Reescrever para o trabalho</span>
-                    </div>
-                  </button>
-                  <button @click="applyMagicText('grammar')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
-                    <span class="material-symbols-outlined text-[18px] text-green-500">spellcheck</span>
-                    <div class="flex flex-col leading-tight gap-0.5">
-                      <span class="font-medium">Corrigir Erros</span>
-                      <span class="text-[10px] text-gray-400">Gramática e pontuação</span>
-                    </div>
-                  </button>
-                  <button @click="applyMagicText('english')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
-                    <span class="material-symbols-outlined text-[18px] text-red-500">translate</span>
-                    <div class="flex flex-col leading-tight gap-0.5">
-                      <span class="font-medium">Traduzir (Inglês)</span>
-                      <span class="text-[10px] text-gray-400">Native english translation</span>
-                    </div>
-                  </button>
-                  <button @click="applyMagicText('summarize')" class="w-full text-left px-4 py-3 text-sm hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 flex items-center gap-3 transition-colors">
-                    <span class="material-symbols-outlined text-[18px] text-amber-500">short_text</span>
-                    <div class="flex flex-col leading-tight gap-0.5">
-                      <span class="font-medium">Resumir Tópicos</span>
-                      <span class="text-[10px] text-gray-400">Para mensagens grandes</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <button 
-                @click="showEmojiPicker = !showEmojiPicker; showStickerPicker = false"
-                class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-accent flex items-center justify-center transition-colors"
-                title="Inserir um Emoji (Rostinhos)"
-                v-if="!isRecording"
-              >
-                <span class="material-symbols-outlined">sentiment_satisfied</span>
-              </button>
-
-              <div class="relative items-center flex" v-if="!isRecording">
-                <button 
-                  @click="showStickerPicker = !showStickerPicker; showEmojiPicker = false"
-                  class="size-10 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 dark:text-slate-400 hover:text-orange-500 flex items-center justify-center transition-colors"
-                  title="Figurinhas (Stickers)"
-                >
-                  <span class="material-symbols-outlined">sticky_note_2</span>
-                </button>
-
-                <div v-if="showStickerPicker" class="fixed inset-0 z-40" @click="showStickerPicker = false"></div>
-                <div v-if="showStickerPicker" class="absolute bottom-full right-0 mb-2 z-50">
-                  <StickerPicker @select="sendStickerMessage" />
-                </div>
-              </div>
-              
-              <button 
-                v-if="!newMessage.trim() && !editingMessageId"
-                @mousedown="startRecording"
-                @mouseup="stopRecording"
-                @touchstart.prevent="startRecording"
-                @touchend.prevent="stopRecording"
-                class="h-10 w-10 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 rounded-xl flex items-center justify-center transition-all select-none"
-                :class="isRecording ? 'bg-red-500 text-white dark:bg-red-600 shadow-lg shadow-red-500/50 scale-110' : ''"
-                title="Segure para gravar áudio"
-              >
-                <span class="material-symbols-outlined text-[20px]">mic</span>
-              </button>
-              
-              <button 
-                v-else
-                @click="sendMessage"
-                class="h-10 px-4 ml-1 bg-primary hover:bg-cyan-400 text-white dark:text-background-dark rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-sm dark:shadow-neon"
-              >
-                <span>{{ editingMessageId ? 'Salvar' : locale.t.chat.send }}</span>
-                <span class="material-symbols-outlined text-[18px]" v-if="!editingMessageId">send</span>
-              </button>
-            </div>
-            </div>
-          </div>
-        </div>
+        <ChatInput
+          v-model="newMessage"
+          v-model:showEmojiPicker="showEmojiPicker"
+          v-model:showStickerPicker="showStickerPicker"
+          v-model:showMagicMenu="showMagicMenu"
+          v-model:showComposerActions="showComposerActions"
+          v-model:messageExpiresIn="messageExpiresIn"
+          :typing-user-names="typingUserNames"
+          :editing-message-id="editingMessageId"
+          :replying-to-message="replyingToMessage"
+          :reply-preview-text="replyPreviewText"
+          :smart-replies="smartReplies"
+          :is-generating-replies="isGeneratingReplies"
+          :is-processing-magic="isProcessingMagic"
+          :show-mention-dropdown="showMentionDropdown"
+          :filtered-mention-users="filteredMentionUsers"
+          :is-recording="isRecording"
+          :locale="locale"
+          @send-message="handleSendMessage"
+          @typing="handleTyping"
+          @cancel-edit-or-reply="cancelEditOrReply"
+          @generate-smart-replies="generateSmartReplies"
+          @use-smart-reply="useSmartReply"
+          @clear-smart-replies="smartReplies = []"
+          @file-selected="handleFileUpload"
+          @open-whiteboard="showWhiteboardModal = true"
+          @open-meeting="showMeetingModal = true"
+          @apply-magic-text="applyMagicText"
+          @send-sticker="sendStickerMessage"
+          @start-recording="startRecording"
+          @stop-recording="stopRecording"
+          @select-mention="selectMention"
+        />
         </div>
         
         <!-- Tab: Kanban -->
@@ -1939,12 +1208,14 @@ import { useStickerStore } from '@/stores/stickers'
 import 'emoji-picker-element'
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-import LinkPreview from '@/components/LinkPreview.vue';
 import ThreadPanel from '@/components/ThreadPanel.vue';
 import CopilotPanel from '@/components/CopilotPanel.vue';
 import MeetingModal from '@/components/MeetingModal.vue';
 import WhiteboardModal from '@/components/WhiteboardModal.vue';
-import StickerPicker from '@/components/StickerPicker.vue';
+import ChatSidebar from '@/components/chat/ChatSidebar.vue';
+import ChatHeader from '@/components/chat/ChatHeader.vue';
+import ChatInput from '@/components/chat/ChatInput.vue';
+import MessageBubble from '@/components/chat/MessageBubble.vue';
 const KanbanBoard = defineAsyncComponent(() => import('@/components/KanbanBoard.vue'));
 const WikiCanvas = defineAsyncComponent(() => import('@/components/WikiCanvas.vue'));
 import CommandPalette from '@/components/CommandPalette.vue';
@@ -2192,7 +1463,6 @@ let callTimerInterval = null
 const remoteVideoEl = ref(null)
 const pipEl = ref(null)
 
-const showMobileHeaderActions = ref(false)
 const showComposerActions = ref(false)
 
 const searchQuery = ref('')
@@ -2202,7 +1472,6 @@ const showNewChatModal = ref(false)
 const userFilter = ref('')
 const showEmojiPicker = ref(false)
 const showMobileSidebar = ref(false)
-const fileInput = ref(null)
 const lightboxImageUrl = ref('')
 const showStickerPicker = ref(false)
 const showPollModal = ref(false)
@@ -2234,6 +1503,9 @@ const insightsResult = ref('')
 
 const editingMessageId = ref(null)
 const replyingToMessage = ref(null)
+const replyPreviewText = computed(() => (
+  replyingToMessage.value ? getMessageSnippet(replyingToMessage.value.id) : ''
+))
 const messageExpiresIn = ref(null)
 const infoTab = ref('members')
 
@@ -2337,6 +1609,24 @@ const recentDevices = computed(() => {
   return devs.slice(0, 5)
 })
 
+const messageHelpers = {
+  parseCallLog,
+  formatCallDuration,
+  formatTime,
+  renderMessageContent,
+  hasLinks,
+  extractUrls,
+  parsePoll,
+  getPollVotesCount,
+  isOptionSelected,
+  parseMeeting,
+  formatMeetingDate,
+  getMessageSnippet,
+  getParticipantName,
+  getApiUrl,
+  getFileName,
+}
+
 const filteredUsers = computed(() => {
   if (!usersStore.users) return []
   const query = userFilter.value.toLowerCase()
@@ -2412,6 +1702,13 @@ async function leaveGroup() {
       alert('Erro ao sair do grupo');
     }
   }
+}
+
+async function handleSendMessage(payload) {
+  if (payload && typeof payload.text === 'string' && payload.text !== newMessage.value) {
+    newMessage.value = payload.text
+  }
+  await sendMessage()
 }
 
 async function sendMessage() {
