@@ -1223,6 +1223,7 @@ import { useWebRTCStore } from '@/stores/webrtc'
 import { useGroupCallStore } from '@/stores/groupCall'
 import { useThemeStore } from '@/stores/theme'
 import { useStickerStore } from '@/stores/stickers'
+import { useNotificationsStore } from '@/stores/notifications'
 import { useChatSockets } from '@/composables/useChatSockets'
 import { useChatMessages } from '@/composables/useChatMessages'
 import { useChatUploads } from '@/composables/useChatUploads'
@@ -1263,6 +1264,7 @@ const webrtcStore = useWebRTCStore()
 const groupCallStore = useGroupCallStore()
 const themeStore = useThemeStore()
 const stickerStore = useStickerStore()
+const notificationsStore = useNotificationsStore()
 const defaultAvatar = 'https://ui-avatars.com/api/?name=User&background=0f2023&color=00d4ff'
 
 const isDeepWorkMode = ref(localStorage.getItem('isDeepWorkMode') === 'true')
@@ -1323,18 +1325,34 @@ const {
 const {
   isNotificationSupported,
   notificationPermission,
-  requestPermission: requestNotificationPermission,
-  requestFcmToken,
 } = useChatNotifications()
 
 const showNotificationPermissionBanner = computed(
-  () => isNotificationSupported.value && notificationPermission.value === 'default'
+  () => isNotificationSupported.value
+    && notificationPermission.value === 'default'
+    && notificationsStore.isSupported
 )
 
 async function handleRequestNotifications() {
-  const result = await requestNotificationPermission()
-  if (result === 'granted') {
-    await requestFcmToken()
+  try {
+    await notificationsStore.subscribe()
+    // Atualiza o ref local de permissão após subscribe
+    notificationPermission.value = Notification.permission
+  } catch (e) {
+    console.error('[Notifications] Erro ao ativar push:', e.message)
+  }
+}
+
+/** Auto-registra push silenciosamente se permissão já foi concedida */
+async function autoRegisterPushIfGranted() {
+  if (!notificationsStore.isSupported) return
+  if (Notification.permission !== 'granted') return
+  if (notificationsStore.isSubscribed) return
+  try {
+    await notificationsStore.subscribe()
+  } catch (e) {
+    // Silencioso: não bloqueia o fluxo do chat
+    console.warn('[Notifications] Auto-register push falhou:', e.message)
   }
 }
 
@@ -2249,6 +2267,10 @@ onMounted(async () => {
   await usersStore.fetchUsers(1, '')
   await chatStore.fetchOnlineUsers()
   await chatStore.fetchMentions()
+
+  // Auto-registrar push notifications (Web Push VAPID)
+  await notificationsStore.checkStatus()
+  await autoRegisterPushIfGranted()
   
   document.addEventListener('emoji-click', onEmojiClick)
 

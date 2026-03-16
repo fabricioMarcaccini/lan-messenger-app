@@ -1,12 +1,9 @@
 import { ref } from 'vue'
-import { initializeApp, getApps } from 'firebase/app'
-import { getMessaging, getToken, isSupported as isMessagingSupported } from 'firebase/messaging'
-import { api } from '@/stores/auth'
 
-let messagingInstance = null
-let firebaseInitAttempted = false
-let fcmSwRegistrationPromise = null
-
+/**
+ * Composable para gerenciar notificações locais e permissões de navegador.
+ * Nota: O Push Notification real é gerenciado pelo stores/notifications.js (Web Push VAPID).
+ */
 export function useChatNotifications() {
   const isNotificationSupported = ref(typeof window !== 'undefined' && 'Notification' in window)
   const isAppBadgeSupported = ref(typeof navigator !== 'undefined' && 'setAppBadge' in navigator)
@@ -48,9 +45,13 @@ export function useChatNotifications() {
   }
 
   function playNotificationSound() {
-    // Placeholder: implement sound feedback if desired
+    // Implementar som se desejado
   }
 
+  /**
+   * Exibe uma notificação local (Desktop Notification) se o browser suportar.
+   * Utilizada quando o app está aberto, mas em background ou em outra conversa.
+   */
   function notifyNewMessage(message, sender, options = {}) {
     if (!isNotificationSupported.value) return false
     const permission = getPermission()
@@ -67,88 +68,28 @@ export function useChatNotifications() {
       const notification = new Notification(title, {
         body,
         icon,
+        tag: options.tag || (message?.conversationId ? `conv-${message.conversationId}` : undefined),
+        renotify: true
       })
+      
       notification.onclick = () => {
         try {
           window.focus()
+          if (message?.conversationId) {
+            // Emite um evento customizado que o Dashboard pode ouvir para trocar de conversa
+            window.dispatchEvent(new CustomEvent('notification:click', { 
+               detail: { conversationId: message.conversationId } 
+            }))
+          }
         } catch (error) {
-          // ignore focus errors
+          console.error('[Notification] Falha ao focar janela:', error)
         }
         notification.close()
       }
       return true
     } catch (error) {
+      console.error('[Notification] Falha ao criar notificação local:', error)
       return false
-    }
-  }
-
-  function getFirebaseConfig() {
-    return {
-      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-      appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    }
-  }
-
-  async function initFirebaseMessaging() {
-    if (firebaseInitAttempted) return messagingInstance
-    firebaseInitAttempted = true
-
-    const supported = await isMessagingSupported().catch(() => false)
-    if (!supported) return null
-
-    const firebaseConfig = getFirebaseConfig()
-    if (!firebaseConfig.apiKey || !firebaseConfig.messagingSenderId) {
-      return null
-    }
-
-    if (!getApps().length) {
-      initializeApp(firebaseConfig)
-    }
-    messagingInstance = getMessaging()
-    return messagingInstance
-  }
-
-  async function requestFcmToken() {
-    try {
-      if (typeof window === 'undefined') return null
-      const permission = await requestPermission()
-      if (permission !== 'granted') return null
-
-      const messaging = await initFirebaseMessaging()
-      if (!messaging) return null
-
-      if (!('serviceWorker' in navigator)) return null
-      if (!fcmSwRegistrationPromise) {
-        fcmSwRegistrationPromise = navigator.serviceWorker.ready
-      }
-      const registration = await fcmSwRegistrationPromise
-      const config = getFirebaseConfig()
-      if (config?.apiKey) {
-        const sw = registration.active || registration.waiting || registration.installing
-        if (sw?.postMessage) {
-          sw.postMessage({ type: 'FIREBASE_CONFIG', config })
-        }
-      }
-
-      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY
-      if (!vapidKey) return null
-
-      const token = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: registration,
-      })
-
-      if (token) {
-        await api.post('/users/me/fcm-token', { token })
-      }
-
-      return token || null
-    } catch (error) {
-      return null
     }
   }
 
@@ -160,7 +101,6 @@ export function useChatNotifications() {
     getPermission,
     updateBadge,
     playNotificationSound,
-    notifyNewMessage,
-    requestFcmToken,
+    notifyNewMessage
   }
 }

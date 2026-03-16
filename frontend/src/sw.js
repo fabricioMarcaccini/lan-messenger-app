@@ -1,7 +1,8 @@
 // pwabuilder-sw.js
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.3/workbox-sw.js');
-importScripts('/firebase-messaging-sw.js');
+// Firebase messaging import removed (Unified to Web Push VAPID)
+// importScripts('/firebase-messaging-sw.js');
 
 if (workbox) {
     workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
@@ -64,15 +65,22 @@ self.addEventListener('push', function (event) {
         return;
     }
 
-    const data = (event.data && event.data.json) ? event.data.json() : {};
+    let data = {};
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (e) {
+        try { data = { body: event.data?.text() || '' }; } catch (_) { /* ignore */ }
+    }
 
     const title = data.title || "Nova mensagem no Lanly";
     const options = {
         body: data.body || "Você tem uma nova notificação.",
-        icon: data.icon || '/icon-192x192.png',
-        badge: '/icon-192x192.png',
+        icon: data.icon || '/lanly-logo.png',
+        badge: '/lanly-logo.png',
         data: data.url || '/',
         vibrate: [100, 50, 100],
+        tag: data.tag || 'lanly-push-' + Date.now(),
+        renotify: true,
     };
 
     event.waitUntil(
