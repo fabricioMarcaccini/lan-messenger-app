@@ -456,7 +456,9 @@ router.post('/webhook', async (ctx) => {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!endpointSecret) {
-        console.error('❌ STRIPE_WEBHOOK_SECRET não configurado no .env');
+        console.error('❌ ALERTA CRÍTICO DE CHECKOUT STRIPE:');
+        console.error('O segredo do Webhook (STRIPE_WEBHOOK_SECRET) não foi encontrado no arquivo .env ou no painel do Render!');
+        console.error('Sem ele, a API não consegue validar se o pagamento foi real ou forjado. Adicione a chave "whsec_..." da Stripe ao Render.');
         ctx.status = 500;
         ctx.body = { error: 'Webhook secret não configurado.' };
         return;
@@ -476,7 +478,9 @@ router.post('/webhook', async (ctx) => {
 
         event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
     } catch (err) {
-        console.error(`❌ Webhook signature verification failed: ${err.message}`);
+        console.error(`❌ ALERTA CRÍTICO: Falha na assinatura do Webhook Stripe!`);
+        console.error(`O STRIPE_WEBHOOK_SECRET configurado no servidor não coincide com a assinatura da requisição enviada.`);
+        console.error(`Verifique se você copiou o segredo correto do Dashboard da Stripe. Detalhe do Erro: ${err.message}`);
         ctx.status = 400;
         ctx.body = { error: `Webhook Error: ${err.message}` };
         return;
