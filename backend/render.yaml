@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        value: "https://frontend-iota-one-83.vercel.app"
+        value: "https://app.lanly.com.br"
       - key: PG_HOST
         value: "dpg-d6c68fa4d50c73d53vbg-a.ohio-postgres.render.com"
       - key: PG_PORT

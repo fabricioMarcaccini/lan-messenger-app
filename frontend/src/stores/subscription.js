@@ -129,10 +129,12 @@ export const useSubscriptionStore = defineStore('subscription', () => {
         error.value = null
         try {
             const affiliateRef = localStorage.getItem('affiliate_ref') || ''
+            const returnPath = window.location.pathname
             const response = await api.post('/stripe/create-checkout-session', {
                 planId,
                 seats,
                 ref: affiliateRef,
+                returnPath
             })
 
             if (response.data.success && response.data.url) {
@@ -152,7 +154,8 @@ export const useSubscriptionStore = defineStore('subscription', () => {
         loading.value = true
         error.value = null
         try {
-            const response = await api.post('/stripe/create-portal-session')
+            const returnPath = window.location.pathname
+            const response = await api.post('/stripe/create-portal-session', { returnPath })
             if (response.data.success && response.data.url) {
                 window.location.href = response.data.url
             }
