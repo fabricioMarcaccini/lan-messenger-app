@@ -306,7 +306,7 @@ const autoSave = () => {
           title: activePage.value.title,
           content: activePage.value.content,
           emoji: activePage.value.emoji,
-          parent_id: activePage.value.parent_id,
+          parentId: activePage.value.parent_id,
           coverUrl: activePage.value.cover_url,
           version: activePage.value.version
         });
@@ -333,7 +333,7 @@ const autoSave = () => {
       if (err.response?.status === 409) {
           conflictError.value = "Conflito: Alguém editou a página recentemente. Atualize (F5).";
       } else {
-          console.error(err);
+          console.error("Wiki Save Error:", err.response?.data || err);
       }
     } finally {
       isSaving.value = false;

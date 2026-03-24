@@ -27,9 +27,9 @@
           <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50"></div>
         </div>
         <div class="text-[13px] leading-relaxed text-zinc-800 dark:text-zinc-300 font-mono">
-          > INITIALIZING LANLY BRAIN...<br>
-          > READY.<br><br>
-          How can I assist you with your enterprise operations today?
+          > INICIALIZANDO LANLY BRAIN...<br>
+          > SISTEMA OPERACIONAL PRONTO.<br><br>
+          Olá! Sou a inteligência artificial do Lanly. Como posso auxiliar na gestão das suas tarefas corporativas hoje?
         </div>
       </div>
 
@@ -39,7 +39,7 @@
         <!-- User Message -->
         <div v-if="msg.role === 'user'" class="flex flex-col gap-2 items-end">
           <div class="flex items-center gap-2 w-full flex-row-reverse">
-            <span class="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">User</span>
+            <span class="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Você</span>
             <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50"></div>
           </div>
           <div class="text-[13px] leading-relaxed text-zinc-900 dark:text-zinc-100 bg-zinc-100 dark:bg-zinc-800/50 px-3 py-2 rounded-sm whitespace-pre-wrap max-w-[85%] border-l-2 border-black dark:border-white">
@@ -66,7 +66,7 @@
           <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50"></div>
         </div>
         <div class="text-[13px] text-zinc-500 font-mono animate-pulse">
-          > processing_request...
+          > processando_requisicao...
         </div>
       </div>
     </main>
@@ -81,7 +81,7 @@
           v-model="inputQuery"
           @keydown.enter.prevent="sendQuery"
           rows="1"
-          placeholder="Enter command..." 
+          placeholder="Digite um comando..." 
           class="flex-1 bg-transparent border-none text-[13px] font-mono text-zinc-900 dark:text-zinc-100 pl-9 pr-12 py-3 resize-none focus:outline-none max-h-32 min-h-[44px] w-full"
           style="scrollbar-width: none;"
           @input="autoResize"
@@ -96,8 +96,8 @@
         </button>
       </div>
       <div class="flex justify-between items-center mt-3">
-        <p class="text-[9px] font-mono text-zinc-400 uppercase tracking-widest">AI MODULE V1.0</p>
-        <p class="text-[9px] font-mono text-zinc-400">MAY CONTAIN INACCURACIES</p>
+        <p class="text-[9px] font-mono text-zinc-400 uppercase tracking-widest">MÓDULO DE IA V1.0</p>
+        <p class="text-[9px] font-mono text-zinc-400">PODE CONTER IMPRECISÕES</p>
       </div>
     </div>
 
