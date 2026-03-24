@@ -252,6 +252,35 @@ router.post('/:conversationId', async (ctx) => {
     ctx.body = { success: true, data: taskData };
 });
 
+// GET /api/tasks/:taskId/audit
+// Fetch history of changes
+router.get('/:taskId/audit', async (ctx) => {
+    const { taskId } = ctx.params;
+    
+    // Authorization check
+    const taskCheck = await db.write('SELECT conversation_id FROM tasks WHERE id = $1', [taskId]);
+    if (taskCheck.rows.length === 0) {
+        ctx.status = 404;
+        ctx.body = { success: false, message: 'Tarefa não encontrada' };
+        return;
+    }
+    const conversationId = taskCheck.rows[0].conversation_id;
+    if (!(await checkAccess(ctx, conversationId))) return;
+
+    // Fetch activities
+    const result = await db.write(`
+        SELECT a.id, a.action, a.changed_fields, a.created_at, 
+               u.id as user_id, u.full_name, u.username, u.avatar_url
+        FROM task_activities a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.task_id = $1
+        ORDER BY a.created_at DESC
+        LIMIT 50
+    `, [taskId]);
+
+    ctx.body = { success: true, data: result.rows };
+});
+
 // PUT /api/tasks/:taskId
 // Update task details or move it (And audit the transaction)
 router.put('/:taskId', auditMiddleware('task'), async (ctx) => {

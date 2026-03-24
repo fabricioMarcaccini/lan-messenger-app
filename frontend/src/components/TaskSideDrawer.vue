@@ -74,12 +74,12 @@
                   <!-- Content Card -->
                   <div class="flex-1 bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                     <p class="text-sm text-gray-700 dark:text-gray-300">
-                      <strong class="font-medium text-gray-900 dark:text-white">{{ log.user_name }}</strong> alterou 
-                      <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 mx-1">
-                        {{ log.changed_fields.join(', ') }}
+                      <strong class="font-medium text-gray-900 dark:text-white">{{ log.full_name || log.username }}</strong> alterou 
+                      <span v-for="field in log.changed_fields" :key="field" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 mx-1">
+                        {{ field }}
                       </span>
                     </p>
-                    <time class="text-xs text-gray-500 dark:text-gray-400 mt-1 block">{{ log.time_ago }}</time>
+                    <time class="text-xs text-gray-500 dark:text-gray-400 mt-1 block">{{ formatTime(log.created_at) }}</time>
                   </div>
                 </li>
               </ul>
@@ -93,7 +93,12 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { api } from '../stores/auth';
+import EditorJS from '@editorjs/editorjs';
+import Header from '@editorjs/header';
+import List from '@editorjs/list';
+import { debounce } from 'lodash-es';
 
 const props = defineProps({
   isOpen: Boolean,
@@ -105,11 +110,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'update'])
 
-// State (Mock activities para a UI Demo)
-const mockActivities = ref([
-  { id: 1, user_initials: 'FM', user_name: 'Fabricio', changed_fields: ['status'], time_ago: '5 minutos atrás' },
-  { id: 2, user_initials: 'AI', user_name: 'Antigravity', changed_fields: ['description'], time_ago: '2 horas atrás' },
-]) 
+// State
+const mockActivities = ref([]) 
 let editorInstance = null
 
 const closeDrawer = () => emit('close')
@@ -118,26 +120,67 @@ const updateField = (field, value) => {
   emit('update', { [field]: value })
 }
 
+// Fetch Real Audit Logs
+const fetchAuditLogs = async () => {
+    if(!props.task?.id) return;
+    try {
+        const { data } = await api.get(`/tasks/${props.task.id}/audit`);
+        if (data.success) {
+            mockActivities.value = data.data.map(log => ({
+                ...log,
+                user_initials: (log.full_name || log.username || 'U').substring(0, 2).toUpperCase()
+            }));
+        }
+    } catch (e) {
+        console.error("Failed to load audit logs", e);
+    }
+}
+
+const formatTime = (isoString) => {
+    if(!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
 // Inicialização Lazy do Editor.js
 const initEditor = () => {
-    // console.log("Initializing Editor.js (Mock):", props.task?.descriptionData);
-    //
-    // editorInstance = new EditorJS({
-    //     holder: 'editorjs-container',
-    //     data: props.task.descriptionData,
-    //     onChange: debounce(async (api) => {
-    //         const savedData = await api.saver.save();
-    //         emit('update', { descriptionData: savedData });
-    //     }, 1000)
-    // });
+    if (editorInstance) return;
+    
+    // Tenta parsear JSON pré-existente (se houver), ou ignora para iniciar num bloco vazio/texto text puro formatado
+    let initialData = { blocks: [] };
+    if (props.task?.description) {
+        try {
+            initialData = JSON.parse(props.task.description);
+        } catch (e) {
+            // fallback for legacy plain text tasks
+            initialData = { blocks: [{ type: 'paragraph', data: { text: props.task.description } }] };
+        }
+    }
+
+    editorInstance = new EditorJS({
+        holder: 'editorjs-container',
+        data: initialData,
+        placeholder: 'Pressione TAB ou digite para adicionar conteúdo na Wiki da sua tarefa...',
+        tools: {
+             header: Header,
+             list: List
+        },
+        onChange: debounce(async (apiObj) => {
+            const savedData = await apiObj.saver.save();
+            emit('update', { description: JSON.stringify(savedData) });
+        }, 1200)
+    });
 }
 
 watch(() => props.isOpen, (newVal) => {
     if (newVal) {
+        fetchAuditLogs();
         setTimeout(initEditor, 100); 
     } else {
         if (editorInstance) {
-            // editorInstance.destroy();
+            try {
+               editorInstance.destroy();
+            } catch(e) {}
             editorInstance = null;
         }
     }
