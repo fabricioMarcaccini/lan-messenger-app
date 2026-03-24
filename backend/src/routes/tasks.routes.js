@@ -1,6 +1,7 @@
 import Router from 'koa-router';
 import { db } from '../config/database.js';
 import { authMiddleware } from '../middlewares/auth.js';
+import { auditMiddleware } from '../middlewares/auditMiddleware.js';
 import Joi from 'joi';
 
 const router = new Router();
@@ -252,8 +253,8 @@ router.post('/:conversationId', async (ctx) => {
 });
 
 // PUT /api/tasks/:taskId
-// Update task details or move it
-router.put('/:taskId', async (ctx) => {
+// Update task details or move it (And audit the transaction)
+router.put('/:taskId', auditMiddleware('task'), async (ctx) => {
     const { taskId } = ctx.params;
 
     const schema = Joi.object({

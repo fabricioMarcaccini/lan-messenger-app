@@ -505,10 +505,10 @@
       <button 
         v-if="!showCopilotPanel"
         @click="showCopilotPanel = true"
-        class="absolute bottom-20 right-6 z-40 size-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-xl shadow-purple-500/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-purple-500/20"
+        class="absolute bottom-20 right-6 z-40 size-12 rounded-sm bg-black dark:bg-white text-white dark:text-black border border-black dark:border-white shadow-[4px_4px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_rgba(255,255,255,0.2)] flex items-center justify-center hover:-translate-y-1 hover:shadow-[6px_6px_0px_rgba(0,0,0,1)] dark:hover:shadow-[6px_6px_0px_rgba(255,255,255,0.2)] active:translate-y-0 active:shadow-none transition-all outline-none"
         title="Falar com o Copilot Empresarial (Lanly Brain)"
       >
-        <span class="material-symbols-outlined text-[24px]">auto_awesome</span>
+        <span class="material-symbols-outlined text-[24px]">terminal</span>
       </button>
 
     </main>

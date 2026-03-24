@@ -185,8 +185,8 @@
       </div>
     </div>
 
-    <!-- Task Modal -->
-    <div v-if="showingTaskModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <!-- Task Creation Modal -->
+    <div v-if="showingCreateTaskModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div class="bg-white dark:bg-black w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-white/10 animate-fade-in-down max-h-[90vh] flex flex-col">
         <div class="p-6 flex-1 overflow-y-auto">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">{{ taskForm.id ? 'Editar Tarefa' : 'Nova Tarefa' }}</h3>
@@ -204,18 +204,27 @@
           </select>
           
           <div class="flex justify-end gap-3 mt-6">
-            <button @click="showingTaskModal = false" class="px-4 py-2 text-gray-500 font-bold hover:text-gray-700 dark:hover:text-white">Cancelar</button>
+            <button @click="showingCreateTaskModal = false" class="px-4 py-2 text-gray-500 font-bold hover:text-gray-700 dark:hover:text-white">Cancelar</button>
             <button @click="saveTask" :disabled="!taskForm.title" class="px-6 py-2 bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-600 disabled:opacity-50">Salvar</button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Task Side Drawer (Enterprise Edit) -->
+    <TaskSideDrawer 
+      :isOpen="showingEditDrawer"
+      :task="taskForm"
+      @close="showingEditDrawer = false"
+      @update="handleDrawerUpdate"
+    />
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
+import TaskSideDrawer from './TaskSideDrawer.vue';
 import { useAuthStore } from '../stores/auth';
 import { useChatStore } from '../stores/chat';
 import { api } from '../stores/auth';
@@ -234,7 +243,8 @@ const loading = ref(true);
 const showingColumnModal = ref(false);
 const columnForm = ref({ title: '' });
 
-const showingTaskModal = ref(false);
+const showingCreateTaskModal = ref(false);
+const showingEditDrawer = ref(false);
 const taskForm = ref({ id: null, columnId: null, title: '', description: '', assigneeId: null });
 
 const chatMembers = computed(() => {
@@ -292,12 +302,24 @@ const deleteColumn = async (id) => {
 
 const openCreateTaskModal = (colId) => {
   taskForm.value = { id: null, columnId: colId, title: '', description: '', assigneeId: null };
-  showingTaskModal.value = true;
+  showingCreateTaskModal.value = true;
 };
 const editTask = (task) => {
   taskForm.value = { id: task.id, columnId: task.column_id, title: task.title, description: task.description || '', assigneeId: task.assignee_id };
-  showingTaskModal.value = true;
+  showingEditDrawer.value = true;
 }
+const handleDrawerUpdate = async (updates) => {
+    Object.assign(taskForm.value, updates);
+    if (taskForm.value.id) {
+        const idx = tasks.value.findIndex(t => t.id === taskForm.value.id);
+        if(idx > -1) Object.assign(tasks.value[idx], updates); // Optimistic local update
+        try {
+            await api.put(`/tasks/${taskForm.value.id}`, updates);
+        } catch (err) {
+            console.error("Auto-save update error:", err);
+        }
+    }
+};
 const saveTask = async () => {
   if (!taskForm.value.title) return;
   try {
@@ -311,7 +333,7 @@ const saveTask = async () => {
        const { data } = await api.post(`/tasks/${props.conversationId}`, reqObj);
        tasks.value.unshift(data.data);
     }
-    showingTaskModal.value = false;
+    showingCreateTaskModal.value = false;
   } catch (err) { console.error(err); }
 };
 const deleteTask = async (id) => {
