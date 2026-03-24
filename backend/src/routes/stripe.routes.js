@@ -10,7 +10,9 @@ dotenv.config();
 const router = new Router();
 
 // ─── Stripe SDK Instance ────────────────────────────────────────────────────
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_local_dev', {
+// [audit-fix] throw error if Stripe secret key missing
+if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY must be set");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: '2023-10-16', // Or whatever version you prefer
 });
 
@@ -29,8 +31,26 @@ const PLAN_NAMES = {
 
 // ─── POST /create-checkout-session ──────────────────────────────────────────
 // Creates a Stripe Checkout Session for subscription (Per-Seat model)
+// [audit-fix] rate limiter to prevent duplicate customer creation map
+const checkoutRateLimits = new Map();
+
+// ─── POST /create-checkout-session ──────────────────────────────────────────
+// Creates a Stripe Checkout Session for subscription (Per-Seat model)
 router.post('/create-checkout-session', authMiddleware, adminMiddleware, async (ctx) => {
     try {
+        // [audit-fix] rate limiter to prevent duplicate customer creation
+        const userId = ctx.state.user?.id;
+        if (userId) {
+            const now = Date.now();
+            const lastReq = checkoutRateLimits.get(userId);
+            if (lastReq && now - lastReq < 3000) {
+                ctx.status = 429;
+                ctx.body = { success: false, message: 'Processando, aguarde...' };
+                return;
+            }
+            checkoutRateLimits.set(userId, now);
+        }
+
         const { planId, seats, ref } = ctx.request.body;
 
         // Validation
@@ -303,35 +323,33 @@ router.post('/upgrade-seats', authMiddleware, adminMiddleware, async (ctx) => {
 
                 await stripe.subscriptions.update(company.stripe_subscription_id, updateParams);
 
-                // Update DB immediately (webhook will also fire, but we update now for instant UX)
-                await db.write(
-                    `UPDATE companies SET max_seats = $1, plan_id = COALESCE($2, plan_id), updated_at = NOW() WHERE id = $3`,
-                    [seatsNum, planId || company.plan_id, companyId]
-                );
+                // [audit-fix] removed optimistic DB update to avoid exploit if payment fails.
+                // The DB will ONLY be updated when customer.subscription.updated webhook arrives.
 
                 await writeAuditLog({
                     companyId,
                     actorId: user.id,
-                    action: 'billing.plan_or_seats.updated',
+                    action: 'billing.plan_or_seats.upgrade_requested',
                     targetType: 'company',
                     targetId: companyId,
                     metadata: {
                         fromPlan: company.plan_id,
                         toPlan: planId || company.plan_id,
                         seats: seatsNum,
-                        source: 'api_upgrade_seats',
+                        source: 'api_upgrade_seats_pending',
                     },
                     ipAddress: ctx.ip,
                     userAgent: ctx.get('user-agent') || null,
                 });
 
-                console.log(`🔼 Company ${companyId} upgraded seats: ${seatsNum} (via API direct update)`);
+                console.log(`🔼 Company ${companyId} requested seats upgrade to ${seatsNum} (pending webhook)`);
 
                 ctx.body = {
                     success: true,
                     method: 'direct_update',
-                    message: `Plano atualizado para ${seatsNum} seats!`,
-                    newMaxSeats: seatsNum,
+                    message: `Solicitação enviada! Os novos limites estarão disponíveis após o processamento do pagamento.`,
+                    newMaxSeats: company.max_seats, // Retain old max_seats
+                    isPending: true
                 };
                 return;
             }
@@ -411,7 +429,8 @@ router.get('/subscription-status', authMiddleware, async (ctx) => {
         }
 
         const result = await db.write(
-            'SELECT plan_id, subscription_status, max_seats, stripe_subscription_id FROM companies WHERE id = $1',
+            // [audit-fix] Retrieve cancel_at_period_end and current_period_end
+            'SELECT plan_id, subscription_status, max_seats, stripe_subscription_id, cancel_at_period_end, current_period_end FROM companies WHERE id = $1',
             [companyId]
         );
 
@@ -439,6 +458,9 @@ router.get('/subscription-status', authMiddleware, async (ctx) => {
                 maxSeats: company.max_seats || 5,
                 activeUsers,
                 hasSubscription: !!company.stripe_subscription_id,
+                // [audit-fix] return cancel state for frontend banner
+                cancelAtPeriodEnd: company.cancel_at_period_end || false,
+                currentPeriodEnd: company.current_period_end || null,
             },
         };
     } catch (error) {
@@ -466,10 +488,10 @@ router.post('/webhook', async (ctx) => {
 
     let event;
     try {
-        // rawBody is set by the middleware in app.js (before koaBody)
+        // Raw body was captured by the middleware in app.js BEFORE koaBody consumed the stream
         const rawBody = ctx.request.rawBody;
 
-        if (!rawBody) {
+        if (!rawBody || rawBody.length === 0) {
             console.error('❌ Webhook: rawBody is empty. Check raw body middleware in app.js.');
             ctx.status = 400;
             ctx.body = { error: 'Raw body não disponível.' };
@@ -486,36 +508,53 @@ router.post('/webhook', async (ctx) => {
         return;
     }
 
-    // Process each event type
-    try {
-        switch (event.type) {
-            case 'checkout.session.completed': {
-                await handleCheckoutCompleted(event.data.object);
-                break;
-            }
-            case 'customer.subscription.updated': {
-                await handleSubscriptionUpdated(event.data.object);
-                break;
-            }
-            case 'customer.subscription.deleted': {
-                await handleSubscriptionDeleted(event.data.object);
-                break;
-            }
-            case 'invoice.payment_failed': {
-                await handlePaymentFailed(event.data.object);
-                break;
-            }
-            default:
-                console.log(`ℹ️ Stripe event not handled: ${event.type}`);
-        }
-    } catch (error) {
-        console.error(`❌ Webhook handler error for ${event.type}:`, error.message);
-        // Return 200 to prevent Stripe from retrying — log the error for investigation
-        // Stripe recommends returning 200 even on handler errors to avoid infinite retries
-    }
-
+    // Return 200 immediately to prevent Stripe from retrying
     ctx.status = 200;
     ctx.body = { received: true };
+
+    // Process event asynchronously in background
+    (async () => {
+        try {
+            // Idempotency Check using DB
+            await db.write(
+                `CREATE TABLE IF NOT EXISTS stripe_events (
+                    id VARCHAR(255) PRIMARY KEY,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )`
+            );
+            const check = await db.write(
+                'INSERT INTO stripe_events (id) VALUES ($1) ON CONFLICT (id) DO NOTHING RETURNING id',
+                [event.id]
+            );
+            if (check.rowCount === 0) {
+                console.log(`ℹ️ Skipping duplicate Stripe event: ${event.id}`);
+                return;
+            }
+
+            switch (event.type) {
+                case 'checkout.session.completed': {
+                    await handleCheckoutCompleted(event.data.object);
+                    break;
+                }
+                case 'customer.subscription.updated': {
+                    await handleSubscriptionUpdated(event.data.object);
+                    break;
+                }
+                case 'customer.subscription.deleted': {
+                    await handleSubscriptionDeleted(event.data.object);
+                    break;
+                }
+                case 'invoice.payment_failed': {
+                    await handlePaymentFailed(event.data.object);
+                    break;
+                }
+                default:
+                    console.log(`ℹ️ Stripe event not handled: ${event.type}`);
+            }
+        } catch (error) {
+            console.error(`❌ Webhook handler background error for ${event.type}:`, error.message);
+        }
+    })();
 });
 
 // ─── Webhook Handler Functions ──────────────────────────────────────────────
@@ -612,13 +651,19 @@ async function updateCompanyFromSubscription(companyId, subscription) {
     };
     const subscriptionStatus = statusMap[subscription.status] || 'inactive';
 
+    // [audit-fix] save cancel state and period end from webhook
+    const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
+    const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null;
+
     const updateFields = [
         'subscription_status = $1',
         'max_seats = $2',
+        'cancel_at_period_end = $3',
+        'current_period_end = $4',
         'updated_at = NOW()',
     ];
-    const params = [subscriptionStatus, newQuantity];
-    let paramIdx = 3;
+    const params = [subscriptionStatus, newQuantity, cancelAtPeriodEnd, currentPeriodEnd];
+    let paramIdx = 5;
 
     if (planId) {
         updateFields.push(`plan_id = $${paramIdx}`);

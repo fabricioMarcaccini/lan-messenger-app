@@ -128,9 +128,10 @@ app.use(async (ctx, next) => {
 // Serve uploaded files as static
 app.use(mount('/uploads', serve(path.join(__dirname, '..', 'uploads'))));
 
-// ⚡ CRITICAL: Raw body capture for Stripe webhook — MUST be BEFORE koaBody
-// Stripe requires the raw body (Buffer) to verify webhook signatures.
-// koaBody would parse it first, breaking verification on Render/production.
+// ⚡ CRITICAL: Raw body capture for Stripe webhook — MUST be BEFORE koaBody.
+// koa-body v7 parses based purely on Content-Type (json/urlencoded/text/multipart).
+// After reading the raw stream, we override Content-Type to 'application/octet-stream'
+// so koaBody finds no matching parser and skips the request without touching the stream.
 app.use(async (ctx, next) => {
     if (ctx.path === '/api/stripe/webhook' && ctx.method === 'POST') {
         const chunks = [];
@@ -138,9 +139,8 @@ app.use(async (ctx, next) => {
             chunks.push(chunk);
         }
         ctx.request.rawBody = Buffer.concat(chunks);
-        // Set an empty body so koaBody skips this request
-        ctx.request.body = {};
-        ctx.req._stripeRawBodyRead = true;
+        // [fix] Override Content-Type so koaBody v7 skips this request (it only parses json/urlencoded/text/multipart)
+        ctx.req.headers['content-type'] = 'application/octet-stream';
     }
     await next();
 });

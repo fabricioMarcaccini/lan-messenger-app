@@ -88,8 +88,9 @@ export const requirePlan = (...allowedPlans) => {
                 return;
             }
 
-            // Allow access if plan matches and subscription is active (or free tier)
-            if (allowedPlans.includes(currentPlan) && (status === 'active' || currentPlan === 'free')) {
+            // [audit-fix] past_due, incomplete, canceled must all block access to paid features
+            // Allow access if plan matches and subscription is active/trialing (or free tier)
+            if (allowedPlans.includes(currentPlan) && (status === 'active' || status === 'trialing' || currentPlan === 'free')) {
                 await next();
                 return;
             }
