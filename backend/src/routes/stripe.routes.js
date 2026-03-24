@@ -29,9 +29,7 @@ const PLAN_NAMES = {
     max: 'Max (IA)',
 };
 
-// ─── POST /create-checkout-session ──────────────────────────────────────────
-// Creates a Stripe Checkout Session for subscription (Per-Seat model)
-// [audit-fix] rate limiter to prevent duplicate customer creation map
+// [audit-fix] rate limiter to prevent duplicate customer creation
 const checkoutRateLimits = new Map();
 
 // ─── POST /create-checkout-session ──────────────────────────────────────────
@@ -148,7 +146,7 @@ router.post('/create-checkout-session', authMiddleware, adminMiddleware, async (
                 },
             ],
             success_url: (() => {
-                const reqReturnPath = ctx.request.body.returnPath || '/settings';
+                const reqReturnPath = ctx.request.body?.returnPath || '/settings';
                 const fUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
                 let p = reqReturnPath.startsWith('/') ? reqReturnPath : '/' + reqReturnPath;
                 if (p.startsWith('//')) p = '/settings';
@@ -158,7 +156,7 @@ router.post('/create-checkout-session', authMiddleware, adminMiddleware, async (
                 return u.toString();
             })(),
             cancel_url: (() => {
-                const reqReturnPath = ctx.request.body.returnPath || '/settings';
+                const reqReturnPath = ctx.request.body?.returnPath || '/settings';
                 const fUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
                 let p = reqReturnPath.startsWith('/') ? reqReturnPath : '/' + reqReturnPath;
                 if (p.startsWith('//')) p = '/settings';
@@ -237,7 +235,7 @@ router.post('/create-portal-session', authMiddleware, adminMiddleware, async (ct
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: stripeCustomerId,
             return_url: (() => {
-            const reqReturnPath = ctx.request.body.returnPath || '/settings';
+            const reqReturnPath = ctx.request.body?.returnPath || '/settings';
             const fUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
             let p = reqReturnPath.startsWith('/') ? reqReturnPath : '/' + reqReturnPath;
             if (p.startsWith('//')) p = '/settings';
@@ -380,7 +378,7 @@ router.post('/upgrade-seats', authMiddleware, adminMiddleware, async (ctx) => {
             customer: stripeCustomerId,
             line_items: [{ price: priceId, quantity: seatsNum }],
             success_url: (() => {
-                const reqReturnPath = ctx.request.body.returnPath || '/admin/users';
+                const reqReturnPath = ctx.request.body?.returnPath || '/admin/users';
                 const fUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
                 let p = reqReturnPath.startsWith('/') ? reqReturnPath : '/' + reqReturnPath;
                 if (p.startsWith('//')) p = '/admin/users';
@@ -390,7 +388,7 @@ router.post('/upgrade-seats', authMiddleware, adminMiddleware, async (ctx) => {
                 return u.toString();
             })(),
             cancel_url: (() => {
-                const reqReturnPath = ctx.request.body.returnPath || '/admin/users';
+                const reqReturnPath = ctx.request.body?.returnPath || '/admin/users';
                 const fUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
                 let p = reqReturnPath.startsWith('/') ? reqReturnPath : '/' + reqReturnPath;
                 if (p.startsWith('//')) p = '/admin/users';
@@ -429,8 +427,11 @@ router.get('/subscription-status', authMiddleware, async (ctx) => {
         }
 
         const result = await db.write(
-            // [audit-fix] Retrieve cancel_at_period_end and current_period_end
-            'SELECT plan_id, subscription_status, max_seats, stripe_subscription_id, cancel_at_period_end, current_period_end FROM companies WHERE id = $1',
+            // [enterprise] Retrieve all subscription state including dunning and seat-limit info
+            `SELECT plan_id, subscription_status, max_seats, stripe_subscription_id,
+                    cancel_at_period_end, current_period_end,
+                    payment_failed_at, payment_failure_reason, requires_seat_reduction
+             FROM companies WHERE id = $1`,
             [companyId]
         );
 
@@ -461,6 +462,11 @@ router.get('/subscription-status', authMiddleware, async (ctx) => {
                 // [audit-fix] return cancel state for frontend banner
                 cancelAtPeriodEnd: company.cancel_at_period_end || false,
                 currentPeriodEnd: company.current_period_end || null,
+                // [enterprise] dunning info for frontend payment failure banner
+                paymentFailedAt: company.payment_failed_at || null,
+                paymentFailureReason: company.payment_failure_reason || null,
+                // [enterprise] seat over-limit flag after downgrade
+                requiresSeatReduction: company.requires_seat_reduction || false,
             },
         };
     } catch (error) {
@@ -515,13 +521,7 @@ router.post('/webhook', async (ctx) => {
     // Process event asynchronously in background
     (async () => {
         try {
-            // Idempotency Check using DB
-            await db.write(
-                `CREATE TABLE IF NOT EXISTS stripe_events (
-                    id VARCHAR(255) PRIMARY KEY,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )`
-            );
+            // Idempotency Check — stripe_events table created via migration
             const check = await db.write(
                 'INSERT INTO stripe_events (id) VALUES ($1) ON CONFLICT (id) DO NOTHING RETURNING id',
                 [event.id]
@@ -546,6 +546,11 @@ router.post('/webhook', async (ctx) => {
                 }
                 case 'invoice.payment_failed': {
                     await handlePaymentFailed(event.data.object);
+                    break;
+                }
+                // [enterprise] invoice.paid — financial truth source for confirmed payments
+                case 'invoice.paid': {
+                    await handleInvoicePaid(event.data.object);
                     break;
                 }
                 default:
@@ -655,20 +660,39 @@ async function updateCompanyFromSubscription(companyId, subscription) {
     const cancelAtPeriodEnd = subscription.cancel_at_period_end || false;
     const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null;
 
+    // [enterprise] Detect seat over-limit after downgrade
+    const usersResult = await db.write(
+        'SELECT COUNT(*) as count FROM users WHERE company_id = $1 AND is_active = true',
+        [companyId]
+    );
+    const activeUsers = parseInt(usersResult.rows[0].count, 10);
+    const requiresSeatReduction = activeUsers > newQuantity;
+
+    if (requiresSeatReduction) {
+        console.warn(`⚠️ Company ${companyId} has ${activeUsers} active users but only ${newQuantity} seats allowed. Flagging for seat reduction.`);
+    }
+
     const updateFields = [
         'subscription_status = $1',
         'max_seats = $2',
         'cancel_at_period_end = $3',
         'current_period_end = $4',
+        'requires_seat_reduction = $5',
         'updated_at = NOW()',
     ];
-    const params = [subscriptionStatus, newQuantity, cancelAtPeriodEnd, currentPeriodEnd];
-    let paramIdx = 5;
+    const params = [subscriptionStatus, newQuantity, cancelAtPeriodEnd, currentPeriodEnd, requiresSeatReduction];
+    let paramIdx = 6;
 
     if (planId) {
         updateFields.push(`plan_id = $${paramIdx}`);
         params.push(planId);
         paramIdx++;
+    }
+
+    // [enterprise] Clear payment failure info if subscription becomes active again
+    if (subscriptionStatus === 'active') {
+        updateFields.push('payment_failed_at = NULL');
+        updateFields.push('payment_failure_reason = NULL');
     }
 
     params.push(companyId);
@@ -688,10 +712,12 @@ async function updateCompanyFromSubscription(companyId, subscription) {
             mappedStatus: subscriptionStatus,
             seats: newQuantity,
             planId: planId || null,
+            requiresSeatReduction,
+            cancelAtPeriodEnd,
         },
     });
 
-    console.log(`🔄 Company ${companyId} subscription updated: status=${subscriptionStatus}, seats=${newQuantity}, plan=${planId || 'unchanged'}`);
+    console.log(`🔄 Company ${companyId} subscription updated: status=${subscriptionStatus}, seats=${newQuantity}, plan=${planId || 'unchanged'}, seatOverLimit=${requiresSeatReduction}`);
 }
 
 async function handleSubscriptionDeleted(subscription) {
@@ -753,11 +779,82 @@ async function handlePaymentFailed(invoice) {
     );
 
     if (result.rows.length > 0) {
+        const companyId = result.rows[0].id;
+        // [enterprise] Store failure reason and timestamp for frontend dunning banner
+        const failureReason = invoice.last_finalization_error?.message
+            || invoice.status_transitions?.finalized_at && 'Pagamento recusado'
+            || 'Falha no pagamento';
+
         await db.write(
-            `UPDATE companies SET subscription_status = 'past_due', updated_at = NOW() WHERE id = $1`,
-            [result.rows[0].id]
+            `UPDATE companies
+             SET subscription_status = 'past_due',
+                 payment_failed_at = NOW(),
+                 payment_failure_reason = $2,
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [companyId, failureReason]
         );
-        console.log(`⚠️ Company ${result.rows[0].id} marked as past_due (payment failed)`);
+
+        await writeAuditLog({
+            companyId,
+            actorId: null,
+            action: 'billing.payment.failed',
+            targetType: 'company',
+            targetId: companyId,
+            metadata: {
+                invoiceId: invoice.id,
+                failureReason,
+                amountDue: invoice.amount_due,
+                currency: invoice.currency,
+            },
+        });
+
+        console.log(`⚠️ Company ${companyId} marked as past_due (payment failed: ${failureReason})`);
+    }
+}
+
+// [enterprise] Handle confirmed invoice payment — financial truth source
+async function handleInvoicePaid(invoice) {
+    console.log('💰 Invoice Paid:', invoice.id);
+
+    const customerId = invoice.customer;
+    if (!customerId) return;
+
+    const result = await db.write(
+        'SELECT id, subscription_status FROM companies WHERE stripe_customer_id = $1',
+        [customerId]
+    );
+
+    if (result.rows.length > 0) {
+        const companyId = result.rows[0].id;
+        const previousStatus = result.rows[0].subscription_status;
+
+        // Clear any payment failure state and ensure subscription is active
+        await db.write(
+            `UPDATE companies
+             SET subscription_status = 'active',
+                 payment_failed_at = NULL,
+                 payment_failure_reason = NULL,
+                 updated_at = NOW()
+             WHERE id = $1 AND subscription_status != 'active'`,
+            [companyId]
+        );
+
+        await writeAuditLog({
+            companyId,
+            actorId: null,
+            action: 'billing.invoice.paid',
+            targetType: 'company',
+            targetId: companyId,
+            metadata: {
+                invoiceId: invoice.id,
+                amountPaid: invoice.amount_paid,
+                currency: invoice.currency,
+                previousStatus,
+            },
+        });
+
+        console.log(`💰 Company ${companyId} invoice paid. Status restored to active (was: ${previousStatus})`);
     }
 }
 
